@@ -26,6 +26,10 @@ def set_motor_power_values(
         if (m3_newv is not None) and (m3_newv < 0 or m3_newv > 1): m3_newv = None
         if (m4_newv is not None) and (m4_newv < 0 or m4_newv > 1): m4_newv = None
         global motor_pp
+        if m1_newv is not None and not m1_newv: motor_pp["motor1_pp"] = 0
+        if m2_newv is not None and not m2_newv: motor_pp["motor2_pp"] = 0
+        if m3_newv is not None and not m3_newv: motor_pp["motor3_pp"] = 0
+        if m4_newv is not None and not m4_newv: motor_pp["motor4_pp"] = 0
         motor_pp["motor1_pp"] = m1_newv or motor_pp["motor1_pp"]
         motor_pp["motor2_pp"] = m2_newv or motor_pp["motor2_pp"]
         motor_pp["motor3_pp"] = m3_newv or motor_pp["motor3_pp"]
