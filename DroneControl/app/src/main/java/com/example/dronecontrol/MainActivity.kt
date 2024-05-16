@@ -20,6 +20,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -35,7 +36,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.dronecontrol.ui.theme.DroneControlTheme
+import com.example.dronecontrol.viewmodels.ConnectionViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -43,6 +47,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             DroneControlTheme {
+
                 DroneApp()
             }
         }
@@ -52,19 +57,21 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun DroneApp()
 {
-    MainScreen()
+    var connectionViewModel: ConnectionViewModel = viewModel()
+
+    MainScreen(connectionViewModel)
 
 
 }
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-fun MainScreen() {
+fun MainScreen(connectionViewModel: ConnectionViewModel = viewModel()) {
     val inputFieldWidth: Dp = 500.dp
     val titleFontSize: TextUnit = 30.sp
     val textFontSize: TextUnit = 18.sp
-    var errorText by remember { mutableStateOf<String>("") }
 
+    val uiState by connectionViewModel.uiState.collectAsState()
     val keyboardController = LocalSoftwareKeyboardController.current
 
     Column(
@@ -84,8 +91,8 @@ fun MainScreen() {
         )
         Spacer(modifier = Modifier.height(30.dp))
         TextField(
-            value = "",
-            onValueChange = {},
+            value = uiState.host,
+            onValueChange = {connectionViewModel.updateHost(it)},
             label = { Text(
                 "IP Address",
                 fontSize = textFontSize
@@ -94,8 +101,8 @@ fun MainScreen() {
         )
         Spacer(modifier = Modifier.height(16.dp))
         TextField(
-            value = "",
-            onValueChange = {},
+            value = uiState.port,
+            onValueChange = { connectionViewModel.updatePort(it) },
             label = { Text(
                 "Port",
                 fontSize = textFontSize
@@ -104,10 +111,10 @@ fun MainScreen() {
             keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number),
         )
 
-        if (errorText != "")
+        if (uiState.mainScreenErrorText != "")
         {
             Spacer(modifier = Modifier.height(16.dp))
-            Text(text = errorText,
+            Text(text = uiState.mainScreenErrorText,
                 fontSize = textFontSize,
                 color = Color.Red)
         }
@@ -115,7 +122,10 @@ fun MainScreen() {
         Spacer(modifier = Modifier.height(16.dp))
         Button(
             onClick = { /* Connect button clicked */ },
-            modifier = Modifier.align(Alignment.CenterHorizontally)
+            modifier = Modifier.align(Alignment.CenterHorizontally),
+            enabled = uiState.mainScreenErrorText == "" &&
+                    uiState.host != "" && uiState.port != "",
+
         ) {
             Text("Connect", fontSize = textFontSize)
         }
