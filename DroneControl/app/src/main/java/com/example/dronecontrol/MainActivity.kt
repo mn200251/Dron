@@ -1,6 +1,7 @@
 package com.example.dronecontrol
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -37,9 +38,13 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.dronecontrol.screens.DroneScreen
+import com.example.dronecontrol.screens.MainScreen
 import com.example.dronecontrol.ui.theme.DroneControlTheme
 import com.example.dronecontrol.viewmodels.ConnectionViewModel
+import com.example.dronecontrol.viewmodels.SCREEN
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlin.math.log
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -58,93 +63,19 @@ class MainActivity : ComponentActivity() {
 fun DroneApp()
 {
     var connectionViewModel: ConnectionViewModel = viewModel()
-
-    MainScreen(connectionViewModel)
-
-
-}
-
-@OptIn(ExperimentalComposeUiApi::class)
-@Composable
-fun MainScreen(connectionViewModel: ConnectionViewModel = viewModel()) {
-    val inputFieldWidth: Dp = 500.dp
-    val titleFontSize: TextUnit = 30.sp
-    val textFontSize: TextUnit = 18.sp
-
     val uiState by connectionViewModel.uiState.collectAsState()
-    val keyboardController = LocalSoftwareKeyboardController.current
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 5.dp)
-            .clickable {
-                keyboardController?.hide()
-            },
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = "DroneControl App",
-            fontSize = titleFontSize,
-            modifier = Modifier.padding(vertical = 16.dp)
-        )
-        Spacer(modifier = Modifier.height(30.dp))
-        TextField(
-            value = uiState.host,
-            onValueChange = {connectionViewModel.updateHost(it)},
-            label = { Text(
-                "IP Address",
-                fontSize = textFontSize
-                ) },
-            modifier = Modifier.width(inputFieldWidth)
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        TextField(
-            value = uiState.port,
-            onValueChange = { connectionViewModel.updatePort(it) },
-            label = { Text(
-                "Port",
-                fontSize = textFontSize
-                ) },
-            modifier = Modifier.width(inputFieldWidth),
-            keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number),
-        )
-
-        if (uiState.mainScreenErrorText != "")
-        {
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(text = uiState.mainScreenErrorText,
-                fontSize = textFontSize,
-                color = Color.Red)
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-        Button(
-            onClick = { /* Connect button clicked */ },
-            modifier = Modifier.align(Alignment.CenterHorizontally),
-            enabled = uiState.mainScreenErrorText == "" &&
-                    uiState.host != "" && uiState.port != "",
-
-        ) {
-            Text("Connect", fontSize = textFontSize)
+    when (uiState.screenNumber)
+    {
+        SCREEN.MainScreen -> MainScreen(connectionViewModel)
+        SCREEN.DroneScreen -> DroneScreen(connectionViewModel)
+        else -> {
+            Log.d("Error", "Screen does not exist!")
         }
     }
 }
 
 
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
 
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    DroneControlTheme {
-        Greeting("Android")
-    }
-}
+
+
