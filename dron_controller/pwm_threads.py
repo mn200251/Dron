@@ -25,11 +25,21 @@ running = True
 
 def pwm_thread():
     global pulse_length, running
+    sum=0
+    cnt=0
+    prev=time.time()
     while running:
+        cnt+=1
         line.set_value(1)
         time.sleep(pulse_length / 1000000.0)
         line.set_value(0)
         time.sleep((PERIOD - pulse_length) / 1000000.0)
+        now=time.time()
+        sum+=((now-prev)-0.02)
+        prev=now
+    print("Nit gotova")
+    print(sum)
+    print(cnt)
 
 def set_pulse_length(new_pulse_length):
     global pulse_length
