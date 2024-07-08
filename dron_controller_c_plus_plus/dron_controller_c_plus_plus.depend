@@ -1,0 +1,37 @@
+# depslib dependency file v1.0
+1720455083 source:/home/guca/Desktop/dron_controller_c_plus_plus/dron_controller_c_plus_plus/led.cpp
+	"tests.h"
+
+1720464791 source:/home/guca/Desktop/dron_controller_c_plus_plus/dron_controller_c_plus_plus/mpu6050.cpp
+	"mpu6050.h"
+
+1720470468 /home/guca/Desktop/dron_controller_c_plus_plus/dron_controller_c_plus_plus/mpu6050.h
+	<cstdint>
+	<stdexcept>
+	<unistd.h>
+	<cmath>
+	<iostream>
+	<fcntl.h>
+	<sys/ioctl.h>
+	<linux/i2c-dev.h>
+	<chrono>
+
+1720470431 source:/home/guca/Desktop/dron_controller_c_plus_plus/dron_controller_c_plus_plus/mpu_test.cpp
+	"tests.h"
+
+1720467258 source:/home/guca/Desktop/dron_controller_c_plus_plus/dron_controller_c_plus_plus/main.cpp
+	<iostream>
+	"tests.h"
+
+1720454820 /home/guca/Desktop/dron_controller_c_plus_plus/dron_controller_c_plus_plus/led.cpp
+	"tests.h"
+
+1720454870 /home/guca/Desktop/dron_controller_c_plus_plus/dron_controller_c_plus_plus/mpu_test.cpp
+	"tests.h"
+
+1720467475 /home/guca/Desktop/dron_controller_c_plus_plus/dron_controller_c_plus_plus/tests.h
+	<gpiod.h>
+	<iostream>
+	<unistd.h>
+	"mpu6050.h"
+
