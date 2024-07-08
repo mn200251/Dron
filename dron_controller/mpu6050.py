@@ -117,7 +117,7 @@ class mpu6050:
         # Write the new range to the ACCEL_CONFIG register
         self.bus.write_byte_data(self.address, self.ACCEL_CONFIG, accel_range)
 
-    def read_accel_range(self, raw = False):
+    def read_accel_range(self, raw = False)-> int:
         """Reads the range the accelerometer is set to.
 
         If raw is True, it will return the raw value from the ACCEL_CONFIG
@@ -141,7 +141,7 @@ class mpu6050:
             else:
                 return -1
 
-    def get_accel_data(self, g = False):
+    def get_accel_data(self,accel_range:int, g = False):
         """Gets and returns the X, Y and Z values from the accelerometer.
 
         If g is True, it will return the data in g
@@ -153,7 +153,6 @@ class mpu6050:
         z = self.read_i2c_word(self.ACCEL_ZOUT0)
 
         accel_scale_modifier = None
-        accel_range = self.read_accel_range(True)
 
         if accel_range == self.ACCEL_RANGE_2G:
             accel_scale_modifier = self.ACCEL_SCALE_MODIFIER_2G
@@ -198,7 +197,7 @@ class mpu6050:
         return self.bus.write_byte_data(self.address, self.MPU_CONFIG,  EXT_SYNC_SET | filter_range)
 
 
-    def read_gyro_range(self, raw = False):
+    def read_gyro_range(self, raw = False) -> int:
         """Reads the range the gyroscope is set to.
 
         If raw is True, it will return the raw value from the GYRO_CONFIG
@@ -222,7 +221,7 @@ class mpu6050:
             else:
                 return -1
 
-    def get_gyro_data(self):
+    def get_gyro_data(self,gyro_range:int):
         """Gets and returns the X, Y and Z values from the gyroscope.
 
         Returns the read values in a dictionary.
@@ -232,7 +231,6 @@ class mpu6050:
         z = self.read_i2c_word(self.GYRO_ZOUT0)
 
         gyro_scale_modifier = None
-        gyro_range = self.read_gyro_range(True)
 
         if gyro_range == self.GYRO_RANGE_250DEG:
             gyro_scale_modifier = self.GYRO_SCALE_MODIFIER_250DEG
@@ -254,9 +252,11 @@ class mpu6050:
 
     def get_all_data(self):
         """Reads and returns all the available data."""
+        gyro_range = self.read_gyro_range(True)
+        accel_range = self.read_accel_range(True)
         temp = self.get_temp()
-        accel = self.get_accel_data()
-        gyro = self.get_gyro_data()
+        accel = self.get_accel_data(accel_range)
+        gyro = self.get_gyro_data(gyro_range)
 
         return [accel, gyro, temp]
 #Aleksandra dodaci   
@@ -285,12 +285,14 @@ class mpu6050:
 if __name__ == "__main__":
     mpu = mpu6050(0x68)
     mpu.reset_mpu6050()
+    gyro_range = mpu.read_gyro_range(True)
+    accel_range = mpu.read_accel_range(True)
     print(mpu.get_temp())
-    accel_data = mpu.get_accel_data()
+    accel_data = mpu.get_accel_data(gyro_range)
     print(accel_data['x'])
     print(accel_data['y'])
     print(accel_data['z'])
-    gyro_data = mpu.get_gyro_data()
+    gyro_data = mpu.get_gyro_data(accel_range)
     print(gyro_data['x'])
     print(gyro_data['y'])
     print(gyro_data['z'])
