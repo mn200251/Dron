@@ -50,6 +50,7 @@ class mpu6050:
     # MPU-6050 Registers
     PWR_MGMT_1 = 0x6B
     PWR_MGMT_2 = 0x6C
+    WHO_AM_I = 0x75
 
     ACCEL_XOUT0 = 0x3B
     ACCEL_YOUT0 = 0x3D
@@ -64,6 +65,8 @@ class mpu6050:
     ACCEL_CONFIG = 0x1C
     GYRO_CONFIG = 0x1B
     MPU_CONFIG = 0x1A
+
+
 
     def __init__(self, address, bus=1):
         self.address = address
@@ -259,7 +262,23 @@ class mpu6050:
         gyro = self.get_gyro_data(gyro_range)
 
         return [accel, gyro, temp]
-#Aleksandra dodaci   
+#Aleksandra dodaci
+    def check_connection(self):
+        who_am_i = self.bus.read_byte_data(self.address, self.WHO_AM_I)
+        return who_am_i == 0x68
+
+    def disable_accelerometer(self):
+        current_value = self.bus.read_byte_data(self.address, self.PWR_MGMT_2)
+        new_value = current_value | 0x38 #Set STBY_XA,STBY_YA,STBY_YA
+        # Disable X, Y, and Z axes of the accelerometer
+        self.bus.write_byte_data(self.address, self.PWR_MGMT_2, new_value)
+
+    def enable_accelerometer(self):
+        current_value = self.bus.read_byte_data(self.address, self.PWR_MGMT_2)
+        new_value = current_value & ~0x38  # Clear STBY_XA,STBY_YA,STBY_YA
+        # Enable X, Y, and Z axes of the accelerometer
+        self.bus.write_byte_data(self.address, self.PWR_MGMT_2, new_value)
+
     def reset_mpu6050(self):
         # Write a reset command to the PWR_MGMT_1 register
         self.bus.write_byte_data(self.address, self.PWR_MGMT_1, 0x80)
@@ -280,8 +299,62 @@ class mpu6050:
         new_value = current_value & ~0x08  # Clear the TEMP_DIS bit (bit 3) to 0
         self.bus.write_byte_data(self.address, self.PWR_MGMT_1, new_value)
 
-        
-    
+    import time
+
+    def calibrate_accelerometer(self, duration=5):
+        """
+        Calibrate the accelerometer biases.
+
+        :param self: The mpu6050 object.
+        :param duration: The duration in seconds to average the readings over.
+        :return: A dictionary with the calculated biases for the accelerometer.
+        """
+        num_samples = duration * 100  # Taking 100 samples per second
+        accel_bias = {'x': 0.0, 'y': 0.0, 'z': 0.0}
+        accel_range = self.read_accel_range(True)
+
+        for _ in range(num_samples):
+            accel_data = self.get_accel_data(accel_range)
+            accel_bias['x'] += accel_data['x']
+            accel_bias['y'] += accel_data['y']
+            accel_bias['z'] += accel_data['z']
+            time.sleep(0.01)  # Sleep for 10 milliseconds between samples
+
+        accel_bias['x'] /= num_samples
+        accel_bias['y'] /= num_samples
+        accel_bias['z'] /= num_samples
+
+        # Adjust the accelerometer bias to account for gravity on the Z-axis
+        accel_bias['z'] -= self.GRAVITIY_MS2
+
+        return accel_bias
+
+    def calibrate_gyroscope(self, duration=5):
+        """
+        Calibrate the gyroscope biases.
+
+        :param self: The mpu6050 object.
+        :param duration: The duration in seconds to average the readings over.
+        :return: A dictionary with the calculated biases for the gyroscope.
+        """
+        num_samples = duration * 100  # Taking 100 samples per second
+        gyro_bias = {'x': 0.0, 'y': 0.0, 'z': 0.0}
+        gyro_range = self.read_gyro_range(True)
+
+        for _ in range(num_samples):
+            gyro_data = self.get_gyro_data(gyro_range)
+            gyro_bias['x'] += gyro_data['x']
+            gyro_bias['y'] += gyro_data['y']
+            gyro_bias['z'] += gyro_data['z']
+            time.sleep(0.01)  # Sleep for 10 milliseconds between samples
+
+        gyro_bias['x'] /= num_samples
+        gyro_bias['y'] /= num_samples
+        gyro_bias['z'] /= num_samples
+
+        return gyro_bias
+
+
 if __name__ == "__main__":
     mpu = mpu6050(0x68)
     mpu.reset_mpu6050()
