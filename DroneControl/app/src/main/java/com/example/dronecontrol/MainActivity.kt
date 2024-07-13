@@ -1,10 +1,16 @@
 package com.example.dronecontrol
 
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.view.View
+import android.view.WindowInsets
+import android.view.WindowInsetsController
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -37,6 +43,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.view.ViewCompat.onApplyWindowInsets
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.dronecontrol.screens.DroneScreen
 import com.example.dronecontrol.screens.MainScreen
@@ -47,9 +54,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlin.math.log
 
 class MainActivity : ComponentActivity() {
+    @RequiresApi(Build.VERSION_CODES.R)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        hideSystemUI()
+
         setContent {
             DroneControlTheme {
 
@@ -57,13 +68,36 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    @RequiresApi(Build.VERSION_CODES.R)
+    private fun hideSystemUI() {
+        window.setDecorFitsSystemWindows(false)
+        val controller = window.insetsController
+        if (controller != null) {
+            controller.hide(WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars())
+            controller.systemBarsBehavior =
+                WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.R)
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) {
+            hideSystemUI()
+        }
+    }
 }
+
+
+
 
 @Composable
 fun DroneApp()
 {
     var connectionViewModel: ConnectionViewModel = viewModel()
     val uiState by connectionViewModel.uiState.collectAsState()
+
 
     when (uiState.screenNumber)
     {
@@ -74,6 +108,7 @@ fun DroneApp()
         }
     }
 }
+
 
 
 

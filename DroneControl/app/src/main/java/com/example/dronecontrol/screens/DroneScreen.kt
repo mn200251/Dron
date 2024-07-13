@@ -3,9 +3,14 @@ package com.example.dronecontrol.screens
 import android.graphics.Bitmap
 import android.graphics.Color.rgb
 import android.graphics.Paint
+import android.util.Log
 import android.view.WindowManager
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -13,6 +18,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -28,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.dronecontrol.viewmodels.ConnectionViewModel
 import com.google.ar.core.Config
+import com.manalkaff.jetstick.JoyStick
 import kotlinx.coroutines.delay
 import kotlin.random.Random.Default.nextInt
 
@@ -47,6 +54,8 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel())
     val width = LocalConfiguration.current.screenWidthDp.dp
     val height = LocalConfiguration.current.screenHeightDp.dp
 
+
+
     LaunchedEffect(Unit) {
         var i = 255
         while (true) {
@@ -65,6 +74,26 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel())
     Canvas(modifier = Modifier.fillMaxSize()) {
         frame?.let {
             drawImage(it, topLeft = Offset.Zero)
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Your column content here
+        }
+
+        JoyStick(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(30.dp),
+            size = 200.dp,
+            dotSize = 30.dp,
+        ) { x: Float, y: Float ->
+            Log.d("JoyStick", "$x, $y")
         }
     }
 
