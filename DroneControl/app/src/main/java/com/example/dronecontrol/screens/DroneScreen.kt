@@ -2,10 +2,22 @@ package com.example.dronecontrol.screens
 
 import android.graphics.Bitmap
 import android.graphics.Color.rgb
+import android.graphics.Insets
 import android.graphics.Paint
-import android.view.WindowManager
+import android.os.Build
+import android.util.Log
+import android.view.MotionEvent
+import android.view.WindowInsets
+import android.view.WindowMetrics
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -13,24 +25,28 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.ImageBitmapConfig
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.dronecontrol.models.ModifiedJoyStick
 import com.example.dronecontrol.viewmodels.ConnectionViewModel
-import com.google.ar.core.Config
 import kotlinx.coroutines.delay
-import kotlin.random.Random.Default.nextInt
+import kotlin.math.roundToInt
+import kotlin.math.sqrt
 
+
+@RequiresApi(Build.VERSION_CODES.R)
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel())
 {
@@ -46,6 +62,19 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel())
 
     val width = LocalConfiguration.current.screenWidthDp.dp
     val height = LocalConfiguration.current.screenHeightDp.dp
+
+    var joystickVisible by remember { mutableStateOf(false) }
+    var joystickPosition by remember { mutableStateOf(Offset(0f, 0f)) }
+    var dotPosition by remember { mutableStateOf(Offset(0f, 0f)) }
+
+    val currLocalDensity = LocalDensity.current
+
+    val joystickSize = 160
+    val invisibleAreaStartX = 1300f  // Start x coordinate of invisible area
+    val invisibleAreaStartY = 400f // Start y coordinate of invisible area
+    val invisibleAreaEndX = 2600f   // End x coordinate of invisible area
+    val invisibleAreaEndY = 1920f   // End y coordinate of invisible area
+
 
     LaunchedEffect(Unit) {
         var i = 255
@@ -65,6 +94,105 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel())
     Canvas(modifier = Modifier.fillMaxSize()) {
         frame?.let {
             drawImage(it, topLeft = Offset.Zero)
+        }
+    }
+
+    Box(modifier = Modifier
+        .fillMaxSize()
+        .pointerInteropFilter { event ->
+            // val adjustmentOffset = 45f
+            val adjustmentOffset = joystickSize / 4f
+
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    if (event.x in invisibleAreaStartX..invisibleAreaEndX && event.y in invisibleAreaStartY..invisibleAreaEndY) {
+
+                        joystickVisible = true
+                        joystickPosition = Offset(event.x, event.y)
+                        dotPosition = Offset(adjustmentOffset, adjustmentOffset)
+
+                        Log.d(
+                            "Joystick",
+                            "${dotPosition.x - adjustmentOffset}, ${dotPosition.y - adjustmentOffset}"
+                        )
+                    }
+                    true
+                }
+
+                MotionEvent.ACTION_MOVE -> {
+                    if (joystickVisible) {
+                        var maxOffset: Float
+                        with(currLocalDensity)
+                        {
+                            maxOffset = (joystickSize / 4).dp.toPx()
+                        }
+
+                        val x = event.x - joystickPosition.x
+                        val y = event.y - joystickPosition.y
+                        val distance = sqrt(x * x + y * y)
+                        val constrainedX =
+                            if (distance > maxOffset) x * (maxOffset / distance) else x
+                        val constrainedY =
+                            if (distance > maxOffset) y * (maxOffset / distance) else y
+                        dotPosition =
+                            Offset(constrainedX + adjustmentOffset, constrainedY + adjustmentOffset)
+
+                        Log.d(
+                            "Joystick",
+                            "${dotPosition.x - adjustmentOffset}, ${dotPosition.y - adjustmentOffset}"
+                        )
+                        //dotPosition = Offset(x, y)
+                    }
+                    true
+                }
+
+                MotionEvent.ACTION_UP -> {
+                    joystickVisible = false
+                    true
+                }
+
+                else -> false
+            }
+        }
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Your column content here
+        }
+
+        /*
+        JoyStick(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(30.dp),
+            size = 200.dp,
+            dotSize = 30.dp,
+        ) { x: Float, y: Float ->
+            Log.d("JoyStick", "$x, $y")
+        }
+        */
+
+        if (joystickVisible) {
+            ModifiedJoyStick(
+                modifier = Modifier
+                    //.align(Alignment.BottomEnd)
+                    .offset {
+                        IntOffset(
+                            joystickPosition.x.roundToInt() - 250,
+                            joystickPosition.y.roundToInt() - 250
+                        )
+                    } // Adjust the offset to center the joystick
+                    .size(joystickSize.dp)
+                    .padding(30.dp),
+                size = joystickSize.dp,
+                dotSize = (joystickSize/6).dp,
+                dotOffset = dotPosition
+            ) { x: Float, y: Float ->
+                Log.d("JoyStick", "$x, $y")
+            }
         }
     }
 
