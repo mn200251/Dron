@@ -34,10 +34,6 @@ class Ground():
         self.grid_z[0] = self.bottom_left[2]
         self.grid_z = self.grid_z.cumsum()
 
-        grid_xz = np.array(np.array(np.meshgrid(self.grid_x, self.grid_z)).T.reshape(-1, 2))
-        self.points = np.insert(grid_xz, 1, self.grid_y, axis=1)
-        self.points = np.insert(self.points, 3, np.full(shape=self.number_of_points * self.number_of_points, fill_value=1, dtype=float), axis=1)
-
         self.x_lines_begin = np.insert(self.grid_x.reshape(-1, 1), 1, np.full(shape=self.number_of_points, fill_value=self.center[1], dtype=float), axis=1)
         self.x_lines_end = np.insert(self.x_lines_begin, 2, np.full(shape=self.number_of_points, fill_value=self.top[2], dtype=float), axis=1)
         self.x_lines_begin = np.insert(self.x_lines_begin, 2, np.full(shape=self.number_of_points, fill_value=self.bottom[2], dtype=float), axis=1)
@@ -52,35 +48,24 @@ class Ground():
     
     def rotate(self, angle, unit_vector):
         rotation_matrix = pe.rotation_matrix_factory(angle, unit_vector, True)
-        for i in range(len(self.points)):
-            self.points[i] = rotation_matrix.dot(self.points[i])
+        for i in range(len(self.x_lines_begin)):
+            self.x_lines_begin[i] = rotation_matrix.dot(self.x_lines_begin[i])
+            self.x_lines_end[i] = rotation_matrix.dot(self.x_lines_end[i])
+            self.z_lines_begin[i] = rotation_matrix.dot(self.z_lines_begin[i])
+            self.z_lines_end[i] = rotation_matrix.dot(self.z_lines_end[i])
     
     def rotate_ground(self, angle, unit_vector):
-        self.points -= self.center
+        self.x_lines_begin -= self.center
+        self.x_lines_end -= self.center
+        self.z_lines_begin -= self.center
+        self.z_lines_end -= self.center
         self.rotate(angle, unit_vector)
-        self.points += self.center
+        self.x_lines_begin += self.center
+        self.x_lines_end += self.center
+        self.z_lines_begin += self.center
+        self.z_lines_end += self.center
     
     def draw_to_(self, screen):
-
-        """traversed = np.full(shape=self.number_of_points*self.number_of_points, fill_value=False, dtype=bool)
-        points = self.points[self.points[:, 2].argsort()]
-        if self.pr is not None:
-            for i in range(len(points)):
-                points[i] = self.pr.p2_canonical(points[i])"""
-        
-        #for i in range(len(points) - 1, -1, -1):
-            #pygame.draw.circle(screen, self.color, (points[i][0], points[i][1]), 1)
-            #traversed[i] = True
-            #remp = points[~traversed]
-            #dist = np.sort(np.square(remp - points[i]).sum(axis=1))
-            #print(dist)
-            #if 2 * i < len(points):
-                #pygame.draw.line(screen, self.color, (points[i][0], points[i][1]), (points[i * 2][0], points[i * 2][1]))
-        
-        #if self.pr is not None:
-            #x = self.pr.p2_canonical(self.grid_x)
-            #z = self.pr.p2_canonical(self.grid_z)
-
         lines_x_begin = self.x_lines_begin[self.x_lines_begin[:, 2].argsort()]
         lines_x_end = self.x_lines_end[self.x_lines_end[:, 2].argsort()]
         lines_z_begin = np.zeros_like(self.z_lines_begin)

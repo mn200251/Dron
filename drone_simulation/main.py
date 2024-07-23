@@ -72,8 +72,9 @@ while running:
     if not running: break
 
     drone.rotate(-0.03, [0, 1, 0])
-    #ground.rotate(-0.03, [0, 1, 0])
-    #drone.rotate(-0.15, [1, 0, 0])
+    #ground.rotate(-0.03, [0, 1, 0]) # cool ground rotation
+    drone.rotate(-0.15, [1, 0, 0])
+    #ground.rotate_ground(-0.03, [0, 1, 0])
     drone.motor_set_force_percent(0, -1)
     drone.motor_set_force_percent(1, 1)
     drone.motor_set_force_percent(2, -1)
