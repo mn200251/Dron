@@ -83,13 +83,18 @@ class Ground():
 
         lines_x_begin = self.x_lines_begin[self.x_lines_begin[:, 2].argsort()]
         lines_x_end = self.x_lines_end[self.x_lines_end[:, 2].argsort()]
+        lines_z_begin = np.zeros_like(self.z_lines_begin)
+        lines_z_end = np.zeros_like(self.z_lines_end)
         if self.pr is not None:
             for i in range(len(self.x_lines_begin)):
                 lines_x_begin[i] = self.pr.p2_canonical(lines_x_begin[i])
                 lines_x_end[i] = self.pr.p2_canonical(lines_x_end[i])
+                lines_z_begin[i] = self.pr.p2_canonical(self.z_lines_begin[i])
+                lines_z_end[i] = self.pr.p2_canonical(self.z_lines_end[i])
         
         for i in range(len(self.x_lines_begin) - 1, -1, -1):
             pygame.draw.line(screen, self.color, tuple(lines_x_begin[i][0:2]), tuple(lines_x_end[i][0:2]))
+            pygame.draw.line(screen, self.color, tuple(lines_z_begin[i][0:2]), tuple(lines_z_end[i][0:2]))
     
 
 
