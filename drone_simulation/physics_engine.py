@@ -15,7 +15,9 @@ def cross_product(u, v):
 
 def normalize_vector(v):
     if v.sum() == 0: return v
-    return v / np.sqrt(np.array([v[0] * v[0], v[1] * v[1], v[2] * v[2], v[3] * v[3]], dtype=float).sum())
+    v = v / np.sqrt(np.array([v[0] * v[0], v[1] * v[1], v[2] * v[2]], dtype=float).sum())
+    v[3] = 1
+    return v
 
 if __name__ == "__main__":
 

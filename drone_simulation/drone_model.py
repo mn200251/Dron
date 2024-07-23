@@ -19,10 +19,11 @@ class Drone():
         # max angle that it can rotate in one iteration
         self.max_motor_rotation_speed = 30
 
+        self.propeller_centers = self.motor_coordinates + np.array([0, -2.5, 0, 0], dtype=float)
         propeller_size = radius / 10.
         self.propellers = []
         for i in range(4):
-            center = self.motor_coordinates[i]
+            center = self.propeller_centers[i]
             frame_point1 = center + np.array([propeller_size, 0, 0, 0])
             frame_point2 = center + np.array([0, 0, propeller_size, 0])
             frame_point3 = center + np.array([-propeller_size, 0, 0, 0])
@@ -61,13 +62,16 @@ class Drone():
     def rotate(self, angle, unit_vector):
         rotation_matrix = pe.rotation_matrix_factory(angle, unit_vector, True)
         self.motor_coordinates -= self.drone_center
+        self.propeller_centers -= self.drone_center
         for i in range(4):
             self.motor_coordinates[i] = rotation_matrix.dot(self.motor_coordinates[i])
+            self.propeller_centers[i] = rotation_matrix.dot(self.propeller_centers[i])
             for j in range(len(self.propellers[i])):
                 self.propellers[i][j] -= self.drone_center
                 self.propellers[i][j] = rotation_matrix.dot(self.propellers[i][j])
                 self.propellers[i][j] += self.drone_center
         self.motor_coordinates += self.drone_center
+        self.propeller_centers += self.drone_center
     
     def motor_set_force_percent(self, motor_index, force_percent):
         force_percent = min(1, force_percent)
@@ -76,23 +80,22 @@ class Drone():
 
     def update(self):
         for i in range(4):
-            u = self.propellers[i][0] - self.motor_coordinates[i]
-            v = self.propellers[i][1] - self.motor_coordinates[i]
+            u = self.propellers[i][0] - self.propeller_centers[i]
+            v = self.propellers[i][1] - self.propeller_centers[i]
             unit_vector = pe.cross_product(u, v)
-            unit_vector[3] = 0
             unit_vector = pe.normalize_vector(unit_vector)
-            unit_vector[3] = 1
             rotation_matrix = pe.rotation_matrix_factory(self.max_motor_rotation_speed * self.motor_forces_per[i], unit_vector, True)
-            self.propellers[i] -= self.motor_coordinates[i]
+            self.propellers[i] -= self.propeller_centers[i]
             for j in range(len(self.propellers[i])):
                 self.propellers[i][j] = rotation_matrix.dot(self.propellers[i][j])
-            self.propellers[i] += self.motor_coordinates[i]
+            self.propellers[i] += self.propeller_centers[i]
 
     def draw_to_(self, screen):
         body_width = 5
         motor_point_size = 2
         motor_width = 10
         motors = self.motor_coordinates[self.motor_coordinates[:, 2].argsort()]
+        propeller_centers = self.propeller_centers[self.propeller_centers[:, 2].argsort()]
 
         pvals = np.array([
             [self.propellers[0, :, 2].min(), 0],
@@ -106,6 +109,7 @@ class Drone():
         if self.pr is not None:
             for i in range(4):
                 motors[i] = self.pr.p2_canonical(motors[i])
+                propeller_centers[i] = self.pr.p2_canonical(propeller_centers[i])
                 for j in range(len(propellers[i])):
                     propellers[i][j] = self.pr.p2_canonical(propellers[i][j])
             drone_center = self.pr.p2_canonical(drone_center)
@@ -113,13 +117,13 @@ class Drone():
         mmax = motors[:, 2].max()
 
         for i in range(3, -1, -1):
-            pygame.draw.line(screen, self.body_color, tuple(motors[i][0:2]), drone_center, width=body_width)
             motor_point_scaling = motor_point_size * motors[i][2] / mmax
             pygame.draw.circle(screen, self.motor_color, (motors[i][0], motors[i][1]), motor_point_scaling, motor_width)
             for j in range(len(propellers[i])):
                 pygame.draw.circle(screen, self.motor_color, (propellers[i][j][0], propellers[i][j][1]), motor_point_scaling, motor_width)
             for j in range(4):
-                pygame.draw.line(screen, self.propeller_color, tuple(motors[i][0:2]), tuple(propellers[i][j][0:2]), 4)
+                pygame.draw.line(screen, self.propeller_color, tuple(propeller_centers[i][0:2]), tuple(propellers[i][j][0:2]), 4)
+            pygame.draw.line(screen, self.body_color, tuple(motors[i][0:2]), drone_center, width=body_width)
 
 
 if __name__ == "__main__":

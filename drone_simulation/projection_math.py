@@ -36,6 +36,10 @@ class Projector():
             ])
         return self.tcnpm
     
+    def set_canonical_volume_size(self, canonical_volume_size):
+        self.canonical_volume_size = canonical_volume_size
+        self.sc_orth2canonm = None
+    
     # scale orthogonal volume to size of canonical matrix
     def get_orth2canonm(self):
         if self.sc_orth2canonm is None:
