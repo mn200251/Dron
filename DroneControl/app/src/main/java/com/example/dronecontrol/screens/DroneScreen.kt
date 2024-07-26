@@ -40,7 +40,12 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.dronecontrol.models.ModifiedJoyStick
 import com.example.dronecontrol.viewmodels.ConnectionViewModel
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
@@ -75,6 +80,7 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel())
     val invisibleAreaEndX = 2600f   // End x coordinate of invisible area
     val invisibleAreaEndY = 1920f   // End y coordinate of invisible area
 
+    // var sendMovementJob: Job? by remember { mutableStateOf(null) }
 
     LaunchedEffect(Unit) {
         var i = 255
@@ -115,6 +121,9 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel())
                             "Joystick",
                             "${dotPosition.x - adjustmentOffset}, ${dotPosition.y - adjustmentOffset}"
                         )
+
+                        connectionViewModel.updateIsSendingMovement(true)
+
                     }
                     true
                 }
@@ -137,10 +146,16 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel())
                         dotPosition =
                             Offset(constrainedX + adjustmentOffset, constrainedY + adjustmentOffset)
 
+                        val normalizedX = (dotPosition.x - adjustmentOffset) / maxOffset
+                        val normalizedY = (dotPosition.y - adjustmentOffset) / maxOffset
+
                         Log.d(
                             "Joystick",
-                            "${dotPosition.x - adjustmentOffset}, ${dotPosition.y - adjustmentOffset}"
+                            "${normalizedX}, ${normalizedY}"
                         )
+
+                        connectionViewModel.updateJoystickMovement(normalizedX, normalizedY)
+
                         //dotPosition = Offset(x, y)
                     }
                     true
@@ -148,6 +163,10 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel())
 
                 MotionEvent.ACTION_UP -> {
                     joystickVisible = false
+
+                    connectionViewModel.updateIsSendingMovement(false)
+                    // sendMovementJob?.cancel()
+                    // sendMovementJob = null
                     true
                 }
 

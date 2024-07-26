@@ -139,20 +139,7 @@ fun ModifiedJoyStick(
     val currLocalDensity = LocalDensity.current
 
     Box(
-        modifier = modifier/*.pointerInteropFilter { event ->
-            when (event.action) {
-                MotionEvent.ACTION_MOVE -> {
-                    with(currLocalDensity) {
-                        val x = (event.x - size.toPx() / 2) / size.toPx()
-                        val y = (event.y - size.toPx() / 2) / size.toPx()
-                        moved(x, y)
-                    }
-                    true
-                }
-
-                else -> false
-            }
-        },*/,
+        modifier = modifier,
         contentAlignment = Alignment.Center
     ) {
         Image(
@@ -181,14 +168,5 @@ fun ModifiedJoyStick(
                     .alpha(dotAlpha)
             )
         }
-        /*
-        Image(
-            painter = dotPainter,
-            contentDescription = "JoyStickDot",
-            modifier = Modifier
-                .size(dotSize)
-                .alpha(dotAlpha)
-        )
-        */
     }
 }
