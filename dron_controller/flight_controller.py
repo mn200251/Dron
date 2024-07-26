@@ -32,8 +32,8 @@ running = True
 lock = threading.Lock()
 
 # RAD - throttle settings -trenutno nemam pojma sta zapravo rade
-throttle_idle: float = 0.1017  # the minumum throttle needed to apply to the four motors for them all to spin up, but not provide lift (idling on the ground)
-throttle_governor: float = 0.1800  # the maximum throttle that can be applied. So, if the pilot is inputting 100% on the controller, it will max out at this. And every value below the pilot's 100% will be scaled linearly within the range of the idle throttle seen above and this governor throttle. If you do not wish to apply a governor (not recommended), set this to None.
+throttle_idle: float = 0.017  # the minumum throttle needed to apply to the four motors for them all to spin up, but not provide lift (idling on the ground)
+throttle_governor: float = 0.8  # the maximum throttle that can be applied. So, if the pilot is inputting 100% on the controller, it will max out at this. And every value below the pilot's 100% will be scaled linearly within the range of the idle throttle seen above and this governor throttle. If you do not wish to apply a governor (not recommended), set this to None.
 
 # Max attitude rate of change rates (degrees per second)
 max_rate_roll: float = 30.0  # roll
@@ -145,6 +145,7 @@ def run() -> None:
     mpu.disable_accelerometer()  # Disable acc since not in use
 
     # Measure gyro bias
+    print("Calibrating the gyroscope")
     gyro_bias = mpu.calibrate_gyroscope()
     gyro_range = mpu.read_gyro_range(True)
 
@@ -161,7 +162,7 @@ def run() -> None:
     # Constants calculations
     max_throttle = throttle_governor if throttle_governor is not None else 1.0
     throttle_range: float = max_throttle - throttle_idle
-    i_limit: float = 150.0
+    windup_guard: float = 150.0
     last_mode: bool = False  # the most recent mode the flight controller was in
 
     # State variables - PID related
@@ -174,13 +175,15 @@ def run() -> None:
 
     # Awaits start command -arm ESCes- nisam sigurna da li treba 4u1 esciju?
     # ....
-    print("press 1 to start")
-    while variables[0] != 1:
+    print("press 1 to start, 2 to flight and 9 to end")
+    while variables[4] != 1:
         time.sleep(0.5)
 
     print("-- BEGINNING FLIGHT CONTROL LOOP NOW --")
     try:
+
         while 1:  # povremeno 1 za testiranje
+
             start = time.time()  # in s
             # Read gyro
             # RAD - potencijalno promene znaka u zavisnosti od toga kako montiramo
@@ -225,11 +228,11 @@ def run() -> None:
 
                 # if last mode was standby (we JUST were turned onto flight mode), perform a check that the throttle isn't high. This is a safety mechanism
                 # this prevents an accident where the flight mode switch is turned on but the throttle position is high, which would immediately apply heavy throttle to each motor, shooting it into the air.
-                if last_mode == False:  # last mode we were in was standby mode. So, this is the first frame we are going into flight mode
-                    if input_throttle > 0.05:  # if throttle is > 5%
-                        print("Throttle was set to " + str(
-                            input_throttle) + " as soon as flight mode was entered. Throttle must be at 0% when flight mode begins (safety check).")
-                    break
+                # if last_mode == False:  # last mode we were in was standby mode. So, this is the first frame we are going into flight mode
+                #     if input_throttle > 0.05:  # if throttle is > 5%
+                #         print("Throttle was set to " + str(
+                #             input_throttle) + " as soon as flight mode was entered. Throttle must be at 0% when flight mode begins (safety check).")
+                #     break
                 # calculate the adjusted desired throttle (above idle throttle, below governor throttle, scaled linearly)
                 adj_throttle: float = throttle_idle + (throttle_range * input_throttle)
 
@@ -242,35 +245,40 @@ def run() -> None:
                 # roll PID calc
                 roll_p: float = error_rate_roll * pid_roll_kp
                 roll_i: float = roll_last_integral + (error_rate_roll * pid_roll_ki * cycle_time_seconds)
-                roll_i = max(min(roll_i, i_limit), -i_limit)  # constrain within I-term limits
+                roll_i = max(min(roll_i, windup_guard), -windup_guard)  # constrain within I-term limits
                 roll_d: float = pid_roll_kd * (error_rate_roll - roll_last_error) / cycle_time_seconds
                 pid_roll: float = roll_p + roll_i + roll_d
 
                 # pitch PID calc
                 pitch_p: float = error_rate_pitch * pid_pitch_kp
                 pitch_i: float = pitch_last_integral + (error_rate_pitch * pid_pitch_ki * cycle_time_seconds)
-                pitch_i = max(min(pitch_i, i_limit), -i_limit)  # constrain within I-term limits
+                pitch_i = max(min(pitch_i, windup_guard), -windup_guard)  # constrain within I-term limits
                 pitch_d: float = pid_pitch_kd * (error_rate_pitch - pitch_last_error) / cycle_time_seconds
                 pid_pitch = pitch_p + pitch_i + pitch_d
 
                 # yaw PID calc
                 yaw_p: float = error_rate_yaw * pid_yaw_kp
                 yaw_i: float = yaw_last_integral + (error_rate_yaw * pid_yaw_ki * cycle_time_seconds)
-                yaw_i = max(min(yaw_i, i_limit), -i_limit)  # constrain within I-term limits
+                yaw_i = max(min(yaw_i, windup_guard), -windup_guard)  # constrain within I-term limits
                 yaw_d: float = pid_yaw_kd * (error_rate_yaw - yaw_last_error) / cycle_time_seconds
                 pid_yaw = yaw_p + yaw_i + yaw_d
 
                 # calculate throttle values
-                throttles = []
+                # RAD- mozda ce trebati popravke znakova
+                throttles = [0.0]*NUM_MOTORS
                 throttles[0]: float = adj_throttle + pid_pitch + pid_roll - pid_yaw
                 throttles[1]: float = adj_throttle + pid_pitch - pid_roll + pid_yaw
                 throttles[2]: float = adj_throttle - pid_pitch + pid_roll + pid_yaw
                 throttles[3]: float = adj_throttle - pid_pitch - pid_roll - pid_yaw
 
                 # Adjust throttle according to input
-                # RAD -  nevidjeno lupanje boga piatj kako zapravo radi za throttle
+                # RAD -  nevidjeno lupanje boga pitaj kako zapravo radi za throttle
+                i=0
                 for t in throttles:
-                    set_pulse_length(MIN_PULSE_LENGTH + t * (MAX_PULSE_LENGTH - MIN_PULSE_LENGTH))
+                    set_pulse_length(MIN_PULSE_LENGTH + t * (MAX_PULSE_LENGTH - MIN_PULSE_LENGTH),i)
+                    print(" " +str(i)+"  Throttle: "+ str(t) + "   PWM: "+str(MIN_PULSE_LENGTH + t * (MAX_PULSE_LENGTH - MIN_PULSE_LENGTH)))
+                    i+=1
+                print("")
 
                 # Save state values for next loop
                 roll_last_error = error_rate_roll
@@ -298,15 +306,18 @@ def run() -> None:
             if elapsed < cycle_time_seconds:
                 time.sleep(cycle_time_seconds - elapsed)
 
-
-
-
-
-
+        print("Flight controller stopped")
+        cleanup()
+        exit(0)
 
     except Exception as e:  # something went wrong
-
+        print("An error occured"+ str(e))
         # Stop the motors
         cleanup()
 
         exit(1)
+
+
+
+if __name__ == "__main__":
+    run()

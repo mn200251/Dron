@@ -26,6 +26,7 @@ variables_lock = threading.Lock()
 # Global variables array
 variables = [default]*5
 
+log=False
 def read_variables():
     with variables_lock:
         return variables.copy()
@@ -76,7 +77,8 @@ def update_value(index, increment, stop_event):
         with variables_lock:
             if variables[index]<max_value and variables[index]>min_value:
                 variables[index] += increment
-            print(""+str(index)+": "+ str(variables[index]))
+            if log:
+                print(""+str(index)+": "+ str(variables[index]))
         time.sleep(update_time)
 
 
@@ -91,9 +93,10 @@ def start_variable(index, increment):
 
 def stop_variable(index):
     global variables
-    with variables_lock:
+    with (variables_lock):
         variables[index] = default
-        print("" + str(index) + ": " + str(variables[index]))
+        if log:
+            print("" + str(index) + ": " + str(variables[index]))
     if active_threads[index] is not None:
         thread, stop_event = active_threads[index]
         stop_event.set()
@@ -101,10 +104,11 @@ def stop_variable(index):
         active_threads[index] = None
 
 def set_state(value):
-    global variables
+    global variables, listener
     with variables_lock:
-        variables[STATE] = value
-        print("" + str(STATE) + ": " + str(variables[STATE]))
+        variables[STATE] = int(value)
+        if log:
+            print("" + str(STATE) + ": " + str(variables[STATE]))
     if value == 9:
         # Stop all active threads
         for index in range(len(active_threads)):
@@ -120,6 +124,10 @@ def set_state(value):
 
 if __name__ == "__main__":
     x=key_listener()
-    print("is it blocking")
-    x.join()
-
+    print("Listener starting")
+    try:
+        #Ne radi za linux - program se nikad ne zavrsi ( na windowsu radi bez problema )
+        x.join()
+        print("Listener done")
+    except :
+        print("something died")
