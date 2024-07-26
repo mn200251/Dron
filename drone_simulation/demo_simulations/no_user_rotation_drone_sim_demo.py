@@ -1,3 +1,9 @@
+import os
+import sys
+import inspect
+currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+parentdir = os.path.dirname(currentdir)
+sys.path.insert(0, parentdir) 
 from os import environ
 environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
 import pygame
@@ -38,41 +44,8 @@ pr = pm.Projector(
     viewer_scene_distance=viewer_scene_distance
 )
 
-#pe.load_parameters()
-
 drone = dm.Drone(orthographic_volume_center, 20, pr)
 ground = gm.Ground(ground_center, 2 * orthographic_volume_size[0], 2 * orthographic_volume_size[2], 2, 20, pr)
-
-
-mouse_pos1 = None
-def mouse_rotate():
-    if mouse_pos1 is None or not pygame.mouse.get_pressed()[0]: return
-    if mouse_pos1 == pygame.mouse.get_pos(): return
-    mouse_pos2 = pygame.mouse.get_pos()
-    drone_center = pr.p2_canonical(drone.drone_center)
-    u = np.array([mouse_pos2[0] - drone_center[0], mouse_pos2[1] - drone_center[1], 40, 1])
-    v = np.array([mouse_pos1[0] - drone_center[0], mouse_pos1[1] - drone_center[1], 40, 1])
-    unit_vector = pe.cross_product(u, v)
-    unit_vector = pe.normalize_vector(unit_vector)
-    rotation_angle = np.log2(pe.angle_between_vectors(u, v))
-    rotation_angle = max(min(rotation_angle, 1.5), 0.2)
-    drone.rotate(rotation_angle, unit_vector)
-    if pygame.mouse.get_pressed()[2]:
-        ground.rotate(rotation_angle, unit_vector)
-
-running = True
-def user_input_handling():
-    for event in pygame.event.get():
-        global running; global zoom; global canonical_volume_size; global mouse_pos1
-        if event.type == pygame.QUIT: running = False
-        if event.type == pygame.MOUSEWHEEL:
-            if event.y == 1 and zoom < 2: zoom += 0.1
-            if event.y == -1 and zoom > 1: zoom -= 0.1
-            canonical_volume_size = np.array([zoom * SCREEN_WIDTH, zoom * SCREEN_HEIGHT, 100], dtype=float)
-            pr.set_canonical_volume_size(canonical_volume_size)
-        if event.type == pygame.MOUSEBUTTONDOWN: mouse_pos1 = pygame.mouse.get_pos()
-        if event.type == pygame.MOUSEBUTTONUP: mouse_pos1 = None
-    if mouse_pos1 is not None: mouse_rotate()
 
 def draw_simulator_state():
     screen.fill(bg_color)
@@ -80,23 +53,30 @@ def draw_simulator_state():
     drone.draw_to_(screen)
     pygame.display.flip()
 
-simulation_initialized = False
-def initialize_simulation():
-    global simulation_initialized
-    if simulation_initialized: return
-    simulation_initialized = True
-    drone.rotate(-15, [0, 0, 1])
-    drone.rotate(-15, [1, 0, 0])
-    drone.rotate(-145, [0, 1, 0])
+drone.rotate(-15, [0, 0, 1])
+drone.rotate(-15, [1, 0, 0])
+drone.rotate(-145, [0, 1, 0])
 
-    #ground.rotate_ground(-15, [0, 0, 1])
-    #ground.rotate_ground(15, [0, 0, 1])
-    ground.rotate_ground(45, [0, 1, 0])
-    ground.rotate_ground(15, [1, 0, 0])
-    #ground.rotate(45, [0, 0, 1])
-    #ground.rotate(45, [1, 0, 0])
+#ground.rotate_ground(-15, [0, 0, 1])
+#ground.rotate_ground(15, [0, 0, 1])
+ground.rotate_ground(45, [0, 1, 0])
+ground.rotate_ground(15, [1, 0, 0])
+#ground.rotate(45, [0, 0, 1])
+#ground.rotate(45, [1, 0, 0])
 
-def update():
+running = True
+while running:
+
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT: running = False
+        if event.type == pygame.MOUSEWHEEL:
+            if event.y == 1 and zoom < 2: zoom += 0.1
+            if event.y == -1 and zoom > 1: zoom -= 0.1
+            canonical_volume_size = np.array([zoom * SCREEN_WIDTH, zoom * SCREEN_HEIGHT, 100], dtype=float)
+            pr.set_canonical_volume_size(canonical_volume_size)
+
+    if not running: break
+
     drone.rotate(-0.03, [0, 1, 0])
     #ground.rotate(-0.03, [0, 1, 0]) # cool ground rotation
     drone.rotate(-0.15, [1, 0, 0])
@@ -107,9 +87,4 @@ def update():
     drone.motor_set_force_percent(3, 1)
     drone.update()
 
-initialize_simulation()
-while running:
-    user_input_handling()
-    if not running: break
-    update()
     draw_simulator_state()

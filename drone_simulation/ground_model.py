@@ -7,7 +7,6 @@ class Ground():
     def __init__(self, ground_center, width, length, max_height, number_of_points, projector=None):
 
         self.center = ground_center
-        print(self.center)
         self.width = width
         self.length = length
         self.number_of_points = number_of_points
