@@ -6,11 +6,11 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.parcelize.Parcelize
-import kotlinx.parcelize.RawValue
 import java.io.BufferedReader
 import java.io.InputStream
 import java.io.InputStreamReader
@@ -18,13 +18,24 @@ import java.io.OutputStream
 import java.net.InetSocketAddress
 import java.net.Socket
 
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+
 
 @Parcelize
 data class ConnectionState(
     var host: String = "",
     var port: String = "",
     var mainScreenErrorText: String = "",
-    var screenNumber: SCREEN = SCREEN.DroneScreen,
+    var screenNumber: SCREEN = SCREEN.MainScreen,
+
+    var joystickX: Float = 0f,
+    var joystickY: Float = 0f,
+    var SliderZ: Float = 0f,
+    var isSendingMovement: Boolean = false,
+    var connectionActive: Boolean = false,
+
     // @RawValue var socket: Socket? = null
 ) : Parcelable
 
@@ -34,6 +45,10 @@ enum class SCREEN{
     MainScreen,
     DroneScreen
 }
+
+@Serializable
+data class Coordinates(val x: Float, val y: Float, val z: Float)
+
 
 class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel() {
 
@@ -93,6 +108,45 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
         }
     }
 
+    // x and y are normalized to 0-1
+    fun updateJoystickMovement(x: Float, y: Float)
+    {
+        savedStateHandle[UI_STATE_KEY] = _uiState2.value.copy(
+            joystickX = x,
+            joystickY = y,
+        )
+        _uiState1.update { currentConnectionUiState ->
+            currentConnectionUiState.copy(
+                joystickX = x,
+                joystickY = y,
+            )
+        }
+    }
+
+    fun updateIsSendingMovement(isSendingMovement: Boolean)
+    {
+        savedStateHandle[UI_STATE_KEY] = _uiState2.value.copy(
+            isSendingMovement = isSendingMovement
+        )
+        _uiState1.update { currentConnectionUiState ->
+            currentConnectionUiState.copy(
+                isSendingMovement = isSendingMovement
+            )
+        }
+    }
+
+    fun updateConnectionActive(connectionActive: Boolean)
+    {
+        savedStateHandle[UI_STATE_KEY] = _uiState2.value.copy(
+            connectionActive = connectionActive
+        )
+        _uiState1.update { currentConnectionUiState ->
+            currentConnectionUiState.copy(
+                connectionActive = connectionActive
+            )
+        }
+    }
+
     fun connect2Server()
     {
         viewModelScope.launch(Dispatchers.Default)
@@ -129,7 +183,7 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
 
                 try {
                     // authenticate user
-                    val auth: String = "TestUser"
+                    val auth: String = "phone"
                     outputStream.write(auth.toByteArray(Charsets.UTF_8))
                     outputStream.flush()
 
@@ -138,19 +192,29 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
 
                     if (response == "1") // drone not connected, wait?
                     {
-
+                        response = BufferedReader(InputStreamReader(socket.inputStream)).readLine()
                     }
-                    else if (response != "0") // an unknown error has occured
+                    if (response != "0") // an unknown error has occured
                     {
                         updateMainScreenErrorText("An unknown internal server error has occured!")
                         return@launch
                     }
+                    // response == 0 - drone connected
 
-                    // save socket connection somehow
                     // start 1 thread for controls
                     updateMainScreenErrorText("")
 
                     updateScreen(SCREEN.DroneScreen)
+                    updateConnectionActive(true)
+
+                    socket.tcpNoDelay = true
+
+                    viewModelScope.launch(Dispatchers.Default)
+                    {
+                        sendMovement(socket)
+                    }
+
+                    // called from thread that connects to server
                     receiveVideoStream(socket)
 
                 } catch (e: Exception) {
@@ -165,7 +229,10 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
                 updateMainScreenErrorText("An error has occurred while connecting to the server!")
                 return@launch
             } finally {
-                // socket.close()
+                // connectionActive will be false
+                updateScreen(SCREEN.DroneScreen)
+
+                socket.close()
             }
         }
     }
@@ -177,20 +244,63 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
         // val reader = BufferedReader(InputStreamReader(inputStream))
 
         try {
-            while (true)
+            while (uiState.value.connectionActive)
             {
-                var response = BufferedReader(InputStreamReader(socket.inputStream)).readLine()
+                // var response = BufferedReader(InputStreamReader(socket.inputStream)).readLine()
 
                 // update frame shown on phone
             }
         }
         catch (e: Exception)
         {
-            Log.d("Error receiving video", e.message.toString())
+            Log.e("VideoStream Exception", e.message.toString())
         }
         finally {
             inputStream.close()
         }
+
+        Log.v("VideoStream", "Exited!")
+    }
+
+    private fun createAndSendJson(outputStream: OutputStream, x: Float, y: Float, z: Float) {
+        // Step 2: Serialize the data class instance to a JSON string
+        val coordinates = Coordinates(x, y, z)
+        val jsonString = Json.encodeToString(coordinates)
+
+        outputStream.write(jsonString.toByteArray(Charsets.UTF_8))
+        outputStream.flush()
+    }
+
+    suspend fun sendMovement(socket: Socket)
+    {
+        val outputStream: OutputStream = socket.getOutputStream()
+        // val coordinates = Coordinates(0f, 0f, 0f)
+
+        try {
+            while(uiState.value.connectionActive)
+            {
+                if (uiState.value.isSendingMovement)
+                {
+                    // turning left right
+                    createAndSendJson(outputStream, uiState.value.joystickX, uiState.value.joystickY, uiState.value.SliderZ)
+
+                    delay(10)
+                }
+                else
+                {
+                    delay(100)
+                }
+            }
+        }
+        catch (e: Exception)
+        {
+            Log.e("Controls Exception", e.message.toString())
+        }
+        finally {
+            outputStream.close()
+        }
+
+        Log.v("Controls", "Exited!")
     }
 
 
