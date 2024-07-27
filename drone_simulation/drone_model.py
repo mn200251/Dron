@@ -131,7 +131,6 @@ class Drone():
     def translational_position_update(self):
         speed_factor = 1 / 6000
         translational_speen = np.insert(self.translational_speed * speed_factor, 3, np.array([0]), axis=0)
-        translational_speen[1], translational_speen[2] = translational_speen[2], translational_speen[1]
         self.drone_center += translational_speen
         self.motor_coordinates += translational_speen
         self.propeller_centers += translational_speen

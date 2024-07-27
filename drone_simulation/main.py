@@ -107,9 +107,9 @@ def update():
     #drone.rotate(-0.15, [1, 0, 0])
     #ground.rotate_ground(-0.03, [0, 1, 0])
     drone.motor_set_power_percent(0, -0.592)
-    drone.motor_set_power_percent(1, 0.192)
+    drone.motor_set_power_percent(1, 0.392)
     drone.motor_set_power_percent(2, -0.592)
-    drone.motor_set_power_percent(3, 0.192)
+    drone.motor_set_power_percent(3, 0.392)
     drone.update()
 
 initialize_simulation()
