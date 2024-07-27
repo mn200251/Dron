@@ -1,4 +1,5 @@
 # from flask import Flask
+import base64
 import json
 import threading
 import time
@@ -7,6 +8,7 @@ import socket
 import struct
 import pickle
 import cv2
+import numpy as np
 
 import requests
 
@@ -20,8 +22,8 @@ import requests
 
 phoneConnected = False
 droneConnected = False
-phoneSocket = None
-droneSocket = None
+phoneSocket: socket = None
+droneSocket: socket = None
 
 
 def getInternalIp():
@@ -44,61 +46,105 @@ def handleCameraStream():
     # wait for phone to connect
     # while not phoneConnected:
     #     time.sleep(0.2)
+    i = 0
 
     while True:
         try:
-            data = b""
-            payload_size = struct.calcsize("L")
+            size = droneSocket.recv(4)
 
-            while True:
-                try:
-                    while len(data) < payload_size:
-                        packet = droneSocket.recv(4 * 1024)
-                        if not packet:
-                            break
-                        data += packet
+            # Convert bytes back to integer
+            size = int.from_bytes(size, byteorder='big', signed=False)
 
-
-
-                    if len(data) < payload_size:
-                        print("Incomplete packet received for message size")
-                        break
-
-                    packed_msg_size = data[:payload_size]
-                    data = data[payload_size:]
-                    msg_size = struct.unpack("L", packed_msg_size)[0]
-
-
-                    while len(data) < msg_size:
-                        packet = droneSocket.recv(4 * 1024)
-                        if not packet:
-                            break
-                        data += packet
-
-
-
-                    if len(data) < msg_size:
-                        print("Incomplete packet received for frame data")
-                        break
-
-                    frame_data = data[:msg_size]
-                    data = data[msg_size:]
-
-                    print(f"Expected message size: {msg_size}, received data size: {len(data)}")
-                    print(f"Received frame data size: {len(frame_data)}")
-
-                    frame = pickle.loads(frame_data)
-                    cv2.imshow('Received', frame)
-                    if cv2.waitKey(1) & 0xFF == ord('q'):
-                        break
-                except Exception as e:
-                    print(f"Error: {e}")
+            # Receive the actual frame
+            frame_data = b''
+            while len(frame_data) < size:
+                packet = droneSocket.recv(size - len(frame_data))
+                if not packet:
                     break
+                frame_data += packet
 
+            img = base64.b64decode(frame_data)
 
+            if img is None:
+                print('img is none')
 
-        except ConnectionResetError:
+            npimg = np.frombuffer(img, np.uint8)
+
+            if npimg is None:
+                print('npimg is none')
+
+            source = cv2.imdecode(npimg, 1)
+
+            # with open(f"test{i}.jpg", "wb") as f:
+            #     f.write(npimg)
+
+            cv2.imshow("Stream", source)
+
+            # Break the loop if 'q' is pressed
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+
+            i = i + 1
+
+        except KeyboardInterrupt:
+            cv2.destroyAllWindows()
             break
+
+    print(f"broj frejmova: {i}")
+    # while True:
+    #     try:
+    #         data = b""
+    #         payload_size = struct.calcsize("L")
+    #
+    #         while True:
+    #             try:
+    #                 while len(data) < payload_size:
+    #                     packet = droneSocket.recv(4 * 1024)
+    #                     if not packet:
+    #                         break
+    #                     data += packet
+    #
+    #
+    #
+    #                 if len(data) < payload_size:
+    #                     print("Incomplete packet received for message size")
+    #                     break
+    #
+    #                 packed_msg_size = data[:payload_size]
+    #                 data = data[payload_size:]
+    #                 msg_size = struct.unpack("L", packed_msg_size)[0]
+    #
+    #
+    #                 while len(data) < msg_size:
+    #                     packet = droneSocket.recv(4 * 1024)
+    #                     if not packet:
+    #                         break
+    #                     data += packet
+    #
+    #
+    #
+    #                 if len(data) < msg_size:
+    #                     print("Incomplete packet received for frame data")
+    #                     break
+    #
+    #                 frame_data = data[:msg_size]
+    #                 data = data[msg_size:]
+    #
+    #                 print(f"Expected message size: {msg_size}, received data size: {len(data)}")
+    #                 print(f"Received frame data size: {len(frame_data)}")
+    #
+    #                 frame = pickle.loads(frame_data)
+    #                 cv2.imshow('Received', frame)
+    #                 if cv2.waitKey(1) & 0xFF == ord('q'):
+    #                     break
+    #             except Exception as e:
+    #                 print(f"Error: {e}")
+    #                 break
+    #
+    #
+    #
+    #     except ConnectionResetError:
+    #         break
 
     droneConnected = False
 
@@ -155,9 +201,10 @@ def handle_client_connection(client_socket):
 
             match message:
                 case "drone":
-                    if droneConnected:
-                        print(f"Error: Drone is already connected!")
-                        break
+                    # if droneConnected:
+                    #     print(f"Error: Drone is already connected!")
+                    #     break
+
                     droneConnected = True
                     droneSocket = client_socket
                     handleCameraStream()
