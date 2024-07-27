@@ -47,6 +47,8 @@ class Ground():
     
     def rotate(self, angle, unit_vector):
         rotation_matrix = pe.rotation_matrix_factory(angle, unit_vector, True)
+        self.bottom_left = rotation_matrix.dot(self.bottom_left)
+        self.bottom_right = rotation_matrix.dot(self.bottom_right)
         for i in range(len(self.x_lines_begin)):
             self.x_lines_begin[i] = rotation_matrix.dot(self.x_lines_begin[i])
             self.x_lines_end[i] = rotation_matrix.dot(self.x_lines_end[i])
@@ -58,11 +60,15 @@ class Ground():
         self.x_lines_end -= self.center
         self.z_lines_begin -= self.center
         self.z_lines_end -= self.center
+        self.bottom_left -= self.center
+        self.bottom_right -= self.center
         self.rotate(angle, unit_vector)
         self.x_lines_begin += self.center
         self.x_lines_end += self.center
         self.z_lines_begin += self.center
         self.z_lines_end += self.center
+        self.bottom_left += self.center
+        self.bottom_right += self.center
     
     def draw_to_(self, screen):
         lines_x_begin = self.x_lines_begin[self.x_lines_begin[:, 2].argsort()]
