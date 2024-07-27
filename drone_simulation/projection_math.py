@@ -72,7 +72,7 @@ class Projector():
         m2 = m2 / m2[3]
         projected_obj = self.get_tcnpm().dot(m2)
         return projected_obj / projected_obj[3]
-
+    
 
 
 

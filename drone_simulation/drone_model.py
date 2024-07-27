@@ -73,6 +73,13 @@ class Drone():
         self.motor_coordinates += self.drone_center
         self.propeller_centers += self.drone_center
     
+    def rotate_around_(self, rotation_center, angle, unit_vector):
+        self.motor_coordinates += self.drone_center - rotation_center
+        self.propeller_centers += self.drone_center - rotation_center
+        self.rotate(angle, unit_vector)
+        self.motor_coordinates -= self.drone_center - rotation_center
+        self.propeller_centers -= self.drone_center - rotation_center
+    
     def motor_set_force_percent(self, motor_index, force_percent):
         force_percent = min(1, force_percent)
         force_percent = max(-1, force_percent)

@@ -1,3 +1,9 @@
+import os
+import sys
+import inspect
+currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+parentdir = os.path.dirname(currentdir)
+sys.path.insert(0, parentdir) 
 from os import environ
 environ['PYGAME_HIDE_SUPPORT_PROMPT'] = '1'
 import pygame
@@ -38,11 +44,8 @@ pr = pm.Projector(
     viewer_scene_distance=viewer_scene_distance
 )
 
-#pe.load_parameters()
-
 drone = dm.Drone(orthographic_volume_center, 20, pr)
 ground = gm.Ground(ground_center, 2 * orthographic_volume_size[0], 2 * orthographic_volume_size[2], 2, 20, pr)
-
 
 mouse_pos1 = None
 def mouse_rotate():
