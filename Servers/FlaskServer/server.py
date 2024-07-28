@@ -44,12 +44,15 @@ def handleCameraStream():
     global phoneSocket, droneSocket, phoneConnected, droneConnected
 
     # wait for phone to connect
-    # while not phoneConnected:
-    #     time.sleep(0.2)
+    while not phoneConnected:
+        time.sleep(0.2)
     i = 0
 
     while True:
         try:
+            while not phoneConnected:
+                time.sleep(0.05)
+
             size = droneSocket.recv(4)
 
             # Convert bytes back to integer
@@ -78,6 +81,15 @@ def handleCameraStream():
             # with open(f"test{i}.jpg", "wb") as f:
             #     f.write(npimg)
 
+            _, jpeg = cv2.imencode('.jpg', source)
+            jpeg_bytes = jpeg.tobytes()
+
+            try:
+                phoneSocket.sendall(len(jpeg_bytes).to_bytes(4, byteorder='big', signed=False))
+                phoneSocket.sendall(jpeg_bytes)
+            except:
+                print('Phone not connected to send image!')
+
             cv2.imshow("Stream", source)
 
             # Break the loop if 'q' is pressed
@@ -86,67 +98,20 @@ def handleCameraStream():
 
             i = i + 1
 
+        except ConnectionResetError:
+            print("ConnectionResetError in handleCameraStream")
+            break
         except KeyboardInterrupt:
             cv2.destroyAllWindows()
             break
+        except:
+            print('Exception in handleCameraStream')
+            break
 
     print(f"broj frejmova: {i}")
-    # while True:
-    #     try:
-    #         data = b""
-    #         payload_size = struct.calcsize("L")
-    #
-    #         while True:
-    #             try:
-    #                 while len(data) < payload_size:
-    #                     packet = droneSocket.recv(4 * 1024)
-    #                     if not packet:
-    #                         break
-    #                     data += packet
-    #
-    #
-    #
-    #                 if len(data) < payload_size:
-    #                     print("Incomplete packet received for message size")
-    #                     break
-    #
-    #                 packed_msg_size = data[:payload_size]
-    #                 data = data[payload_size:]
-    #                 msg_size = struct.unpack("L", packed_msg_size)[0]
-    #
-    #
-    #                 while len(data) < msg_size:
-    #                     packet = droneSocket.recv(4 * 1024)
-    #                     if not packet:
-    #                         break
-    #                     data += packet
-    #
-    #
-    #
-    #                 if len(data) < msg_size:
-    #                     print("Incomplete packet received for frame data")
-    #                     break
-    #
-    #                 frame_data = data[:msg_size]
-    #                 data = data[msg_size:]
-    #
-    #                 print(f"Expected message size: {msg_size}, received data size: {len(data)}")
-    #                 print(f"Received frame data size: {len(frame_data)}")
-    #
-    #                 frame = pickle.loads(frame_data)
-    #                 cv2.imshow('Received', frame)
-    #                 if cv2.waitKey(1) & 0xFF == ord('q'):
-    #                     break
-    #             except Exception as e:
-    #                 print(f"Error: {e}")
-    #                 break
-    #
-    #
-    #
-    #     except ConnectionResetError:
-    #         break
 
     droneConnected = False
+    droneSocket = None
 
 
 
@@ -156,11 +121,14 @@ def handleControls():
     global phoneSocket, droneSocket, phoneConnected, droneConnected
 
     # wait for drone to connect
-    # while not droneConnected:
-    #     time.sleep(0.2)
+    while not droneConnected:
+        time.sleep(0.2)
 
     while True:
         try:
+            if not phoneConnected:
+                time.sleep(0.05)
+
             data = phoneSocket.recv(1024).decode('utf-8')
 
             if not data:
@@ -187,9 +155,11 @@ def handleControls():
 
 
         except ConnectionResetError:
+            print("ConnectionResetError in handleControls")
             break
 
     phoneConnected = False
+    phoneSocket = None
 
 # Function to handle client connections
 def handle_client_connection(client_socket):
@@ -201,9 +171,9 @@ def handle_client_connection(client_socket):
 
             match message:
                 case "drone":
-                    # if droneConnected:
-                    #     print(f"Error: Drone is already connected!")
-                    #     break
+                    if droneConnected:
+                        print(f"Error: Drone is already connected!")
+                        break
 
                     droneConnected = True
                     droneSocket = client_socket

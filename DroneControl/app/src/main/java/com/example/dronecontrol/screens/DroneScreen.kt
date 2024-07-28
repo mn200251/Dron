@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
@@ -82,6 +83,7 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel())
 
     // var sendMovementJob: Job? by remember { mutableStateOf(null) }
 
+    /*
     LaunchedEffect(Unit) {
         var i = 255
         while (true) {
@@ -97,11 +99,37 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel())
         }
     }
 
+
+
     Canvas(modifier = Modifier.fillMaxSize()) {
         frame?.let {
             drawImage(it, topLeft = Offset.Zero)
         }
     }
+    */
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        // uiState.frame?.let {
+        //     drawImage(it.asImageBitmap(), topLeft = Offset.Zero)
+        // }
+        uiState.frame?.let { bitmap ->
+            val canvasWidth = size.width
+            val canvasHeight = size.height
+
+            val imageWidth = bitmap.width
+            val imageHeight = bitmap.height
+
+            val scaleX = canvasWidth / imageWidth
+            val scaleY = canvasHeight / imageHeight
+            val scale = kotlin.math.max(scaleX, scaleY)
+
+            withTransform({
+                scale(scale, scale, pivot = Offset.Zero)
+            }) {
+                drawImage(bitmap.asImageBitmap(), topLeft = Offset.Zero)
+            }
+        }
+    }
+
 
     Box(modifier = Modifier
         .fillMaxSize()
@@ -164,6 +192,7 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel())
                 MotionEvent.ACTION_UP -> {
                     joystickVisible = false
 
+                    connectionViewModel.updateJoystickMovement(0f, 0f)
                     connectionViewModel.updateIsSendingMovement(false)
                     // sendMovementJob?.cancel()
                     // sendMovementJob = null

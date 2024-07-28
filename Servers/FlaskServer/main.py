@@ -7,6 +7,8 @@ motor_pp = {
     "motor1_pp" : 0, "motor2_pp" : 0, "motor3_pp" : 0, "motor4_pp" : 0
 }
 
+
+
 def get_motor_power_values():
     return jsonify({"motor1_pp": motor_pp["motor1_pp"],
                     "motor2_pp": motor_pp["motor2_pp"],
