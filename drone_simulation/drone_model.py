@@ -222,6 +222,7 @@ class Drone():
 
         # ovo sam sam namestao
         powers = np.sqrt(np.sqrt(np.sqrt(powers)))
+        powers += 1.5 * (powers - powers.min())
         #powers *= np.sqrt(pe.magnitude(pe.get_grav_vector()))
         #powers *= thrust_needed
 

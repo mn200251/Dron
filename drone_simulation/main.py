@@ -83,14 +83,19 @@ drone.add_motor_slider(3, motor3_slider)
 
 
 running = True
+pid_on = False
 def user_input_handling():
     motor0_slider.changeValue()
     motor1_slider.changeValue()
     motor2_slider.changeValue()
     motor3_slider.changeValue()
     for event in pygame.event.get():
-        global running; global zoom; global canonical_volume_size; global mouse_pos1; global zoom_text_surface
+        global running; global zoom; global canonical_volume_size
+        global mouse_pos1; global zoom_text_surface; global pid_on
         if event.type == pygame.QUIT: running = False
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_t:
+                pid_on = not pid_on
         if event.type == pygame.MOUSEWHEEL:
             if event.y == 1 and zoom < 3: zoom += 0.1
             if event.y == -1 and zoom > 0.2: zoom -= 0.1
@@ -134,7 +139,7 @@ def initialize_simulation():
 
 
 pid_sleep_time = 10
-pid_reset_interval_factor = 50
+pid_reset_interval_factor = 100
 time_passed = 0
 intervals_passed = 0
 def update():
@@ -152,7 +157,7 @@ def update():
     if pid_reset_interval_factor:
         drone.pd_params_integral = np.array([0, 0, 0], dtype=float)
     if time_passed == pid_sleep_time:
-        drone.pd()
+        if pid_on: drone.pd()
         time_passed = 0
         intervals_passed += 1
     time_passed += 1
