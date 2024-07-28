@@ -208,8 +208,6 @@ class Drone():
         mmax = motors[:, 2].max()
 
         if self.thrust_vectors is not None:
-            #print(gravity_force_begin)
-            #print(gravity_force_end)
             pygame.draw.line(screen, (255, 0, 0), tuple(gravity_force_begin[0:2]), tuple(gravity_force_end[0:2]), 3)
         for i in range(3, -1, -1):
             motor_point_scaling = motor_point_size * motors[i][2] / mmax
@@ -233,4 +231,4 @@ if __name__ == "__main__":
     drone.motor_set_power_percent(1, -0.4)
     drone.motor_set_power_percent(2, 0.5)
     drone.motor_set_power_percent(3, -0.7)
-    drone.update(physics=True)
+    drone.update()

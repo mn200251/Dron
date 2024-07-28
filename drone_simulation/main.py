@@ -6,6 +6,7 @@ import drone_model as dm
 import projection_math as pm
 import physics_engine as pe
 import ground_model as gm
+import slider_model as sm
 
 pygame.init()
 pygame.font.init()
@@ -13,9 +14,10 @@ text_font = pygame.font.SysFont("Comic Sans MS", 15)
 pygame.display.set_caption("drone simulator")
 pygame.display.set_icon(pygame.image.load("./drone_simulation/drone_icon.png"))
 
-SCREEN_WIDTH = 1000
-SCREEN_HEIGHT = 500
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+SCREEN_WIDTH = 1200
+SCREEN_HEIGHT = 600
+CONTROL_SCREEN_HEIGHT = 200
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT + CONTROL_SCREEN_HEIGHT))
 bg_color = (255, 255, 255)
 
 # SCREEN PARAMETERS
@@ -62,8 +64,21 @@ def mouse_rotate():
         ground.rotate(rotation_angle, unit_vector)
         pe.init_gravity_vector(ground)
 
+motor0_slider = sm.Slider((100, SCREEN_HEIGHT + CONTROL_SCREEN_HEIGHT / 4), text="motor 0 (-) power")
+motor1_slider = sm.Slider((100, SCREEN_HEIGHT + CONTROL_SCREEN_HEIGHT / 2), text="motor 1 (+) power")
+motor2_slider = sm.Slider((700, SCREEN_HEIGHT + CONTROL_SCREEN_HEIGHT / 4), text="motor 2 (-) power")
+motor3_slider = sm.Slider((700, SCREEN_HEIGHT + CONTROL_SCREEN_HEIGHT / 2), text="motor 3 (+) power")
+motor0_slider.set_motor_power_function(drone, 0, -1)
+motor1_slider.set_motor_power_function(drone, 1, 1)
+motor2_slider.set_motor_power_function(drone, 2, -1)
+motor3_slider.set_motor_power_function(drone, 3, 1)
+
 running = True
 def user_input_handling():
+    motor0_slider.changeValue()
+    motor1_slider.changeValue()
+    motor2_slider.changeValue()
+    motor3_slider.changeValue()
     for event in pygame.event.get():
         global running; global zoom; global canonical_volume_size; global mouse_pos1; global zoom_text_surface
         if event.type == pygame.QUIT: running = False
@@ -73,7 +88,9 @@ def user_input_handling():
             zoom_text_surface = text_font.render(f"zoom: {int(zoom * 100)}%", False, (0, 0, 0))
             canonical_volume_size = np.array([zoom * SCREEN_WIDTH, zoom * SCREEN_HEIGHT, 100], dtype=float)
             pr.set_canonical_volume_size(canonical_volume_size)
-        if event.type == pygame.MOUSEBUTTONDOWN: mouse_pos1 = pygame.mouse.get_pos()
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            mouse_pos1 = pygame.mouse.get_pos()
+            if mouse_pos1[1] > SCREEN_HEIGHT: mouse_pos1 = None
         if event.type == pygame.MOUSEBUTTONUP: mouse_pos1 = None
     if mouse_pos1 is not None: mouse_rotate()
 
@@ -81,6 +98,11 @@ def draw_simulator_state():
     screen.fill(bg_color)
     ground.draw_to_(screen)
     drone.draw_to_(screen)
+    pygame.draw.line(screen, (0, 0, 0), (0, SCREEN_HEIGHT), (SCREEN_WIDTH, SCREEN_HEIGHT), 3)
+    motor0_slider.render(screen)
+    motor1_slider.render(screen)
+    motor2_slider.render(screen)
+    motor3_slider.render(screen)
     screen.blit(zoom_text_surface, (SCREEN_WIDTH - 100, 0))
     pygame.display.flip()
 
@@ -106,10 +128,10 @@ def update():
     #ground.rotate(-0.03, [0, 1, 0]) # cool ground rotation
     #drone.rotate(-0.15, [1, 0, 0])
     #ground.rotate_ground(-0.03, [0, 1, 0])
-    drone.motor_set_power_percent(0, -0.592)
-    drone.motor_set_power_percent(1, 0.392)
-    drone.motor_set_power_percent(2, -0.592)
-    drone.motor_set_power_percent(3, 0.392)
+    #drone.motor_set_power_percent(0, -0.392)
+    #drone.motor_set_power_percent(1, 0.392)
+    #drone.motor_set_power_percent(2, -0.392)
+    #drone.motor_set_power_percent(3, 0.392)
     drone.update()
 
 initialize_simulation()
