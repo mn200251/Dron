@@ -16,7 +16,7 @@ pygame.display.set_icon(pygame.image.load("./drone_simulation/drone_icon.png"))
 
 SCREEN_WIDTH = 1200
 SCREEN_HEIGHT = 600
-CONTROL_SCREEN_HEIGHT = 200
+CONTROL_SCREEN_HEIGHT = 150
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT + CONTROL_SCREEN_HEIGHT))
 bg_color = (255, 255, 255)
 
@@ -60,18 +60,27 @@ def mouse_rotate():
     rotation_angle = np.log2(pe.angle_between_vectors(u, v))
     rotation_angle = max(min(rotation_angle, 1.5), 0.2)
     drone.rotate(rotation_angle, unit_vector)
+    curr_euler_angles = drone.rotate(rotation_angle, unit_vector)
+    if drone.GYRO_NOISE:
+        curr_euler_angles += curr_euler_angles * np.random.uniform(-drone.GYRO_NOISE_PERCENT, drone.GYRO_NOISE_PERCENT, 3)
+    drone.euler_angles += curr_euler_angles
     if pygame.mouse.get_pressed()[2]:
         ground.rotate(rotation_angle, unit_vector)
         pe.init_gravity_vector(ground)
 
-motor0_slider = sm.Slider((100, SCREEN_HEIGHT + CONTROL_SCREEN_HEIGHT / 4), text="motor 0 (-) power")
+motor0_slider = sm.Slider((100, SCREEN_HEIGHT + CONTROL_SCREEN_HEIGHT / 5), text="motor 0 (-) power")
 motor1_slider = sm.Slider((100, SCREEN_HEIGHT + CONTROL_SCREEN_HEIGHT / 2), text="motor 1 (+) power")
-motor2_slider = sm.Slider((700, SCREEN_HEIGHT + CONTROL_SCREEN_HEIGHT / 4), text="motor 2 (-) power")
+motor2_slider = sm.Slider((700, SCREEN_HEIGHT + CONTROL_SCREEN_HEIGHT / 5), text="motor 2 (-) power")
 motor3_slider = sm.Slider((700, SCREEN_HEIGHT + CONTROL_SCREEN_HEIGHT / 2), text="motor 3 (+) power")
 motor0_slider.set_motor_power_function(drone, 0, -1)
 motor1_slider.set_motor_power_function(drone, 1, 1)
 motor2_slider.set_motor_power_function(drone, 2, -1)
 motor3_slider.set_motor_power_function(drone, 3, 1)
+drone.add_motor_slider(0, motor0_slider)
+drone.add_motor_slider(1, motor1_slider)
+drone.add_motor_slider(2, motor2_slider)
+drone.add_motor_slider(3, motor3_slider)
+
 
 running = True
 def user_input_handling():
@@ -123,7 +132,14 @@ def initialize_simulation():
     #ground.rotate(45, [0, 0, 1])
     #ground.rotate(45, [1, 0, 0])
 
+
+pid_sleep_time = 10
+pid_reset_interval_factor = 50
+time_passed = 0
+intervals_passed = 0
 def update():
+    global time_passed
+    global intervals_passed
     #drone.rotate(-0.03, [0, 1, 0])
     #ground.rotate(-0.03, [0, 1, 0]) # cool ground rotation
     #drone.rotate(-0.15, [1, 0, 0])
@@ -133,6 +149,13 @@ def update():
     #drone.motor_set_power_percent(2, -0.392)
     #drone.motor_set_power_percent(3, 0.392)
     drone.update()
+    if pid_reset_interval_factor:
+        drone.pd_params_integral = np.array([0, 0, 0], dtype=float)
+    if time_passed == pid_sleep_time:
+        drone.pd()
+        time_passed = 0
+        intervals_passed += 1
+    time_passed += 1
 
 initialize_simulation()
 while running:

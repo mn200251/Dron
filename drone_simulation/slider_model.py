@@ -25,6 +25,9 @@ class Slider:
     #returns the current value of the slider
     def getValue(self)->float:
         return self.sliderWidth / (self.outlineSize[0] / self.upperValue)
+    
+    def set_value(self, percent):
+        self.sliderWidth = int(self.outlineSize[0] * percent)
 
     #renders slider and the text showing the value of the slider
     def render(self, display:pygame.display)->None:
