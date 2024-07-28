@@ -81,10 +81,10 @@ while running:
     #ground.rotate(-0.03, [0, 1, 0]) # cool ground rotation
     drone.rotate(-0.15, [1, 0, 0])
     #ground.rotate_ground(-0.03, [0, 1, 0])
-    drone.motor_set_force_percent(0, -1)
-    drone.motor_set_force_percent(1, 1)
-    drone.motor_set_force_percent(2, -1)
-    drone.motor_set_force_percent(3, 1)
-    drone.update()
+    drone.motor_set_power_percent(0, -1)
+    drone.motor_set_power_percent(1, 1)
+    drone.motor_set_power_percent(2, -1)
+    drone.motor_set_power_percent(3, 1)
+    drone.update(physics=False)
 
     draw_simulator_state()

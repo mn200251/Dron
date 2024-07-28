@@ -14,8 +14,6 @@ import physics_engine as pe
 import ground_model as gm
 
 pygame.init()
-pygame.font.init()
-text_font = pygame.font.SysFont("Comic Sans MS", 15)
 pygame.display.set_caption("drone simulator")
 pygame.display.set_icon(pygame.image.load("./drone_simulation/drone_icon.png"))
 
@@ -32,7 +30,6 @@ zoom = 1
 canonical_volume_size = np.array([zoom * SCREEN_WIDTH, zoom * SCREEN_HEIGHT, 100], dtype=float)
 orthographic_volume_size = np.array([50, 50, 50], dtype=float)
 viewer_scene_distance = 20
-zoom_text_surface = text_font.render(f"zoom: {int(zoom * 100)}%", False, (0, 0, 0))
 
 orthographic_volume_center = \
     near_plane_center + np.array([0, 0, orthographic_volume_size[2] / 2, 0], dtype=float)
@@ -47,11 +44,8 @@ pr = pm.Projector(
     viewer_scene_distance=viewer_scene_distance
 )
 
-#pe.load_parameters()
-
 drone = dm.Drone(orthographic_volume_center, 20, pr)
 ground = gm.Ground(ground_center, 2 * orthographic_volume_size[0], 2 * orthographic_volume_size[2], 2, 20, pr)
-
 
 mouse_pos1 = None
 def mouse_rotate():
@@ -72,12 +66,11 @@ def mouse_rotate():
 running = True
 def user_input_handling():
     for event in pygame.event.get():
-        global running; global zoom; global canonical_volume_size; global mouse_pos1; global zoom_text_surface
+        global running; global zoom; global canonical_volume_size; global mouse_pos1
         if event.type == pygame.QUIT: running = False
         if event.type == pygame.MOUSEWHEEL:
-            if event.y == 1 and zoom < 3: zoom += 0.1
-            if event.y == -1 and zoom > 0.2: zoom -= 0.1
-            zoom_text_surface = text_font.render(f"zoom: {int(zoom * 100)}%", False, (0, 0, 0))
+            if event.y == 1 and zoom < 2: zoom += 0.1
+            if event.y == -1 and zoom > 1: zoom -= 0.1
             canonical_volume_size = np.array([zoom * SCREEN_WIDTH, zoom * SCREEN_HEIGHT, 100], dtype=float)
             pr.set_canonical_volume_size(canonical_volume_size)
         if event.type == pygame.MOUSEBUTTONDOWN: mouse_pos1 = pygame.mouse.get_pos()
@@ -88,7 +81,6 @@ def draw_simulator_state():
     screen.fill(bg_color)
     ground.draw_to_(screen)
     drone.draw_to_(screen)
-    screen.blit(zoom_text_surface, (SCREEN_WIDTH - 100, 0))
     pygame.display.flip()
 
 simulation_initialized = False
