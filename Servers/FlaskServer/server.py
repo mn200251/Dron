@@ -12,6 +12,10 @@ import numpy as np
 
 import requests
 
+from github import Github
+
+from privateData import *
+
 # app = Flask(__name__)
 
 
@@ -24,6 +28,41 @@ phoneConnected = False
 droneConnected = False
 phoneSocket: socket = None
 droneSocket: socket = None
+
+ip_update_interval = 60 * 10
+
+
+def changeServerIP(newIP):
+    # Authenticate to GitHub
+    g = Github(GITHUB_TOKEN)
+
+    # Get the repository
+    repo = g.get_repo(REPO_NAME)
+
+    # Get the file contents
+    try:
+        file = repo.get_contents(FILE_PATH, ref=BRANCH_NAME)
+    except Exception as e:
+        if "404" in str(e):
+            repo.create_file(FILE_PATH, f'Created server_ip.txt with current IP: {newIP}', newIP,
+                             branch=BRANCH_NAME)
+            return
+        else:
+            # Other errors
+            print(f"An error occurred: {e}")
+            return
+
+
+
+    currentIP = file.decoded_content.decode()
+
+    if currentIP == newIP:
+        print("changeServerIP - Server IP didn't change")
+        return
+
+    # Commit and push the changes
+    repo.update_file(file.path, f'Updated server_ip.txt with new IP: {newIP}', newIP, file.sha,
+                     branch=BRANCH_NAME)
 
 
 def getInternalIp():
@@ -220,17 +259,27 @@ def start_tcp_server(server_ip, server_port):
         client_handler.start()
 
 
+def monitorIP():
+    while True:
+        newIP = getExternalIp() + ":" + str(server_port)
+        changeServerIP(newIP)
+
+        time.sleep(ip_update_interval)
+
+
 if __name__ == "__main__":
     server_ip = "0.0.0.0"
     # server_ip = getInternalIp()
     # server_ip = getExternalIp()
-    server_port = 6969
 
     print(f"IP for external connections: {getExternalIp()}:{server_port}")
 
     # Start the TCP server in a separate thread
     tcp_server_thread = threading.Thread(target=start_tcp_server, args=(server_ip, server_port))
     tcp_server_thread.start()
+
+    monitor_ip_thread = threading.Thread(target=monitorIP)
+    monitor_ip_thread.start()
 
     tcp_server_thread.join()
     # Start the Flask server
