@@ -2,8 +2,12 @@ import numpy as np
 import pygame
 import physics_engine as pe
 
+
 class Drone():
     
+    GYRO_NOISE = True
+    GYRO_NOISE_PERCENT = 0.01
+
     def __init__(self, drone_center, radius, projector=None):
         # drone frame offset, motor0_coordinates, motor1_coordinates, motor2_coordinates, motor3_coordinates
         # motor0 is on +x axis, motor1 is on +y axis, motor2 is on -x axis, motor3 is on -y axis
@@ -16,12 +20,14 @@ class Drone():
         ])
         
         self.parameter_loaded = False
-        self.motor_forces_per = np.array([0, 0, 0, 0], dtype=float)
+        self.motor_power_per = np.array([0, 0, 0, 0], dtype=float)
         # max angle that it can rotate in one iteration
         self.max_motor_rotation_speed = 30
         self.translational_speed = np.array([0, 0, 0], dtype=float)
         self.angular_speed = np.array([0, 0, 0], dtype=float)
         self.thrust_vectors = None
+        self.euler_angles = np.array([0, 0, 0], dtype=float)
+        self.pd_params_integral = np.array([0, 0, 0], dtype=float)
 
         self.propeller_centers = self.motor_coordinates + np.array([0, -2.5, 0, 0], dtype=float)
         propeller_size = radius / 10.
@@ -52,12 +58,16 @@ class Drone():
         self.body_color = (120, 120, 120)
         self.motor_color = (255, 0, 0)
         self.propeller_color = (255, 0, 0)
+        self.motor_sliders = dict()
     
     def get_drone_center(self):
         return self.drone_center
 
     def get_motor_coordinates(self):
         return self.motor_coordinates
+    
+    def add_motor_slider(self, index, slider):
+        self.motor_sliders[index] = slider
     
     # frame_origin = np.array([x, y, z, 1])
     def dist_from(self, frame_origin):
@@ -76,6 +86,16 @@ class Drone():
                 self.propellers[i][j] += self.drone_center
         self.motor_coordinates += self.drone_center
         self.propeller_centers += self.drone_center
+        try:
+            # return eurler angles for this rotation
+            return np.array([
+                np.arctan2(rotation_matrix[2][1], rotation_matrix[2][2]),
+                np.arctan2(-rotation_matrix[2][0], np.sqrt(np.square(rotation_matrix[2][1]) + np.square(rotation_matrix[2][2]))),
+                np.arctan2(rotation_matrix[1][0], rotation_matrix[0][0]),
+            ])
+        except Exception as e:
+            return np.array([0, 0, 0])
+
     
     def rotate_around_(self, rotation_center, angle, unit_vector):
         self.motor_coordinates += self.drone_center - rotation_center
@@ -87,11 +107,10 @@ class Drone():
     def motor_set_power_percent(self, motor_index, force_percent):
         force_percent = min(1, force_percent)
         force_percent = max(-1, force_percent)
-        self.motor_forces_per[motor_index] = force_percent
+        self.motor_power_per[motor_index] = force_percent
     
     def calculate_forces(self):
-        #print(np.sign(self.motor_forces_per))
-        motor_thrust_magnitudes = np.cbrt((2 * pe.DroneParameters.rho * pe.DroneParameters.A) * np.square(self.motor_forces_per))
+        motor_thrust_magnitudes = np.cbrt((2 * pe.DroneParameters.rho * pe.DroneParameters.A) * np.square(self.motor_power_per))
         motor_square_angular_vel_contrib_magn = motor_thrust_magnitudes / pe.DroneParameters.k
         base_force_vectors = []
         for i in range(4):
@@ -116,7 +135,7 @@ class Drone():
         total_torque = np.array([
             pe.DroneParameters.L * pe.DroneParameters.k * (motor_square_angular_vel_contrib_magn[0] - motor_square_angular_vel_contrib_magn[2]),
             pe.DroneParameters.L * pe.DroneParameters.k * (motor_square_angular_vel_contrib_magn[1] - motor_square_angular_vel_contrib_magn[3]),
-            pe.DroneParameters.b * (motor_square_angular_vel_contrib_magn * np.sign(self.motor_forces_per)).sum()
+            pe.DroneParameters.b * (motor_square_angular_vel_contrib_magn * np.sign(self.motor_power_per)).sum()
         ])
         Ixx = pe.DroneParameters.I[0][0]
         Iyy = pe.DroneParameters.I[1][1]
@@ -139,13 +158,16 @@ class Drone():
     def angular_position_update(self):
         angular_speed = self.angular_speed.copy()
         angular_speed[1], angular_speed[2] = angular_speed[2], angular_speed[1]
-        self.rotate(pe.magnitude(angular_speed), pe.normalize_vector(angular_speed))
+        curr_euler_angles = self.rotate(pe.magnitude(angular_speed), pe.normalize_vector(angular_speed))
+        if self.GYRO_NOISE:
+            curr_euler_angles += curr_euler_angles * np.random.uniform(-self.GYRO_NOISE_PERCENT, self.GYRO_NOISE_PERCENT, 3)
+        self.euler_angles += curr_euler_angles
         for i in range(4):
             u = self.propellers[i][0] - self.propeller_centers[i]
             v = self.propellers[i][1] - self.propeller_centers[i]
             unit_vector = pe.cross_product(u, v)
             unit_vector = pe.normalize_vector(unit_vector)
-            rotation_matrix = pe.rotation_matrix_factory(self.max_motor_rotation_speed * self.motor_forces_per[i], unit_vector, True)
+            rotation_matrix = pe.rotation_matrix_factory(self.max_motor_rotation_speed * self.motor_power_per[i], unit_vector, True)
             self.propellers[i] -= self.propeller_centers[i]
             for j in range(len(self.propellers[i])):
                 self.propellers[i][j] = rotation_matrix.dot(self.propellers[i][j])
@@ -159,7 +181,56 @@ class Drone():
             self.calculate_forces()
             self.translational_position_update()
             self.angular_position_update()
-        
+    
+    def pd(self):
+        # Pd parameters
+        Kd = 0.4; Kp = 3
+        #Kd = 0.015 / 2; Kp = 0.003 / 2
+        dt = 1 / 4
+        # IGNORISATI OVO, NIJE TACNO
+        # OVO TREBA NORMALNO DA SE KORISTI, MOJ SIMUlATOR IMA PROMENJENE OSE ZBOG
+        # PYGAME-a - y osa pokazuje u smeru normalne -z ose, a z osa je normalna y-osa
+        thrust_needed = pe.DroneParameters.m * pe.magnitude(pe.get_grav_vector()) \
+            / np.cos(self.pd_params_integral[0]) / np.cos(self.pd_params_integral[1])
+        #thrust_needed = pe.DroneParameters.m * pe.magnitude(pe.get_grav_vector()) \
+            #/ np.cos(self.pd_params_integral[0]) / np.cos(self.pd_params_integral[2])
+
+        error_fi = Kd * self.euler_angles[0] + Kp * self.pd_params_integral[0]
+        error_theta = Kd * self.euler_angles[1] + Kp * self.pd_params_integral[1]
+        error_psi = Kd * self.euler_angles[2] + Kp * self.pd_params_integral[2]
+        Ixx = pe.DroneParameters.I[0][0]
+        Iyy = pe.DroneParameters.I[1][1]
+        Izz = pe.DroneParameters.I[2][2]
+        # needed because of pygame switch
+        Iyy, Izz = Izz, Iyy
+        k = pe.DroneParameters.k
+        b = pe.DroneParameters.b
+        L = pe.DroneParameters.L
+        square_angular_vel = np.full(shape=4, fill_value=thrust_needed / 4 / k, dtype=float)
+        square_angular_vel += np.array([
+            -(2 * b * error_fi * Ixx + error_psi * Izz * k * L) / (4 * b * k * L),
+            (error_psi * Izz) / (4 * b) - (error_theta * Iyy) / (2 * k * L),
+            -(-2 * b * error_fi * Ixx + error_psi * Izz * k * L) / (4 * b * k * L),
+            (error_psi * Izz) / (4 * b) + (error_theta * Iyy) / (2 * k * L),
+        ])
+        self.pd_params_integral += self.euler_angles * dt
+        self.euler_angles = np.array([0, 0, 0], dtype=float)
+
+        thrusts = k * square_angular_vel
+        powers = np.square(thrusts * thrusts * thrusts / (2 * pe.DroneParameters.rho * pe.DroneParameters.A))
+        #powers = (4 * powers) / (powers.sum())
+
+        # ovo sam sam namestao
+        powers = np.sqrt(np.sqrt(np.sqrt(powers)))
+        powers += 1.5 * (powers - powers.min())
+        #powers *= np.sqrt(pe.magnitude(pe.get_grav_vector()))
+        #powers *= thrust_needed
+
+        print(powers)
+        for i in range(4):
+            self.motor_set_power_percent(i, ((-1) ** (i + 1)) * powers[i])
+            if i in self.motor_sliders:
+                self.motor_sliders[i].set_value(np.sign(self.motor_power_per[i]) * self.motor_power_per[i])
 
     def draw_to_(self, screen):
         body_width = 5
@@ -208,8 +279,6 @@ class Drone():
         mmax = motors[:, 2].max()
 
         if self.thrust_vectors is not None:
-            #print(gravity_force_begin)
-            #print(gravity_force_end)
             pygame.draw.line(screen, (255, 0, 0), tuple(gravity_force_begin[0:2]), tuple(gravity_force_end[0:2]), 3)
         for i in range(3, -1, -1):
             motor_point_scaling = motor_point_size * motors[i][2] / mmax
@@ -233,4 +302,4 @@ if __name__ == "__main__":
     drone.motor_set_power_percent(1, -0.4)
     drone.motor_set_power_percent(2, 0.5)
     drone.motor_set_power_percent(3, -0.7)
-    drone.update(physics=True)
+    drone.update()

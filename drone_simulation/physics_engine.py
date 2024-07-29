@@ -17,7 +17,7 @@ class Params:
 DroneParameters = Params()
 
 gravity_magnitude = 9.80665 / 2
-gravity_vector = None
+gravity_vector = np.array([0, 0, 0], dtype=float)
 
 
 def rotation_matrix_factory(angle, unit_vector, degrees=False):
