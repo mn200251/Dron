@@ -2,13 +2,10 @@ package com.example.dronecontrol.screens
 
 import android.graphics.Bitmap
 import android.graphics.Color.rgb
-import android.graphics.Insets
 import android.graphics.Paint
 import android.os.Build
 import android.util.Log
 import android.view.MotionEvent
-import android.view.WindowInsets
-import android.view.WindowMetrics
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
@@ -19,7 +16,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -41,12 +37,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.dronecontrol.models.ModifiedJoyStick
 import com.example.dronecontrol.viewmodels.ConnectionViewModel
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
@@ -69,7 +59,8 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel())
     val width = LocalConfiguration.current.screenWidthDp.dp
     val height = LocalConfiguration.current.screenHeightDp.dp
 
-    var joystickVisible by remember { mutableStateOf(false) }
+    var rightJoystickVisible by remember { mutableStateOf(false) }
+    var leftJoystickVisible by remember { mutableStateOf(false) }
     var joystickPosition by remember { mutableStateOf(Offset(0f, 0f)) }
     var dotPosition by remember { mutableStateOf(Offset(0f, 0f)) }
 
@@ -141,7 +132,7 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel())
                 MotionEvent.ACTION_DOWN -> {
                     if (event.x in invisibleAreaStartX..invisibleAreaEndX && event.y in invisibleAreaStartY..invisibleAreaEndY) {
 
-                        joystickVisible = true
+                        rightJoystickVisible = true
                         joystickPosition = Offset(event.x, event.y)
                         dotPosition = Offset(adjustmentOffset, adjustmentOffset)
 
@@ -157,7 +148,7 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel())
                 }
 
                 MotionEvent.ACTION_MOVE -> {
-                    if (joystickVisible) {
+                    if (rightJoystickVisible) {
                         var maxOffset: Float
                         with(currLocalDensity)
                         {
@@ -190,7 +181,7 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel())
                 }
 
                 MotionEvent.ACTION_UP -> {
-                    joystickVisible = false
+                    rightJoystickVisible = false
 
                     connectionViewModel.updateJoystickMovement(0f, 0f)
                     connectionViewModel.updateIsSendingMovement(false)
@@ -223,7 +214,7 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel())
         }
         */
 
-        if (joystickVisible) {
+        if (rightJoystickVisible) {
             ModifiedJoyStick(
                 modifier = Modifier
                     //.align(Alignment.BottomEnd)
@@ -236,19 +227,13 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel())
                     .size(joystickSize.dp)
                     .padding(30.dp),
                 size = joystickSize.dp,
-                dotSize = (joystickSize/6).dp,
+                dotSize = (joystickSize / 6).dp,
                 dotOffset = dotPosition
             ) { x: Float, y: Float ->
                 Log.d("JoyStick", "$x, $y")
             }
         }
     }
-
-//    Canvas(modifier = Modifier.fillMaxSize()) {
-//        frame?.let {
-//            drawImage(it, topLeft = Offset.Zero)
-//        }
-//    }
 
 }
 
