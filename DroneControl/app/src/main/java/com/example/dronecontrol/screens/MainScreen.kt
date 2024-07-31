@@ -1,5 +1,7 @@
 package com.example.dronecontrol.screens
 
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -29,6 +31,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.dronecontrol.viewmodels.ConnectionViewModel
 
 
+@RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun MainScreen(connectionViewModel: ConnectionViewModel = viewModel()) {
@@ -55,26 +58,37 @@ fun MainScreen(connectionViewModel: ConnectionViewModel = viewModel()) {
             modifier = Modifier.padding(vertical = 16.dp)
         )
         Spacer(modifier = Modifier.height(30.dp))
-        TextField(
-            value = uiState.host,
-            onValueChange = {connectionViewModel.updateHost(it)},
-            label = { Text(
-                "IP Address",
-                fontSize = textFontSize
-            ) },
-            modifier = Modifier.width(inputFieldWidth)
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        TextField(
-            value = uiState.port,
-            onValueChange = { connectionViewModel.updatePort(it) },
-            label = { Text(
-                "Port",
-                fontSize = textFontSize
-            ) },
-            modifier = Modifier.width(inputFieldWidth),
-            keyboardOptions = KeyboardOptions.Default.copy(keyboardType = KeyboardType.Number),
-        )
+
+
+        Button(
+            onClick = { connectionViewModel.connect2Server() },
+            modifier = Modifier.align(Alignment.CenterHorizontally),
+
+            ) {
+            Text("Start", fontSize = textFontSize)
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Button(
+            onClick = {  },
+            modifier = Modifier.align(Alignment.CenterHorizontally),
+
+            ) {
+            Text("Saved videos", fontSize = textFontSize)
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Button(
+            onClick = {  },
+            modifier = Modifier.align(Alignment.CenterHorizontally),
+
+            ) {
+            Text("Exit", fontSize = textFontSize)
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         if (uiState.mainScreenErrorText != "")
         {
@@ -82,16 +96,6 @@ fun MainScreen(connectionViewModel: ConnectionViewModel = viewModel()) {
             Text(text = uiState.mainScreenErrorText,
                 fontSize = textFontSize,
                 color = Color.Red)
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-        Button(
-            onClick = { connectionViewModel.connect2Server() },
-            modifier = Modifier.align(Alignment.CenterHorizontally),
-            enabled = uiState.host != "" && uiState.port != "",
-
-            ) {
-            Text("Connect", fontSize = textFontSize)
         }
     }
 }

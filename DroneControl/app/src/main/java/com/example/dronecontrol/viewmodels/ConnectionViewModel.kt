@@ -2,20 +2,29 @@ package com.example.dronecontrol.viewmodels
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.os.Build
 import android.os.Parcelable
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.dronecontrol.private.BRANCH_NAME
+import com.example.dronecontrol.private.FILE_PATH
+import com.example.dronecontrol.private.GITHUB_TOKEN
+import com.example.dronecontrol.private.REPO_NAME
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.parcelize.Parcelize
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import org.kohsuke.github.GHRepository
+import org.kohsuke.github.GitHubBuilder
 import java.io.BufferedReader
 import java.io.DataInputStream
 import java.io.InputStream
@@ -23,12 +32,14 @@ import java.io.InputStreamReader
 import java.io.OutputStream
 import java.net.InetSocketAddress
 import java.net.Socket
+import java.util.Base64
+import kotlin.io.encoding.ExperimentalEncodingApi
 
 
 @Parcelize
 data class ConnectionState(
-    var host: String = "",
-    var port: String = "",
+    // var host: String = "",
+    // var port: String = "",
     var mainScreenErrorText: String = "",
     var screenNumber: SCREEN = SCREEN.MainScreen,
 
@@ -64,6 +75,50 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
 
     val uiState = _uiState2
 
+    @RequiresApi(Build.VERSION_CODES.O)
+    @OptIn(ExperimentalEncodingApi::class)
+    suspend fun getCurrentIP(githubToken: String, repoName: String, filePath: String, branchName: String): Pair<String, String>? {
+        return withContext(Dispatchers.IO) {
+            try {
+                // Authenticate to GitHub
+                val github = GitHubBuilder().withOAuthToken(githubToken).build()
+
+                // Get the repository
+                val repo: GHRepository = github.getRepository(repoName)
+
+                // Get the file contents
+                val file = repo.getFileContent(filePath, branchName)
+                val inputStream: InputStream = file.read()
+                val decodedContent = inputStream.readBytes().toString(Charsets.UTF_8).trim()
+
+                Log.d("decodedContent", decodedContent)
+
+                // Split the IP address and port
+                val parts = decodedContent.split(":")
+
+                if (parts.size == 2) {
+                    val ip = parts[0].trim()
+
+                    var port = parts[1].trim()
+                    try {
+                        val portTest = parts[1].trim().toInt()
+                    }
+                    catch(e: NumberFormatException) {
+                        println("Port is not type int!")
+                        return@withContext null
+                    }
+
+                    return@withContext Pair(ip, port)
+                } else {
+                    println("The content format is incorrect.")
+                    return@withContext null
+                }
+            } catch (e: Exception) {
+                println("An error occurred: ${e.message}")
+                return@withContext null
+            }
+        }
+    }
 
     private fun updateScreen(newScreen: SCREEN)
     {
@@ -77,6 +132,7 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
         }
     }
 
+    /*
 
     fun updateHost(newHost: String)
     {
@@ -101,6 +157,7 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
             )
         }
     }
+     */
 
     fun updateMainScreenErrorText(newError:String)
     {
@@ -195,10 +252,12 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.O)
     fun connect2Server()
     {
         viewModelScope.launch(Dispatchers.Default)
         {
+            /*
             // check if host is correct ipv4 address
             val ipv4Regex = """^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$""".toRegex()
             val isIPv4 = ipv4Regex.matches(uiState.value.host)
@@ -218,9 +277,23 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
                 updateMainScreenErrorText("Port must be an Integer!")
                 return@launch
             }
+            */
+
+            val addressPair= getCurrentIP(GITHUB_TOKEN, REPO_NAME, FILE_PATH, BRANCH_NAME)
+
+            if (addressPair == null)
+            {
+                updateMainScreenErrorText("Unable to obtain server IP!")
+                return@launch
+            }
+
+            Log.d("IP", addressPair.first + ":" + addressPair.second)
+
+
 
             var socket = Socket()
-            val socketAddress = InetSocketAddress(uiState.value.host, uiState.value.port.toInt())
+            // val socketAddress = InetSocketAddress(uiState.value.host, uiState.value.port.toInt())
+            val socketAddress = InetSocketAddress(addressPair.first, addressPair.second.toInt())
 
             try{
                 socket.connect(socketAddress, 2000)
