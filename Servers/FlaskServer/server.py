@@ -5,8 +5,6 @@ import threading
 import time
 
 import socket
-import struct
-import pickle
 import cv2
 import numpy as np
 
@@ -14,15 +12,7 @@ import requests
 
 from github import Github
 
-from privateData import *
-
-# app = Flask(__name__)
-
-
-# @app.route('/')
-# def index():
-#     return "TCP Socket Server is Running"
-
+from serverPrivateData import *
 
 phoneConnected = False
 droneConnected = False
@@ -52,8 +42,6 @@ def changeServerIP(newIP):
             print(f"An error occurred: {e}")
             return
 
-
-
     currentIP = file.decoded_content.decode()
 
     if currentIP == newIP:
@@ -78,21 +66,25 @@ def getExternalIp():
     return ip_address
 
 
-
 def handleCameraStream():
     global phoneSocket, droneSocket, phoneConnected, droneConnected
 
     # wait for phone to connect
     while not phoneConnected:
+        if droneSocket is None:
+            droneConnected = False
+            return
+
         time.sleep(0.2)
+
     i = 0
 
     while True:
         try:
-            while not phoneConnected:
-                time.sleep(0.05)
-
             size = droneSocket.recv(4)
+
+            if size == b'' or size is None:
+                continue
 
             # Convert bytes back to integer
             size = int.from_bytes(size, byteorder='big', signed=False)
@@ -122,6 +114,9 @@ def handleCameraStream():
 
             _, jpeg = cv2.imencode('.jpg', source)
             jpeg_bytes = jpeg.tobytes()
+
+            while phoneSocket is None:
+                continue
 
             try:
                 phoneSocket.sendall(len(jpeg_bytes).to_bytes(4, byteorder='big', signed=False))
@@ -153,8 +148,6 @@ def handleCameraStream():
     droneSocket = None
 
 
-
-
 # drone
 def handleControls():
     global phoneSocket, droneSocket, phoneConnected, droneConnected
@@ -165,13 +158,15 @@ def handleControls():
 
     while True:
         try:
-            if not phoneConnected:
-                time.sleep(0.05)
-
             data = phoneSocket.recv(1024).decode('utf-8')
 
             if not data:
                 continue
+
+            if not phoneConnected:
+                time.sleep(0.05)
+
+            droneSocket.sendall(data.encode('utf-8'))
 
             start = data.rfind("{")
             end = data.rfind("}")
@@ -182,15 +177,15 @@ def handleControls():
 
             controlJson = data[start:end + 1]
 
+            # droneSocket.sendall(controlJson.encode('utf-8'))
+
             try:
                 # print(f"Received data: {controlJson}")
                 coordinates = json.loads(controlJson)
-                print(f"x={coordinates["x"]}, y={coordinates["y"]}, z={coordinates["z"]}")
+                print(f"x={coordinates["x"]}, y={coordinates["y"]}, z={coordinates["z"]}, rotation={coordinates["rotation"]}")
             except json.JSONDecodeError:
                 print("Received invalid data")
                 break
-
-            # droneSocket.sendall(controls.encode())
 
 
         except ConnectionResetError:
@@ -199,6 +194,7 @@ def handleControls():
 
     phoneConnected = False
     phoneSocket = None
+
 
 # Function to handle client connections
 def handle_client_connection(client_socket):
@@ -233,12 +229,6 @@ def handle_client_connection(client_socket):
                     client_socket.sendall("-1\n".encode())
                     break
 
-            # if message:
-            # print(f"Received message: {message}")
-            # client_socket.sendall("1".encode()) # everything is ok
-
-            # else:
-            # break
         except ConnectionResetError:
             break
     client_socket.close()
@@ -269,8 +259,6 @@ def monitorIP():
 
 if __name__ == "__main__":
     server_ip = "0.0.0.0"
-    # server_ip = getInternalIp()
-    # server_ip = getExternalIp()
 
     print(f"IP for external connections: {getExternalIp()}:{server_port}")
 
@@ -282,5 +270,3 @@ if __name__ == "__main__":
     monitor_ip_thread.start()
 
     tcp_server_thread.join()
-    # Start the Flask server
-    # app.run(host='0.0.0.0', port=5000)

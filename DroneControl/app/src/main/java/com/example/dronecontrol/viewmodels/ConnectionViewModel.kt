@@ -115,7 +115,7 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
     }
 
     // x and y are normalized to 0-1
-    fun updateJoystickMovement(x: Float, y: Float)
+    fun updateRightJoystickMovement(x: Float, y: Float)
     {
         savedStateHandle[UI_STATE_KEY] = _uiState2.value.copy(
             joystickX = x,
@@ -125,6 +125,19 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
             currentConnectionUiState.copy(
                 joystickX = x,
                 joystickY = y,
+            )
+        }
+    }
+
+    fun updateLeftJoystickMovement(normalizedX: Float, normalizedY: Float) {
+        savedStateHandle[UI_STATE_KEY] = _uiState2.value.copy(
+            joystickZ = normalizedX,
+            joystickRotation = normalizedY,
+        )
+        _uiState1.update { currentConnectionUiState ->
+            currentConnectionUiState.copy(
+                joystickZ = normalizedX,
+                joystickRotation = normalizedY,
             )
         }
     }
@@ -265,7 +278,7 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
                 return@launch
             } finally {
                 // connectionActive will be false
-                updateScreen(SCREEN.DroneScreen)
+                updateScreen(SCREEN.MainScreen)
 
                 socket.close()
             }
@@ -333,7 +346,9 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
         try {
             while(uiState.value.connectionActive)
             {
-                if (uiState.value.isSendingMovement)
+                // if (uiState.value.isSendingMovement)
+                if (uiState.value.joystickX != 0f || uiState.value.joystickY != 0f ||
+                    uiState.value.joystickZ != 0f || uiState.value.joystickRotation != 0f)
                 {
                     // turning left right
                     createAndSendJson(outputStream, uiState.value.joystickX, uiState.value.joystickY, uiState.value.joystickZ, uiState.value.joystickRotation)
@@ -356,6 +371,4 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
 
         Log.v("Controls", "Exited!")
     }
-
-
 }
