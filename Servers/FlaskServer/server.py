@@ -1,7 +1,9 @@
 # from flask import Flask
 import base64
 import json
+import os
 import queue
+import struct
 import threading
 import time
 
@@ -17,19 +19,22 @@ from serverPrivateData import *
 
 from enum import Enum
 
+
 class RecordState(Enum):
     NOT_RECORDING = 0
     START_RECORDING = 1
     RECORDING = 2
     STOP_RECORDING = 3
 
+
 class PhoneState(Enum):
-    STARTED = 0 # on main screen
-    AUTOPILOT = 1 # recreating flight
-    PILOTING = 2 # client is controling the drone
-    BROWSING_VIDEOS = 3 #
+    STARTED = 0  # on main screen
+    AUTOPILOT = 1  # recreating flight
+    PILOTING = 2  # client is controling the drone
+    BROWSING_VIDEOS = 3  #
     BROWSING_FLIGHTS = 4  #
     DOWNLOADING_VIDEO = 5  #
+
 
 class InstructionType(Enum):
     HEARTBEAT = 1
@@ -45,13 +50,15 @@ class InstructionType(Enum):
     LEFT_JOYSTICK = 11
     RIGHT_JOYSTICK = 12
     TURN_OFF = 13
-    GET_STATUS = 14 # da proveri stanje jer neke instrukcije mozda nisu prosle npr pocni snimanje
-    BACK=15 #povratak iz browsinga videa/letova?
+    GET_STATUS = 14  # da proveri stanje jer neke instrukcije mozda nisu prosle npr pocni snimanje
+    BACK = 15  # povratak iz browsinga videa/letova?
+
+
 # Constants
 MAX_QUEUE_SIZE = 120
-TIMEOUT = 1
+TIMEOUT = 3
 QUEUE_TIMEOUT = 5
-
+video_dir = "videos"
 # Global variables to manage connections
 phoneConnected = False
 droneConnected = False
@@ -63,16 +70,19 @@ lock = threading.Lock()
 ip_update_interval = 60 * 10
 
 # Server port
-server_port=6969
+server_port = 6969
 
 # Flag to determine if the server is internal or external
-internal=True
+internal = True
 
 # To remember the states
 phone_state = PhoneState.STARTED
 record_video = RecordState.NOT_RECORDING
 
 stop_event = threading.Event()
+
+
+# FUNCTIONS
 def changeServerIP(newIP):
     """
         Updates the server IP address stored in a GitHub repository.
@@ -106,6 +116,7 @@ def changeServerIP(newIP):
     repo.update_file(file.path, f'Updated server_ip.txt with new IP: {newIP}', newIP, file.sha,
                      branch=BRANCH_NAME)
 
+
 def getInternalIp():
     """
         Retrieves the internal IP address of the server.
@@ -113,6 +124,7 @@ def getInternalIp():
     hostname = socket.gethostname()
     ip_address = socket.gethostbyname(hostname)
     return ip_address
+
 
 def getExternalIp():
     """
@@ -122,6 +134,7 @@ def getExternalIp():
     ip_data = response.json()
     ip_address = ip_data['ip']
     return ip_address
+
 
 def monitorIP():
     """
@@ -134,7 +147,32 @@ def monitorIP():
         time.sleep(ip_update_interval)
 
 
+def generate_thumbnail(video_path):
+    cap = cv2.VideoCapture(video_path)
+    success, frame = cap.read()
+    cap.release()
+    if success:
+        _, buffer = cv2.imencode('.jpg', frame)
+        thumbnail_bytes = buffer.tobytes()
+        return base64.b64encode(thumbnail_bytes).decode('utf-8')
+    return None
 
+
+def get_video_list():
+    video_dir = 'videos'
+    video_list = []
+    for filename in os.listdir(video_dir):
+        if filename.endswith(".mp4"):  # Check if the file is a video
+            video_path = os.path.join(video_dir, filename)
+            thumbnail = generate_thumbnail(video_path)
+            video_list.append({
+                'filename': filename,
+                'thumbnail': thumbnail
+            })
+    return video_list
+
+
+# THREAD AND THEIR CREATION
 def send_frames():
     """
     Funkcija send_frames preuzima frejmove iz video_queue i šalje ih na telefon.
@@ -148,7 +186,7 @@ def send_frames():
         try:
             jpeg_bytes = video_queue.get(timeout=QUEUE_TIMEOUT)
             with lock:
-                phone_socket=connections["phone"]
+                phone_socket = connections["phone"]
             phone_socket.sendall(len(jpeg_bytes).to_bytes(4, byteorder='big', signed=False))
             phone_socket.sendall(jpeg_bytes)
         except queue.Empty:
@@ -164,6 +202,7 @@ def send_frames():
             print(f"Unexpected error in send_frames: {e}")
             continue
 
+
 def handleDroneMessages(droneSocket):
     """
     Funkcija je zaduzena da prima poruke od drona.
@@ -174,17 +213,17 @@ def handleDroneMessages(droneSocket):
     :return:
     """
     global record_video, phone_state
-    video_writer=None
+    video_writer = None
     # stream alive
-    flag=True
+    flag = True
     while flag and not stop_event.is_set():
         # waiting for streaming to start
-        if not (phone_state==PhoneState.AUTOPILOT or phone_state==PhoneState.PILOTING):
+        if not (phone_state == PhoneState.AUTOPILOT or phone_state == PhoneState.PILOTING):
             time.sleep(TIMEOUT)
         else:
             i = 0
             # receiving the stream
-            while phone_state==PhoneState.AUTOPILOT or phone_state==PhoneState.PILOTING:
+            while phone_state == PhoneState.AUTOPILOT or phone_state == PhoneState.PILOTING:
                 try:
                     size = droneSocket.recv(4)
 
@@ -217,13 +256,15 @@ def handleDroneMessages(droneSocket):
                     video_queue.put(jpeg_bytes)
 
                     # Check if recording needs to be started or restarted in new thread because of a disconnected
-                    if record_video == RecordState.START_RECORDING or (video_writer is None and record_video == RecordState.RECORDING):
+                    if record_video == RecordState.START_RECORDING or (
+                            video_writer is None and record_video == RecordState.RECORDING):
                         # Initialize video writer
                         fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Codec for mp4
                         frame_width = source.shape[1]
                         frame_height = source.shape[0]
                         fps = 60  # Frames per second
-                        video_writer = cv2.VideoWriter(f'videos/recording_{int(time.time() * 1000)}.mp4', fourcc, fps, (frame_width, frame_height))
+                        video_writer = cv2.VideoWriter(f'videos/recording_{int(time.time() * 1000)}.mp4', fourcc, fps,
+                                                       (frame_width, frame_height))
                         record_video = RecordState.RECORDING
 
                     if record_video == RecordState.RECORDING:
@@ -232,7 +273,7 @@ def handleDroneMessages(droneSocket):
                     if record_video == RecordState.STOP_RECORDING:
                         if video_writer is not None:
                             video_writer.release()
-                            video_writer=None
+                            video_writer = None
                         record_video = RecordState.NOT_RECORDING
 
                     cv2.imshow("Stream", source)
@@ -254,7 +295,7 @@ def handleDroneMessages(droneSocket):
                     break
                 finally:
                     # stream died because of a disconnect
-                    flag=False
+                    flag = False
 
             print(f"broj frejmova: {i}")
 
@@ -309,8 +350,9 @@ def handleControls(phoneSocket):
        Handles control messages from the phone and forwards them to the queue.
     """
     global record_video, phone_state
-    buffer=""
-    while True:
+    buffer = ""
+    flag = True
+    while flag:
         try:
             data = phoneSocket.recv(1024).decode('utf-8')
 
@@ -333,49 +375,58 @@ def handleControls(phoneSocket):
                 try:
                     instruction_data = json.loads(json_str)
                     instruction_type = instruction_data.get("type")
+                    print(instruction_data)
                     if instruction_type is None:
                         print("Invalid instruction")
-                    elif instruction_type==InstructionType.HEARTBEAT:
+                    elif instruction_type == InstructionType.HEARTBEAT:
                         pass
-                    elif instruction_type==InstructionType.START_RECORDING:
-                        record_video=RecordState.START_RECORDING
-                    elif instruction_type==InstructionType.STOP_RECORDING:
-                        record_video=RecordState.STOP_RECORDING
-                    elif instruction_type==InstructionType.START_FLIGHT:
-                        phone_state=PhoneState.PILOTING
-                        #send the pi to start streaming
+                    elif instruction_type == InstructionType.START_RECORDING:
+                        record_video = RecordState.START_RECORDING
+                    elif instruction_type == InstructionType.STOP_RECORDING:
+                        record_video = RecordState.STOP_RECORDING
+                    elif instruction_type == InstructionType.START_FLIGHT:
+                        phone_state = PhoneState.PILOTING
+                        # send the pi to start streaming
                         pass
-                    elif instruction_type==InstructionType.END_FLIGHT:
+                    elif instruction_type == InstructionType.END_FLIGHT:
                         phone_state = PhoneState.STARTED
                         # send the pi to stop streaming
                         pass
-                    elif instruction_type==InstructionType.GET_FLIGHTS:
+                    elif instruction_type == InstructionType.GET_FLIGHTS:
                         phone_state = PhoneState.BROWSING_FLIGHTS
                         pass
-                    elif instruction_type==InstructionType.START_PREVIOUS_FLIGHT:
+                    elif instruction_type == InstructionType.START_PREVIOUS_FLIGHT:
                         phone_state = PhoneState.AUTOPILOT
                         # send the pi to start streaming
-                        #start sending previous instructions
+                        # start sending previous instructions
                         pass
-                    elif instruction_type==InstructionType.GET_VIDEOS:
+                    elif instruction_type == InstructionType.GET_VIDEOS.value:
+                        print("In")
                         phone_state = PhoneState.BROWSING_VIDEOS
+                        video_list_json = json.dumps(get_video_list()).encode('utf-8')
+                        json_length = len(video_list_json)
+                        print(json_length)
+                        phoneSocket.sendall(struct.pack('>I', json_length))
+                        phoneSocket.sendall(video_list_json)
+                        print("Finished Sending")
+                    elif instruction_type == InstructionType.DOWNLOAD_VIDEO:
                         pass
-                    elif instruction_type==InstructionType.DOWNLOAD_VIDEO:
+                    elif instruction_type == InstructionType.GET_STATUS:
                         pass
-                    elif instruction_type==InstructionType.GET_STATUS:
+                    elif instruction_type == InstructionType.BACK:
                         pass
-                    elif instruction_type==InstructionType.BACK:
-                        pass
-                    else:
+                    elif instruction_type > InstructionType.BACK.value:
                         control_queue.put(json_str)
+                    else:
+                        print("Bad")
 
-
-                    #if neki tipovi zapisi u fajl ako je ukljuceno snimanje instrukcija - analogno videu
+                    # if neki tipovi zapisi u fajl ako je ukljuceno snimanje instrukcija - analogno videu
                 except json.JSONDecodeError:
                     print("Received invalid JSON data")
 
-        except ConnectionResetError:
-            print("ConnectionResetError in handleControls")
+        except Exception as e:
+            flag = False
+            print(f"Phone connection lost in handleControls: {e}")
             break
 
 
@@ -397,7 +448,7 @@ def handle_client_connection(client_socket):
             match message:
                 case "drone":
                     with lock:
-                        connections["drone"]=client_socket
+                        connections["drone"] = client_socket
                         droneConnected = True
                     handleDroneMessages(client_socket)
                 case "phone":
@@ -412,7 +463,8 @@ def handle_client_connection(client_socket):
                     break
 
 
-        except ConnectionResetError:
+        except Exception as e:
+            print(f"Connection failed to establish: {e}")
             break
     client_socket.close()
 
@@ -434,12 +486,11 @@ def start_tcp_server(server_ip, server_port):
         client_handler.start()
 
 
-
 if __name__ == "__main__":
     server_ip = "0.0.0.0"
 
     if internal:
-        server_ip="192.168.1.17"
+        server_ip = "192.168.1.17"
         print(f"IP for external connections: {getExternalIp()}:{server_port}")
     else:
         print(f"IP for external connections: {getExternalIp()}:{server_port}")
@@ -448,7 +499,7 @@ if __name__ == "__main__":
     tcp_server_thread = threading.Thread(target=start_tcp_server, args=(server_ip, server_port))
     tcp_server_thread.start()
 
-    send_frames_thread= threading.Thread(target=send_frames,args=())
+    send_frames_thread = threading.Thread(target=send_frames, args=())
     send_frames_thread.start()
 
     control_send_thread = threading.Thread(target=send_controls)

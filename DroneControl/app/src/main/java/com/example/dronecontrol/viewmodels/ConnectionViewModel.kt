@@ -60,7 +60,8 @@ const val UI_STATE_KEY = "uiState"
 
 enum class SCREEN{
     MainScreen,
-    DroneScreen
+    DroneScreen,
+    VideoListScreen
 }
 
 @Serializable
@@ -74,6 +75,8 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
     private val _uiState2 = savedStateHandle.getStateFlow(UI_STATE_KEY, ConnectionState())
 
     val uiState = _uiState2
+
+    val internal=true
 
     @RequiresApi(Build.VERSION_CODES.O)
     @OptIn(ExperimentalEncodingApi::class)
@@ -120,7 +123,7 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
         }
     }
 
-    private fun updateScreen(newScreen: SCREEN)
+    fun updateScreen(newScreen: SCREEN)
     {
         savedStateHandle[UI_STATE_KEY] = _uiState2.value.copy(
             screenNumber = newScreen,
@@ -257,27 +260,6 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
     {
         viewModelScope.launch(Dispatchers.Default)
         {
-            /*
-            // check if host is correct ipv4 address
-            val ipv4Regex = """^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$""".toRegex()
-            val isIPv4 = ipv4Regex.matches(uiState.value.host)
-
-            if (!isIPv4)
-            {
-                updateMainScreenErrorText("IP Address is incorrect format!")
-                return@launch
-            }
-
-            // try to convert port to int
-            try {
-                val port: Int = uiState.value.port.toInt()
-            }
-            catch (e: NumberFormatException)
-            {
-                updateMainScreenErrorText("Port must be an Integer!")
-                return@launch
-            }
-            */
 
             val addressPair= getCurrentIP(GITHUB_TOKEN, REPO_NAME, FILE_PATH, BRANCH_NAME)
 
@@ -292,9 +274,13 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
 
 
             var socket = Socket()
+            var socketAddress: InetSocketAddress? =null
             // val socketAddress = InetSocketAddress(uiState.value.host, uiState.value.port.toInt())
-            val socketAddress = InetSocketAddress(addressPair.first, addressPair.second.toInt())
-
+            if (internal){
+                 socketAddress = InetSocketAddress("192.168.1.17", 6969)
+            }else {
+                 socketAddress = InetSocketAddress(addressPair.first, addressPair.second.toInt())
+            }
             try{
                 socket.connect(socketAddress, 2000)
 
@@ -377,17 +363,6 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
                 val bitmap = BitmapFactory.decodeByteArray(jpegData, 0, size)
 
                 updateFrame(bitmap)
-
-//                val sizeBytes = ByteArray(4)
-//                dataInputStream.readFully(sizeBytes)
-//                val size = java.nio.ByteBuffer.wrap(sizeBytes).int
-//
-//                // Read the JPEG data
-//                val jpegData = ByteArray(size)
-//                dataInputStream.readFully(jpegData)
-//
-//                // Convert JPEG data to Bitmap
-//                val bitmap = BitmapFactory.decodeByteArray(jpegData, 0, size)
 
             }
         }

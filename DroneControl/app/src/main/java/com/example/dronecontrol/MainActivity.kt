@@ -44,12 +44,15 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.ViewCompat.onApplyWindowInsets
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.dronecontrol.screens.DroneScreen
 import com.example.dronecontrol.screens.MainScreen
+import com.example.dronecontrol.screens.VideoListScreen
 import com.example.dronecontrol.ui.theme.DroneControlTheme
 import com.example.dronecontrol.viewmodels.ConnectionViewModel
 import com.example.dronecontrol.viewmodels.SCREEN
+import com.example.dronecontrol.viewmodels.VideoViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlin.math.log
 
@@ -104,6 +107,7 @@ fun DroneApp()
     {
         SCREEN.MainScreen -> MainScreen(connectionViewModel)
         SCREEN.DroneScreen -> DroneScreen(connectionViewModel)
+        SCREEN.VideoListScreen -> VideoListScreen(viewModel = VideoViewModel(SavedStateHandle()))
         else -> {
             Log.d("Error", "Screen does not exist!")
         }
