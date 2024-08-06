@@ -23,6 +23,7 @@ fun VideoItem(video: Video) {
         shape = RoundedCornerShape(8.dp)
     ) {
         Row(modifier = Modifier.padding(8.dp)) {
+            Spacer(modifier = Modifier.width(8.dp))
             video.thumbnail?.let {
                 Image(
                     bitmap = it.asImageBitmap(),

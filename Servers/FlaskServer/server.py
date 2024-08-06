@@ -31,7 +31,7 @@ class PhoneState(Enum):
     STARTED = 0  # on main screen
     AUTOPILOT = 1  # recreating flight
     PILOTING = 2  # client is controling the drone
-    BROWSING_VIDEOS = 3  #
+    BROWSING_VIDEOS = 3  # not needed
     BROWSING_FLIGHTS = 4  #
     DOWNLOADING_VIDEO = 5  #
 
@@ -81,6 +81,10 @@ record_video = RecordState.NOT_RECORDING
 
 stop_event = threading.Event()
 
+# For video download
+cap = None
+frame_count =0
+frame= None
 
 # FUNCTIONS
 def changeServerIP(newIP):
@@ -172,7 +176,7 @@ def get_video_list():
     return video_list
 
 
-# THREAD AND THEIR CREATION
+# THREADS AND THEIR CREATION
 def send_frames():
     """
     Funkcija send_frames preuzima frejmove iz video_queue i šalje ih na telefon.
@@ -349,11 +353,37 @@ def handleControls(phoneSocket):
     """
        Handles control messages from the phone and forwards them to the queue.
     """
-    global record_video, phone_state
+    global record_video, phone_state, cap, frame_count, current_frame
     buffer = ""
     flag = True
     while flag:
         try:
+            # sends the video (continue where the old thread left off in case of disconnect)
+            # to not skip frames either
+            # the cap.set must be used to move to the previous frame - i chose this
+            # or have the frame as global
+            if phone_state == PhoneState.DOWNLOADING_VIDEO:
+                while frame_count>current_frame:
+                    ret, frame = cap.read()
+                    if not ret:
+                        break
+                    _, jpeg = cv2.imencode('.jpg', frame)
+                    frame_data = jpeg.tobytes()
+                    frame_size = len(frame_data)
+
+                    # Send frame size and frame data
+                    phoneSocket.sendall(struct.pack('>I', frame_size))
+                    phoneSocket.sendall(frame_data)
+
+                    current_frame += 1
+                frame_count=0
+                current_frame=0
+                cap.release()
+                cv2.destroyAllWindows()
+                phone_state = PhoneState.BROWSING_VIDEOS
+                print("Finished sending video")
+                continue
+
             data = phoneSocket.recv(1024).decode('utf-8')
 
             if not data:
@@ -378,42 +408,53 @@ def handleControls(phoneSocket):
                     print(instruction_data)
                     if instruction_type is None:
                         print("Invalid instruction")
-                    elif instruction_type == InstructionType.HEARTBEAT:
+                    elif instruction_type == InstructionType.HEARTBEAT.value:
                         pass
-                    elif instruction_type == InstructionType.START_RECORDING:
+                    elif instruction_type == InstructionType.START_RECORDING.value:
                         record_video = RecordState.START_RECORDING
-                    elif instruction_type == InstructionType.STOP_RECORDING:
+                    elif instruction_type == InstructionType.STOP_RECORDING.value:
                         record_video = RecordState.STOP_RECORDING
-                    elif instruction_type == InstructionType.START_FLIGHT:
+                    elif instruction_type == InstructionType.START_FLIGHT.value:
                         phone_state = PhoneState.PILOTING
                         # send the pi to start streaming
                         pass
-                    elif instruction_type == InstructionType.END_FLIGHT:
+                    elif instruction_type == InstructionType.END_FLIGHT.value:
                         phone_state = PhoneState.STARTED
                         # send the pi to stop streaming
                         pass
-                    elif instruction_type == InstructionType.GET_FLIGHTS:
+                    elif instruction_type == InstructionType.GET_FLIGHTS.value:
                         phone_state = PhoneState.BROWSING_FLIGHTS
                         pass
-                    elif instruction_type == InstructionType.START_PREVIOUS_FLIGHT:
+                    elif instruction_type == InstructionType.START_PREVIOUS_FLIGHT.value:
                         phone_state = PhoneState.AUTOPILOT
                         # send the pi to start streaming
                         # start sending previous instructions
                         pass
                     elif instruction_type == InstructionType.GET_VIDEOS.value:
-                        print("In")
                         phone_state = PhoneState.BROWSING_VIDEOS
                         video_list_json = json.dumps(get_video_list()).encode('utf-8')
                         json_length = len(video_list_json)
                         print(json_length)
                         phoneSocket.sendall(struct.pack('>I', json_length))
                         phoneSocket.sendall(video_list_json)
-                        print("Finished Sending")
-                    elif instruction_type == InstructionType.DOWNLOAD_VIDEO:
+                        print("Finished Sending Video List")
+                    # sets up the cv2 and video and frame counter
+                    elif instruction_type == InstructionType.DOWNLOAD_VIDEO.value:
+                        phone_state = PhoneState.DOWNLOADING_VIDEO
+                        video_name = instruction_data.get("video_name")
+                        cap = cv2.VideoCapture(f"videos/{video_name}")
+                        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                        # Send video metadata
+                        metadata = struct.pack('>I', frame_count)
+                        phoneSocket.sendall(metadata)
+                        # Wait for client acknowledgment
+                        ack = phoneSocket.recv(1)
+                        if ack != b'\x01':
+                            phone_state = PhoneState.BROWSING_VIDEOS
+                            print("Given up on downloading")
+                    elif instruction_type == InstructionType.GET_STATUS.value:
                         pass
-                    elif instruction_type == InstructionType.GET_STATUS:
-                        pass
-                    elif instruction_type == InstructionType.BACK:
+                    elif instruction_type == InstructionType.BACK.value:
                         pass
                     elif instruction_type > InstructionType.BACK.value:
                         control_queue.put(json_str)
@@ -426,6 +467,9 @@ def handleControls(phoneSocket):
 
         except Exception as e:
             flag = False
+            #return to previous frame
+            if phone_state == PhoneState.DOWNLOADING_VIDEO:
+                cap.set(cv2.CAP_PROP_POS_FRAMES, current_frame)
             print(f"Phone connection lost in handleControls: {e}")
             break
 

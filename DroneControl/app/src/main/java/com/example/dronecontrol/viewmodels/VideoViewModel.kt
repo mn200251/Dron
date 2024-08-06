@@ -91,6 +91,7 @@ class VideoViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel
                 savedStateHandle[VIDEO_STATE_KEY] = newState
 
             } catch (e: Exception) {
+
                 e.printStackTrace()
             } finally {
                 socket.close()
