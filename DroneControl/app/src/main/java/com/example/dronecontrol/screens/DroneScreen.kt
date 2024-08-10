@@ -44,14 +44,15 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.times
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.dronecontrol.collectAsState
 import com.example.dronecontrol.models.ModifiedJoyStick
+import com.example.dronecontrol.sharedRepositories.SharedRepository
 import com.example.dronecontrol.viewmodels.ConnectionViewModel
+import com.example.dronecontrol.viewmodels.SCREEN
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
 
-@RequiresApi(Build.VERSION_CODES.R)
-@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel())
 {
@@ -62,8 +63,6 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel())
     // stop button
 
     val uiState by connectionViewModel.uiState.collectAsState()
-
-    var frame by remember { mutableStateOf<ImageBitmap?>(null) }
 
     val width = LocalConfiguration.current.screenWidthDp.dp
     val height = LocalConfiguration.current.screenHeightDp.dp
@@ -76,6 +75,8 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel())
 
     var rightDotPosition by remember { mutableStateOf(Offset(0f, 0f)) }
     var leftDotPosition by remember { mutableStateOf(Offset(0f, 0f)) }
+
+    val frame by SharedRepository.frame.collectAsState(null) // Use a default value
 
     val currLocalDensity = LocalDensity.current
 
@@ -110,11 +111,14 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel())
         }
     }
     */
+
     Canvas(modifier = Modifier.fillMaxSize()) {
         // uiState.frame?.let {
         //     drawImage(it.asImageBitmap(), topLeft = Offset.Zero)
         // }
-        uiState.frame?.let { bitmap ->
+
+        // SharedRepository.getFrame()?.let { bitmap ->
+        frame?.let { bitmap: Bitmap ->
             val canvasWidth = size.width
             val canvasHeight = size.height
 

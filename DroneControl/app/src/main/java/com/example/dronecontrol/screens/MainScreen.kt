@@ -1,5 +1,6 @@
 package com.example.dronecontrol.screens
 
+import android.content.Context
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.clickable
@@ -28,13 +29,14 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.dronecontrol.sharedRepositories.SharedRepository
 import com.example.dronecontrol.viewmodels.ConnectionViewModel
 
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-fun MainScreen(connectionViewModel: ConnectionViewModel = viewModel()) {
+fun MainScreen(connectionViewModel: ConnectionViewModel = viewModel(), context: Context) {
     val inputFieldWidth: Dp = 500.dp
     val titleFontSize: TextUnit = 30.sp
     val textFontSize: TextUnit = 18.sp
@@ -61,7 +63,7 @@ fun MainScreen(connectionViewModel: ConnectionViewModel = viewModel()) {
 
 
         Button(
-            onClick = { connectionViewModel.connect2Server() },
+            onClick = { connectionViewModel.startService(context, "ACTION_APP_FOREGROUND") },
             modifier = Modifier.align(Alignment.CenterHorizontally),
 
             ) {
@@ -90,10 +92,10 @@ fun MainScreen(connectionViewModel: ConnectionViewModel = viewModel()) {
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        if (uiState.mainScreenErrorText != "")
+        if (SharedRepository.mainScreenErrorText.value != "")
         {
             Spacer(modifier = Modifier.height(8.dp))
-            Text(text = uiState.mainScreenErrorText,
+            Text(text = SharedRepository.getMainScreenErrorText(),
                 fontSize = textFontSize,
                 color = Color.Red)
         }

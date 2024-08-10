@@ -82,6 +82,8 @@ dependencies {
 
     implementation (libs.github.api)
 
+    implementation("com.google.accompanist:accompanist-permissions:0.31.1-alpha")
+
 }
 
 
