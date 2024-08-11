@@ -98,4 +98,8 @@ class VideoViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel
             }
         }
     }
+
+    fun downloadVideo(video: Video) {
+        Log.d("Dialog","Yes")
+    }
 }
