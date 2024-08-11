@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.dronecontrol.sharedRepositories.SharedRepository
 import com.example.dronecontrol.viewmodels.ConnectionViewModel
+import com.example.dronecontrol.viewmodels.SCREEN
 
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -73,7 +74,7 @@ fun MainScreen(connectionViewModel: ConnectionViewModel = viewModel(), context: 
         Spacer(modifier = Modifier.height(8.dp))
 
         Button(
-            onClick = {  },
+            onClick = {  connectionViewModel.updateScreen(SCREEN.VideoListScreen)},
             modifier = Modifier.align(Alignment.CenterHorizontally),
 
             ) {

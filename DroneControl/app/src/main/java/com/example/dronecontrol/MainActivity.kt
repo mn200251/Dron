@@ -52,13 +52,16 @@ import androidx.core.view.ViewCompat.onApplyWindowInsets
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.Observer
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.dronecontrol.screens.DroneScreen
 import com.example.dronecontrol.screens.MainScreen
 import com.example.dronecontrol.sharedRepositories.SharedRepository
+import com.example.dronecontrol.screens.VideoListScreen
 import com.example.dronecontrol.ui.theme.DroneControlTheme
 import com.example.dronecontrol.viewmodels.ConnectionViewModel
 import com.example.dronecontrol.viewmodels.SCREEN
+import com.example.dronecontrol.viewmodels.VideoViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlin.math.log
 
@@ -156,6 +159,10 @@ private fun UpdateScreen(screen: SCREEN, context: Context, connectionViewModel: 
             // Replace or display the DroneScreen
 
             DroneScreen(connectionViewModel)
+        }
+
+        SCREEN.VideoListScreen -> {
+            VideoListScreen(viewModel = VideoViewModel(SavedStateHandle()))
         }
     }
 }

@@ -55,7 +55,8 @@ const val UI_STATE_KEY = "uiState"
 
 enum class SCREEN{
     MainScreen,
-    DroneScreen
+    DroneScreen,
+    VideoListScreen
 }
 
 @Serializable
