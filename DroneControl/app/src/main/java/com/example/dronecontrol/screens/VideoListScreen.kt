@@ -27,7 +27,9 @@ fun VideoListScreen(viewModel: VideoViewModel ) {
     ) {
         LazyColumn {
             items(videoState.videos) { video ->
-                VideoItem(video = video)
+                VideoItem(video = video,onDownloadConfirm = { video ->
+                    viewModel.downloadVideo(video)
+                })
             }
         }
     }
