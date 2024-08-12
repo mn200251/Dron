@@ -72,7 +72,7 @@ fun MainScreen(connectionViewModel: ConnectionViewModel = viewModel()) {
         Spacer(modifier = Modifier.height(8.dp))
 
         Button(
-            onClick = {  connectionViewModel.updateScreen(SCREEN.VideoListScreen)},
+            onClick = {  SharedRepository.setScreen(SCREEN.VideoListScreen)},
             modifier = Modifier.align(Alignment.CenterHorizontally),
 
             ) {

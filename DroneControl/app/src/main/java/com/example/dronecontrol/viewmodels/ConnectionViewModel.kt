@@ -9,10 +9,17 @@ import androidx.annotation.RequiresApi
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+<<<<<<< Updated upstream
 import com.example.dronecontrol.private.BRANCH_NAME
 import com.example.dronecontrol.private.FILE_PATH
 import com.example.dronecontrol.private.GITHUB_TOKEN
 import com.example.dronecontrol.private.REPO_NAME
+=======
+import com.example.dronecontrol.collectAsState
+import com.example.dronecontrol.data_types.InstructionType
+import com.example.dronecontrol.services.ConnectionService
+import com.example.dronecontrol.sharedRepositories.SharedRepository
+>>>>>>> Stashed changes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,6 +27,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.parcelize.Parcelize
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -68,6 +76,14 @@ enum class SCREEN{
 data class Coordinates(val x: Float, val y: Float, val z: Float, val rotation: Float)
 
 
+<<<<<<< Updated upstream
+=======
+@Parcelize
+@Serializable
+data class Controls(val x: Float, val y: Float, val z: Float, val rotation: Float,val type :Int) : Parcelable
+
+
+>>>>>>> Stashed changes
 class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel() {
 
     private val _uiState1 = MutableStateFlow(ConnectionState())
@@ -258,7 +274,28 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
     @RequiresApi(Build.VERSION_CODES.O)
     fun connect2Server()
     {
+<<<<<<< Updated upstream
         viewModelScope.launch(Dispatchers.Default)
+=======
+        val controls = Controls(uiState.value.joystickX, uiState.value.joystickY,
+            uiState.value.joystickZ, uiState.value.joystickRotation,InstructionType.JOYSTICK.value)
+
+        val intent = Intent(context, ConnectionService::class.java).apply {
+            this.action = action
+            putExtra("ControlData", controls)
+        }
+        context.startService(intent)
+
+        // ContextCompat.startForegroundService(context, intent)
+    }
+
+    // ako se ugasi konekcija i startuje nova STVORICE MEMORY LEAK!\
+    // ne moze Job da se cuva u data class
+    // ah
+    suspend fun monitorControls(context: Context)
+    {
+        while (uiState.value.monitorMovementBoolean)
+>>>>>>> Stashed changes
         {
 
             val addressPair= getCurrentIP(GITHUB_TOKEN, REPO_NAME, FILE_PATH, BRANCH_NAME)
