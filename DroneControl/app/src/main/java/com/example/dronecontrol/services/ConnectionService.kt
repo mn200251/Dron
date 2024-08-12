@@ -11,11 +11,10 @@ import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.annotation.RequiresApi
-import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import com.example.dronecontrol.R
 import com.example.dronecontrol.private.BRANCH_NAME
-import com.example.dronecontrol.private.FILE_PATH
+import com.example.dronecontrol.private.SERVER_FILE_PATH
 import com.example.dronecontrol.private.GITHUB_TOKEN
 import com.example.dronecontrol.private.REPO_NAME
 import com.example.dronecontrol.sharedRepositories.SharedRepository
@@ -72,7 +71,7 @@ class ConnectionService : Service() {
         */
 
 
-        startForegroundService()
+        // startForegroundService()
     }
 
     // Method to update the notification based on the foreground status
@@ -128,14 +127,6 @@ class ConnectionService : Service() {
 
     @RequiresApi(Build.VERSION_CODES.O)
     private fun createNotificationChannel(channelId: String, channelName: String): String {
-        /*
-        val chan = NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_DEFAULT)
-        val service = getSystemService(NotificationManager::class.java)
-        service?.createNotificationChannel(chan)
-        return channelId
-
-         */
-
         val channel = NotificationChannel(
             channelId,
             channelName,
@@ -161,18 +152,16 @@ class ConnectionService : Service() {
 
         when (intent?.action) {
             "ACTION_APP_BACKGROUND" -> {
-                // Switch to heartbeat mode
-                // startHeartbeat()
-                changeServiceState(false)
+                if (connectionActive)
+                    changeServiceState(false)
             }
             "ACTION_APP_FOREGROUND" -> {
+                if (connectionActive)
                 changeServiceState(true)
 
                 val myData: Controls? = intent.getParcelableExtra("ControlData", Controls::class.java)
                 if (myData != null)
-                {
                     controls = myData
-                }
             }
         }
 
@@ -183,10 +172,19 @@ class ConnectionService : Service() {
         return null
     }
 
+    private fun removeNotification(notificationId: Int)
+    {
+        val notificationManager = this.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.cancel(notificationId)
+    }
+
     override fun onDestroy() {
         super.onDestroy()
 
         Log.d("SERVICE", "Usao u onDestroy()")
+
+        val notificationManager = this.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.cancel(notificationId)
 
         sendMovementJob?.cancel()
         receiveVideoStreamJob?.cancel()
@@ -197,9 +195,9 @@ class ConnectionService : Service() {
     @RequiresApi(Build.VERSION_CODES.O)
     fun connect2Server()
     {
-        serviceScope.launch(Dispatchers.Default)
+        serviceScope.launch(Dispatchers.IO)
         {
-            val addressPair = getCurrentIP(GITHUB_TOKEN, REPO_NAME, FILE_PATH, BRANCH_NAME)
+            val addressPair = getCurrentIP(GITHUB_TOKEN, REPO_NAME, SERVER_FILE_PATH, BRANCH_NAME)
 
             if (addressPair == null)
             {
@@ -208,8 +206,6 @@ class ConnectionService : Service() {
             }
 
             Log.d("IP", addressPair.first + ":" + addressPair.second)
-
-
 
             var socket = Socket()
             // val socketAddress = InetSocketAddress(uiState.value.host, uiState.value.port.toInt())
@@ -230,6 +226,8 @@ class ConnectionService : Service() {
 
                     var response = BufferedReader(InputStreamReader(socket.inputStream)).readLine()
                     Log.d("Response", "Received response from server:$response")
+
+                    startForegroundService()
 
                     if (response == "1") // drone not connected, wait?
                     {
@@ -269,6 +267,7 @@ class ConnectionService : Service() {
             } catch (e: Exception) {
                 Log.d("Connection Exception", e.message.toString())
                 SharedRepository.setMainScreenErrorText("An error has occurred while connecting to the server!")
+                removeNotification(notificationId)
                 return@launch
             } finally {
                 // connectionActive will be false
@@ -289,7 +288,7 @@ class ConnectionService : Service() {
             {
                 while (!isInForeground)
                 {
-                    delay(50)
+                    delay(100)
                 }
 
                 val size: Int = dataInputStream.readInt()
@@ -319,6 +318,8 @@ class ConnectionService : Service() {
         catch (e: Exception)
         {
             Log.e("VideoStream Exception", e.message.toString())
+
+
         }
         finally {
             inputStream.close()

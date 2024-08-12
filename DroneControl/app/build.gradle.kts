@@ -84,6 +84,8 @@ dependencies {
 
     implementation("com.google.accompanist:accompanist-permissions:0.31.1-alpha")
 
+    implementation(libs.androidx.ui.text.google.fonts)
+
 }
 
 

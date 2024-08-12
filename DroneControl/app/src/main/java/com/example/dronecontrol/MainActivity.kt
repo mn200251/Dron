@@ -1,6 +1,8 @@
 package com.example.dronecontrol
 
+import android.app.NotificationManager
 import android.content.Context
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
@@ -58,6 +60,7 @@ import com.example.dronecontrol.screens.DroneScreen
 import com.example.dronecontrol.screens.MainScreen
 import com.example.dronecontrol.sharedRepositories.SharedRepository
 import com.example.dronecontrol.screens.VideoListScreen
+import com.example.dronecontrol.services.ConnectionService
 import com.example.dronecontrol.ui.theme.DroneControlTheme
 import com.example.dronecontrol.viewmodels.ConnectionViewModel
 import com.example.dronecontrol.viewmodels.SCREEN
@@ -75,8 +78,40 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             DroneControlTheme {
-                DroneApp(this, this)
+                DroneApp(this, this, this)
             }
+        }
+    }
+
+    override fun onStop() {
+        super.onStop()
+
+        val intent = Intent(this, ConnectionService::class.java).apply {
+            this.action = "ACTION_APP_BACKGROUND"
+        }
+
+        startService(intent)
+    }
+
+    override fun onRestart() {
+        super.onRestart()
+
+        val intent = Intent(this, ConnectionService::class.java).apply {
+            this.action = "ACTION_APP_FOREGROUND"
+        }
+
+        startService(intent)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+
+        // distinguish between activity finishing and pausing
+        if (isFinishing)
+        {
+            // cancel all notifications when exiting app
+            val notificationManager = this.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.cancelAll()
         }
     }
 
@@ -105,31 +140,15 @@ class MainActivity : ComponentActivity() {
 
 @RequiresApi(Build.VERSION_CODES.R)
 @Composable
-fun DroneApp(context: Context, lifeCyleOwner: LifecycleOwner)
+fun DroneApp(context: Context, lifeCyleOwner: LifecycleOwner, activity: MainActivity)
 {
     var connectionViewModel: ConnectionViewModel = viewModel()
-    // val uiState by connectionViewModel.uiState.collectAsState()
-
-
-    // Observe screenNumber and update the screen accordingly
 
     // Convert LiveData to StateFlow or use a MutableState directly in Compose
     val screen by SharedRepository.screenNumber.collectAsState(SCREEN.MainScreen) // Use a default value
 
     // Observe screenNumber and update the screen accordingly
-    UpdateScreen(screen, context, connectionViewModel)
-
-
-    /*
-    when (SharedRepository.getScreen())
-    {
-        SCREEN.MainScreen -> MainScreen(connectionViewModel, context)
-        SCREEN.DroneScreen -> DroneScreen(connectionViewModel)
-        else -> {
-            Log.d("Error", "Screen does not exist!")
-        }
-    }
-    */
+    UpdateScreen(screen, context, connectionViewModel, activity)
 
 }
 
@@ -149,15 +168,12 @@ fun <T> LiveData<T>.collectAsState(initial: T): State<T> {
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-private fun UpdateScreen(screen: SCREEN, context: Context, connectionViewModel: ConnectionViewModel = viewModel()) {
+private fun UpdateScreen(screen: SCREEN, context: Context, connectionViewModel: ConnectionViewModel = viewModel(), activity: MainActivity) {
     when (screen) {
         SCREEN.MainScreen -> {
-            // Replace or display the MainScreen
-            MainScreen(connectionViewModel, context)
+            MainScreen(connectionViewModel, context, activity)
         }
         SCREEN.DroneScreen -> {
-            // Replace or display the DroneScreen
-
             DroneScreen(connectionViewModel)
         }
 

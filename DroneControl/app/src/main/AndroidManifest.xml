@@ -40,6 +40,16 @@
             </intent-filter>
         </service>
 
+        <service
+            android:name=".services.DownloadService"
+            android:foregroundServiceType="systemExempted"
+            android:exported="false">
+
+            <intent-filter>
+                <action android:name="com.example.yourapp.NOTIFICATION_SERVICE" />
+            </intent-filter>
+        </service>
+
         <activity
             android:name=".MainActivity"
             android:screenOrientation="landscape"
