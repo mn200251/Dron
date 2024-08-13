@@ -109,9 +109,9 @@ class ConnectionService : Service() {
 
         notification = NotificationCompat.Builder(this, channelId)
             .setContentTitle("Connected to Server")
-            .setContentText("The service is running in the background")
+            .setContentText("The service is running in the foreground")
             .setSmallIcon(R.drawable.connected_icon)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT) // older versions use this to set priority
+            .setPriority(NotificationCompat.BADGE_ICON_SMALL) // older versions use this to set priority
             .build()
 
         try {
@@ -130,7 +130,7 @@ class ConnectionService : Service() {
         val channel = NotificationChannel(
             channelId,
             channelName,
-            NotificationManager.IMPORTANCE_DEFAULT
+            NotificationManager.IMPORTANCE_LOW
         ).apply {
             description = "Channel description"
             enableLights(true)
@@ -152,12 +152,12 @@ class ConnectionService : Service() {
 
         when (intent?.action) {
             "ACTION_APP_BACKGROUND" -> {
-                if (connectionActive)
+                if (connectionActive && isInForeground)
                     changeServiceState(false)
             }
             "ACTION_APP_FOREGROUND" -> {
-                if (connectionActive)
-                changeServiceState(true)
+                if (connectionActive && !isInForeground)
+                    changeServiceState(true)
 
                 val myData: Controls? = intent.getParcelableExtra("ControlData", Controls::class.java)
                 if (myData != null)
@@ -317,7 +317,7 @@ class ConnectionService : Service() {
         }
         catch (e: Exception)
         {
-            Log.e("VideoStream Exception", e.message.toString())
+            Log.e("ConnectionService VideoStream receiveVideoStream Exception", e.message.toString())
 
 
         }
@@ -325,7 +325,7 @@ class ConnectionService : Service() {
             inputStream.close()
         }
 
-        Log.v("VideoStream", "Exited!")
+        Log.v("ConnectionService VideoStream", "Exited!")
 
         this.stopSelf()
     }
@@ -377,12 +377,12 @@ class ConnectionService : Service() {
         }
         catch (e: Exception)
         {
-            Log.e("Controls Exception", e.message.toString())
+            Log.e("ConnectionService sendControls Exception", e.message.toString())
         }
         finally {
             outputStream.close()
         }
 
-        Log.v("Controls", "Exited!")
+        Log.v("ConnectionService sendControls", "Exited!")
     }
 }

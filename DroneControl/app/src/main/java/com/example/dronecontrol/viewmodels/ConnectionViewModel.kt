@@ -42,6 +42,8 @@ data class ConnectionState(
     var joystickRotation: Float = 0f,
 
     var isSendingMovement: Boolean = false,
+
+    var isRecordingVideo: Boolean = false,
     // var connectionActive: Boolean = false,
 
     // var frame: Bitmap? = null,
@@ -93,6 +95,20 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
 
         Log.d("ViewModel", "Zavrsio u startService")
     }
+
+    fun updateIsRecordingVideo(newValue: Boolean)
+    {
+        savedStateHandle[UI_STATE_KEY] = _uiState2.value.copy(
+            isRecordingVideo = newValue,
+        )
+        _uiState1.update { currentConnectionUiState ->
+            currentConnectionUiState.copy(
+                isRecordingVideo = newValue,
+            )
+        }
+    }
+
+
 
     private fun setMonitorMovementBoolean(newValue: Boolean)
     {

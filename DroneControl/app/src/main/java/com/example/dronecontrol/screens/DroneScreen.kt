@@ -1,5 +1,7 @@
 package com.example.dronecontrol.screens
 
+import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Color.rgb
 import android.graphics.Paint
@@ -16,6 +18,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -27,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.withTransform
@@ -39,13 +45,16 @@ import androidx.compose.ui.input.pointer.positionChangeConsumed
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.times
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.dronecontrol.R
 import com.example.dronecontrol.collectAsState
 import com.example.dronecontrol.models.ModifiedJoyStick
+import com.example.dronecontrol.services.ConnectionService
 import com.example.dronecontrol.sharedRepositories.SharedRepository
 import com.example.dronecontrol.viewmodels.ConnectionViewModel
 import com.example.dronecontrol.viewmodels.SCREEN
@@ -54,7 +63,7 @@ import kotlin.math.sqrt
 
 
 @Composable
-fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel())
+fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel(), context: Context)
 {
     // button for taking pictures?
     // battery percentage
@@ -84,6 +93,9 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel())
     val joystickAreaHeight = 0.65f
 
     val joystickSize = 160
+
+    // val iconModifier = Modifier.size(148.dp)
+    val buttonSize = 60.dp
 
     // var sendMovementJob: Job? by remember { mutableStateOf(null) }
 
@@ -137,308 +149,73 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel())
         }
     }
 
-    /*
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
-        with(LocalDensity.current) {
-            val screenWidthDp = LocalConfiguration.current.screenWidthDp.dp
-            val screenHeightDp = LocalConfiguration.current.screenHeightDp.dp
+        IconButton(
+            onClick = {
+                val intent: Intent = Intent(context, ConnectionService::class.java)
+                context.stopService(intent)
 
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .size(width = 0.45f * screenWidthDp, height = 0.65f * screenHeightDp)
-                    .pointerInteropFilter { event ->
-                        val adjustmentOffset = joystickSize / 4f
-
-                        when (event.action) {
-                            MotionEvent.ACTION_DOWN -> {
-                                rightJoystickVisible = true
-                                joystickPosition = Offset(event.x, event.y)
-                                dotPosition = Offset(adjustmentOffset, adjustmentOffset)
-
-                                Log.d(
-                                    "Joystick",
-                                    "${dotPosition.x - adjustmentOffset}, ${dotPosition.y - adjustmentOffset}"
-                                )
-
-                                connectionViewModel.updateIsSendingMovement(true)
-                                true
-                            }
-
-                            MotionEvent.ACTION_MOVE -> {
-                                if (rightJoystickVisible) {
-                                    val maxOffset: Float = (joystickSize / 4).dp.toPx()
-
-                                    val x = event.x - joystickPosition.x
-                                    val y = event.y - joystickPosition.y
-                                    val distance = sqrt(x * x + y * y)
-                                    val constrainedX =
-                                        if (distance > maxOffset) x * (maxOffset / distance) else x
-                                    val constrainedY =
-                                        if (distance > maxOffset) y * (maxOffset / distance) else y
-                                    dotPosition =
-                                        Offset(constrainedX + adjustmentOffset, constrainedY + adjustmentOffset)
-
-                                    val normalizedX = (dotPosition.x - adjustmentOffset) / maxOffset
-                                    val normalizedY = (dotPosition.y - adjustmentOffset) / maxOffset
-
-                                    Log.d(
-                                        "Joystick",
-                                        "$normalizedX, $normalizedY"
-                                    )
-
-                                    connectionViewModel.updateJoystickMovement(normalizedX, normalizedY)
-                                }
-                                true
-                            }
-
-                            MotionEvent.ACTION_UP -> {
-                                rightJoystickVisible = false
-
-                                connectionViewModel.updateJoystickMovement(0f, 0f)
-                                connectionViewModel.updateIsSendingMovement(false)
-                                true
-                            }
-
-                            else -> false
-                        }
-                    }
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    // Your column content here
-                }
-
-                if (rightJoystickVisible) {
-                    ModifiedJoyStick(
-                        modifier = Modifier
-                            .offset {
-                                IntOffset(
-                                    joystickPosition.x.roundToInt() - 250,
-                                    joystickPosition.y.roundToInt() - 250
-                                )
-                            } // Adjust the offset to center the joystick
-                            .size(joystickSize.dp)
-                            .padding(30.dp),
-                        size = joystickSize.dp,
-                        dotSize = (joystickSize / 6).dp,
-                        dotOffset = dotPosition
-                    ) { x: Float, y: Float ->
-                        Log.d("JoyStick", "$x, $y")
-                    }
-                }
-            }
+                SharedRepository.setScreen(SCREEN.MainScreen)
+            },
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(start = 14.dp, top = 14.dp)
+                .size(buttonSize)
+        ) {
+            Icon(
+                painter = painterResource(id = R.drawable.exit_icon),
+                contentDescription = "Exit Button Icon",
+                tint = Color(64, 64, 64, 75),
+                // modifier = iconModifier
+            )
         }
-    }
-    */
 
-    /*
-    Box(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        with(LocalDensity.current) {
-            val screenWidthDp = LocalConfiguration.current.screenWidthDp.dp
-            val screenHeightDp = LocalConfiguration.current.screenHeightDp.dp
-
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .size(width = joystickAreaWidth * screenWidthDp, height = joystickAreaHeight * screenHeightDp)
-                    .pointerInteropFilter { event ->
-                        val adjustmentOffset = joystickSize / 4f
-
-                        when (event.action) {
-                            MotionEvent.ACTION_DOWN -> {
-                                leftJoystickVisible = true
-                                leftJoystickPosition = Offset(event.x, event.y)
-                                leftDotPosition = Offset(adjustmentOffset, adjustmentOffset)
-
-                                Log.d(
-                                    "Joystick",
-                                    "${leftDotPosition.x - adjustmentOffset}, ${leftDotPosition.y - adjustmentOffset}"
-                                )
-
-                                connectionViewModel.updateIsSendingMovement(true)
-                                true
-                            }
-
-                            MotionEvent.ACTION_MOVE -> {
-                                if (leftJoystickVisible) {
-                                    val maxOffset: Float = (joystickSize / 4).dp.toPx()
-
-                                    val x = event.x - leftJoystickPosition.x
-                                    val y = event.y - leftJoystickPosition.y
-                                    val distance = sqrt(x * x + y * y)
-                                    val constrainedX =
-                                        if (distance > maxOffset) x * (maxOffset / distance) else x
-                                    val constrainedY =
-                                        if (distance > maxOffset) y * (maxOffset / distance) else y
-                                    leftDotPosition =
-                                        Offset(constrainedX + adjustmentOffset, constrainedY + adjustmentOffset)
-
-                                    val normalizedX = (rightDotPosition.x - adjustmentOffset) / maxOffset
-                                    val normalizedY = (rightDotPosition.y - adjustmentOffset) / maxOffset
-
-                                    Log.d(
-                                        "Left Joystick ",
-                                        "$normalizedX, $normalizedY"
-                                    )
-
-                                    connectionViewModel.updateLeftJoystickMovement(normalizedX, normalizedY)
-                                }
-                                true
-                            }
-
-                            MotionEvent.ACTION_UP -> {
-                                leftJoystickVisible = false
-
-                                connectionViewModel.updateLeftJoystickMovement(0f, 0f)
-
-                                if (!leftJoystickVisible and !rightJoystickVisible)
-                                    connectionViewModel.updateIsSendingMovement(false)
-                                true
-                            }
-
-                            else -> false
-                        }
-                    }
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    // Your column content here
-                }
-
-                if (leftJoystickVisible) {
-                    ModifiedJoyStick(
-                        modifier = Modifier
-                            .offset {
-                                IntOffset(
-                                    leftJoystickPosition.x.roundToInt() - 250,
-                                    leftJoystickPosition.y.roundToInt() - 250
-                                )
-                            } // Adjust the offset to center the joystick
-                            .size(joystickSize.dp)
-                            .padding(30.dp),
-                        size = joystickSize.dp,
-                        dotSize = (joystickSize / 6).dp,
-                        dotOffset = leftDotPosition
-                    ) { x: Float, y: Float ->
-                        Log.d("JoyStick", "$x, $y")
-                    }
-                }
-            }
-
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .size(width = joystickAreaWidth * screenWidthDp, height = joystickAreaHeight * screenHeightDp)
-                    .pointerInteropFilter { event ->
-                        val adjustmentOffset = joystickSize / 4f
-
-                        when (event.action) {
-                            MotionEvent.ACTION_DOWN -> {
-                                rightJoystickVisible = true
-                                rightJoystickPosition = Offset(event.x, event.y)
-                                rightDotPosition = Offset(adjustmentOffset, adjustmentOffset)
-
-                                Log.d(
-                                    "Joystick",
-                                    "${rightDotPosition.x - adjustmentOffset}, ${rightDotPosition.y - adjustmentOffset}"
-                                )
-
-                                connectionViewModel.updateIsSendingMovement(true)
-                                true
-                            }
-
-                            MotionEvent.ACTION_MOVE -> {
-                                if (rightJoystickVisible) {
-                                    val maxOffset: Float = (joystickSize / 4).dp.toPx()
-
-                                    val x = event.x - rightJoystickPosition.x
-                                    val y = event.y - rightJoystickPosition.y
-                                    val distance = sqrt(x * x + y * y)
-                                    val constrainedX =
-                                        if (distance > maxOffset) x * (maxOffset / distance) else x
-                                    val constrainedY =
-                                        if (distance > maxOffset) y * (maxOffset / distance) else y
-                                    rightDotPosition =
-                                        Offset(constrainedX + adjustmentOffset, constrainedY + adjustmentOffset)
-
-                                    val normalizedX = (rightDotPosition.x - adjustmentOffset) / maxOffset
-                                    val normalizedY = (rightDotPosition.y - adjustmentOffset) / maxOffset
-
-                                    Log.d(
-                                        "Joystick",
-                                        "$normalizedX, $normalizedY"
-                                    )
-
-                                    connectionViewModel.updateRightJoystickMovement(normalizedX, normalizedY)
-                                }
-                                true
-                            }
-
-                            MotionEvent.ACTION_UP -> {
-                                rightJoystickVisible = false
-
-                                connectionViewModel.updateRightJoystickMovement(0f, 0f)
-
-                                if (!leftJoystickVisible and !rightJoystickVisible)
-                                    connectionViewModel.updateIsSendingMovement(false)
-
-                                true
-                            }
-
-                            else -> false
-                        }
-                    }
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    // Your column content here
-                }
-
-                if (rightJoystickVisible) {
-                    ModifiedJoyStick(
-                        modifier = Modifier
-                            .offset {
-                                IntOffset(
-                                    rightJoystickPosition.x.roundToInt() - 250,
-                                    rightJoystickPosition.y.roundToInt() - 250
-                                )
-                            } // Adjust the offset to center the joystick
-                            .size(joystickSize.dp)
-                            .padding(30.dp),
-                        size = joystickSize.dp,
-                        dotSize = (joystickSize / 6).dp,
-                        dotOffset = rightDotPosition
-                    ) { x: Float, y: Float ->
-                        Log.d("JoyStick", "$x, $y")
-                    }
-                }
-            }
+        // Button 3 in the upper right corner, placed below Button 2
+        IconButton(
+            onClick = { /* Handle click */ },
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 14.dp, end = 14.dp)
+                .padding(start = 10.dp)
+                .size(buttonSize)
+        ) {
+            Icon(
+                painter = painterResource(id = R.drawable.replay_icon),
+                contentDescription = "Replay Button Icon",
+                tint = Color(64, 64, 64, 75),
+                // modifier = iconModifier
+            )
         }
-    }
-    */
 
-    Box(
-        modifier = Modifier.fillMaxSize()
-    ) {
+        IconButton(
+            onClick = {
+                connectionViewModel.updateIsRecordingVideo(!uiState.isRecordingVideo)
+                /* TODO() */
+            },
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 70.dp, end = 14.dp)
+                .padding(start = 10.dp)
+                .size(buttonSize)
+        ) {
+            Icon(
+                painter = painterResource(id = R.drawable.recording_button),
+//                    if (uiState.isRecordingVideo) R.drawable.recording_button_running
+//                    else R.drawable.recording_button),
+                contentDescription = "Recording Button Icon",
+                tint =
+                    if (!uiState.isRecordingVideo) Color(0, 0, 0, 75)
+                    else Color(255, 0, 0, 75),
+                // modifier = iconModifier
+            )
+        }
+
+
         with(LocalDensity.current) {
             val screenWidthDp = LocalConfiguration.current.screenWidthDp.dp
             val screenHeightDp = LocalConfiguration.current.screenHeightDp.dp
-            val joystickAreaWidth = 0.45f
-            val joystickAreaHeight = 0.65f
 
             Box(
                 modifier = Modifier

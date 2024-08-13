@@ -109,6 +109,10 @@ class MainActivity : ComponentActivity() {
         // distinguish between activity finishing and pausing
         if (isFinishing)
         {
+            // stop connection service
+            val intent = Intent(this, ConnectionService::class.java)
+            stopService(intent)
+
             // cancel all notifications when exiting app
             val notificationManager = this.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.cancelAll()
@@ -174,7 +178,7 @@ private fun UpdateScreen(screen: SCREEN, context: Context, connectionViewModel: 
             MainScreen(connectionViewModel, context, activity)
         }
         SCREEN.DroneScreen -> {
-            DroneScreen(connectionViewModel)
+            DroneScreen(connectionViewModel, context)
         }
 
         SCREEN.VideoListScreen -> {

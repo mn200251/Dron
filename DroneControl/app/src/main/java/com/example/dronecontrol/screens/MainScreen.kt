@@ -5,6 +5,9 @@ import android.content.Context
 import android.graphics.fonts.Font
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -17,17 +20,24 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
@@ -49,14 +59,68 @@ import com.example.dronecontrol.collectAsState
 import com.example.dronecontrol.sharedRepositories.SharedRepository
 import com.example.dronecontrol.viewmodels.ConnectionViewModel
 import com.example.dronecontrol.viewmodels.SCREEN
+import kotlinx.coroutines.delay
+import kotlin.math.cos
+import kotlin.math.sin
 import kotlin.system.exitProcess
 
+
+@Composable
+fun AnimatedBackground() {
+    val zoomLevel = 1.1f // 15% zoom
+
+    // State for panning
+    var offsetX by remember { mutableStateOf(0f) }
+    var offsetY by remember { mutableStateOf(0f) }
+
+    // Animation parameters
+    val maxOffsetX = 100f
+    val maxOffsetY = 30f
+
+    var speedX = 0.2f // Speed of panning
+    var speedY = 0.07f // Speed of panning
+
+    // Animate panning
+    LaunchedEffect(Unit) {
+        while (true) {
+            offsetX += speedX
+            if (offsetX > maxOffsetX || offsetX < -maxOffsetX) {
+                speedX *= -1 // Reverse direction when hitting edge
+            }
+
+            offsetY += speedY
+            if (offsetY > maxOffsetY || offsetY < -maxOffsetY) {
+                speedY *= -1 // Reverse direction when hitting edge
+            }
+
+            delay(16) // 60 FPS
+        }
+    }
+
+    Box(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Image(
+            painter = painterResource(id = R.drawable.background_image3),
+            contentDescription = "Main Screen Background Image",
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer(
+                    scaleX = zoomLevel,
+                    scaleY = zoomLevel,
+                    translationX = offsetX,
+                    translationY = offsetY
+                )
+        )
+    }
+}
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun MainScreen(connectionViewModel: ConnectionViewModel = viewModel(), context: Context, activity: MainActivity) {
-    val titleFontSize: TextUnit = 43.sp
+    val titleFontSize: TextUnit = 46.sp
     // val titleFont: Font =
     val textFontSize: TextUnit = 20.sp
 
@@ -67,19 +131,22 @@ fun MainScreen(connectionViewModel: ConnectionViewModel = viewModel(), context: 
         .width(180.dp)
         .height(35.dp)
 
-    val spaceModifier = Modifier.height(10.dp)
+    val spaceModifier = Modifier.height(11.dp)
+    val buttonTransparency = 0.8f
 
     val mainScreenErrorText by SharedRepository.mainScreenErrorText.collectAsState("")
 
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
-        Image(
-            painter = painterResource(id = R.drawable.background_image3),
-            contentDescription = null,
-            contentScale = ContentScale.Crop, // or ContentScale.FillBounds
-            modifier = Modifier.fillMaxSize()
-        )
+//        Image(
+//            painter = painterResource(id = R.drawable.background_image3),
+//            contentDescription = "Main Screen Background Image",
+//            contentScale = ContentScale.Crop, // or ContentScale.FillBounds
+//            modifier = Modifier.fillMaxSize()
+//        )
+
+        AnimatedBackground()
 
         Column(
             modifier = Modifier
@@ -100,45 +167,62 @@ fun MainScreen(connectionViewModel: ConnectionViewModel = viewModel(), context: 
                 style = TextStyle(
                     shadow = Shadow(
                         color = Color.Black, // Outline color
-                        offset = Offset(10f, 10f),
-                        blurRadius = 14f
+                        offset = Offset(12f, 12f),
+                        blurRadius = 16f
                     )
                 ),
                 textAlign = TextAlign.Center
             )
-            Spacer(modifier = Modifier.height(30.dp))
+            Spacer(modifier = Modifier.height(40.dp))
 
             Button(
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(128, 128, 128)
+                ),
                 onClick = { connectionViewModel.startService(context, "ACTION_APP_FOREGROUND") },
-                modifier = buttonModifier.align(Alignment.CenterHorizontally),
-
+                modifier = buttonModifier
+                    .align(Alignment.CenterHorizontally)
+                    .alpha(buttonTransparency),
                 ) {
-                Text("Start", fontSize = textFontSize)
+                Text("Start", fontSize = textFontSize, fontWeight = FontWeight.Bold,
+                    color = Color.Black)
             }
 
             Spacer(modifier = spaceModifier)
 
             Button(
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(128, 128, 128)
+                ),
                 onClick = {
                     connectionViewModel.updateScreenNumber(SCREEN.VideoListScreen)
                 },
-                modifier = buttonModifier.align(Alignment.CenterHorizontally),
+                modifier = buttonModifier
+                    .align(Alignment.CenterHorizontally)
+                    .alpha(buttonTransparency),
 
                 ) {
-                Text("Saved videos", fontSize = textFontSize)
+                Text("Saved videos", fontSize = textFontSize, fontWeight = FontWeight.Bold,
+                    color = Color.Black)
             }
 
             Spacer(modifier = spaceModifier)
 
             Button(
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(128, 128, 128)
+                ),
                 onClick = {
                     finishAffinity(activity)
                     exitProcess(0)
                 },
-                modifier = buttonModifier.align(Alignment.CenterHorizontally),
+                modifier = buttonModifier
+                    .align(Alignment.CenterHorizontally)
+                    .alpha(buttonTransparency),
 
                 ) {
-                Text("Exit", fontSize = textFontSize)
+                Text("Exit", fontSize = textFontSize, fontWeight = FontWeight.Bold,
+                    color = Color.Black)
             }
 
             Spacer(modifier = spaceModifier)
