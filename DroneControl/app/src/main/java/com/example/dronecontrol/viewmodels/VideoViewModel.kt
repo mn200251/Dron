@@ -2,9 +2,11 @@ package com.example.dronecontrol.viewmodels
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.os.Build
 import android.os.Parcelable
 import android.util.Base64
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
@@ -17,6 +19,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.State
 import androidx.lifecycle.SavedStateHandle
 import com.example.dronecontrol.data_types.InstructionType
+import com.example.dronecontrol.private.BRANCH_NAME
+import com.example.dronecontrol.private.DOWNLOAD_FILE_PATH
+import com.example.dronecontrol.private.GITHUB_TOKEN
+import com.example.dronecontrol.private.REPO_NAME
+import com.example.dronecontrol.utils.getCurrentIP
 import kotlinx.parcelize.Parcelize
 import org.json.JSONArray
 import java.io.BufferedReader
@@ -42,10 +49,20 @@ class VideoViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel
 
     val videoState = _videoState
 
+    val internal=true
+
+    @RequiresApi(Build.VERSION_CODES.O)
     fun fetchVideos() {
         viewModelScope.launch(Dispatchers.IO) {
             var socket = Socket()
-            val socketAddress = InetSocketAddress("192.168.1.17", 6969)
+            var socketAddress:InetSocketAddress
+
+            if(internal){
+                socketAddress = InetSocketAddress("192.168.1.17", 6969)
+            }else {
+                val addressPair = getCurrentIP(GITHUB_TOKEN, REPO_NAME, DOWNLOAD_FILE_PATH, BRANCH_NAME)
+                socketAddress = InetSocketAddress(addressPair?.first, addressPair?.second!!.toInt())
+            }
 
 
             try {
