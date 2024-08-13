@@ -60,7 +60,7 @@ class ConnectionService : Service() {
 
         Log.d("SERVICE", "Usao u onCreate()")
 
-        connect2Server()
+        connect2Server(this)
 
         /*
         if (!connectionActive)
@@ -193,7 +193,7 @@ class ConnectionService : Service() {
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
-    fun connect2Server()
+    fun connect2Server(service: Service)
     {
         serviceScope.launch(Dispatchers.IO)
         {
@@ -260,7 +260,10 @@ class ConnectionService : Service() {
                     }
 
                 } catch (e: Exception) {
-
+                    Log.d("Connection Exception - Inner Try", e.message.toString())
+                    SharedRepository.setMainScreenErrorText("An error has occurred while connecting to the server!")
+                    removeNotification(notificationId)
+                    service.stopSelf()
                 } finally {
 
                 }
@@ -268,10 +271,9 @@ class ConnectionService : Service() {
                 Log.d("Connection Exception", e.message.toString())
                 SharedRepository.setMainScreenErrorText("An error has occurred while connecting to the server!")
                 removeNotification(notificationId)
-                return@launch
+                service.stopSelf()
+                // return@launch
             } finally {
-                // connectionActive will be false
-                // updateScreen(SCREEN.MainScreen)
 
             }
         }

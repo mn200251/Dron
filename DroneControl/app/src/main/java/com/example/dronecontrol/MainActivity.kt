@@ -86,21 +86,30 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
 
-        val intent = Intent(this, ConnectionService::class.java).apply {
-            this.action = "ACTION_APP_BACKGROUND"
-        }
+        val screen = SharedRepository.screenNumber.value
 
-        startService(intent)
+        if (screen == SCREEN.DroneScreen) {
+            val intent = Intent(this, ConnectionService::class.java).apply {
+                this.action = "ACTION_APP_BACKGROUND"
+            }
+
+            startService(intent)
+        }
     }
 
     override fun onRestart() {
         super.onRestart()
 
-        val intent = Intent(this, ConnectionService::class.java).apply {
-            this.action = "ACTION_APP_FOREGROUND"
-        }
+        val screen = SharedRepository.screenNumber.value
 
-        startService(intent)
+        if (screen == SCREEN.DroneScreen)
+        {
+            val intent = Intent(this, ConnectionService::class.java).apply {
+                this.action = "ACTION_APP_FOREGROUND"
+            }
+
+            startService(intent)
+        }
     }
 
     override fun onDestroy() {
