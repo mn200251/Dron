@@ -27,7 +27,7 @@ fun VideoItem(video: Video, onDownloadConfirm: (Video) -> Unit) {
     var showDialog by remember { mutableStateOf(false) }
     Card(
         modifier = Modifier
-            .fillMaxWidth()
+            .fillMaxWidth(0.8f)
             .padding(8.dp)
             .clickable { showDialog = true },
         shape = RoundedCornerShape(8.dp)

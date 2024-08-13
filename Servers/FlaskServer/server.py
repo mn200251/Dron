@@ -20,6 +20,7 @@ from serverPrivateData import *
 from enum import Enum
 
 
+
 class RecordState(Enum):
     NOT_RECORDING = 0
     START_RECORDING = 1
@@ -91,8 +92,8 @@ send_event = threading.Event()
 cap = None
 frame_count =0
 frame= None
-current_frame=0
-
+current_frame = 0
+lock=threading.Lock()
 # FUNCTIONS
 def changeServerIP(newIP):
     """
@@ -182,6 +183,41 @@ def get_video_list():
             })
     return video_list
 
+def handle_video_download(cap, phoneSocket)->bool:
+    # sends the video (continue where the old thread left off in case of disconnect)
+    # to not skip frames either
+    # the cap.set must be used to move to the previous frame - i chose this
+    # or have the frame as global
+    global current_frame, frame_count, phone_state,lock
+    print("F:" +str(frame_count))
+    with lock:
+        cap.set(cv2.CAP_PROP_POS_FRAMES, current_frame)
+        try:
+            while frame_count > current_frame:
+                ret, frame = cap.read()
+                if not ret:
+                    break
+                _, jpeg = cv2.imencode('.jpg', frame)
+                frame_data = jpeg.tobytes()
+                frame_size = len(frame_data)
+                print(len(frame_data))
+                # Send frame size and frame data
+                phoneSocket.sendall(struct.pack('>I', frame_size))
+                phoneSocket.sendall(frame_data)
+
+                current_frame += 1
+            frame_count = 0
+            current_frame = 0
+            cap.release()
+            cv2.destroyAllWindows()
+            phone_state = PhoneState.BROWSING_VIDEOS
+            print("Finished sending video")
+            return True
+        except Exception as e:
+            print("An error occured in video sending at frame "+str(current_frame))
+    return False
+
+
 
 # THREADS AND THEIR CREATION
 def send_frames():
@@ -213,6 +249,7 @@ def send_frames():
         except Exception as e:
             print(f"Unexpected error in send_frames: {e}")
             continue
+
 
 
 def handleDroneMessages(droneSocket):
@@ -347,35 +384,14 @@ def handleControls(phoneSocket):
     """
        Handles control messages from the phone and forwards them to the queue.
     """
-    global command_dict,record_video, phone_state, cap, frame_count, current_frame,send_event
+    global command_dict,record_video, phone_state, cap, frame_count, send_event
     buffer = ""
     flag = True
     while flag:
         try:
-            # sends the video (continue where the old thread left off in case of disconnect)
-            # to not skip frames either
-            # the cap.set must be used to move to the previous frame - i chose this
-            # or have the frame as global
+
             if phone_state == PhoneState.DOWNLOADING_VIDEO:
-                while frame_count > current_frame:
-                    ret, frame = cap.read()
-                    if not ret:
-                        break
-                    _, jpeg = cv2.imencode('.jpg', frame)
-                    frame_data = jpeg.tobytes()
-                    frame_size = len(frame_data)
-
-                    # Send frame size and frame data
-                    phoneSocket.sendall(struct.pack('>I', frame_size))
-                    phoneSocket.sendall(frame_data)
-
-                    current_frame += 1
-                frame_count = 0
-                current_frame = 0
-                cap.release()
-                cv2.destroyAllWindows()
-                phone_state = PhoneState.BROWSING_VIDEOS
-                print("Finished sending video")
+                flag=handle_video_download(cap, phoneSocket)
                 continue
 
             data = phoneSocket.recv(1024).decode('utf-8')
@@ -434,18 +450,18 @@ def handleControls(phoneSocket):
                         print("Finished Sending Video List")
                     # sets up the cv2 and video and frame counter
                     elif instruction_type == InstructionType.DOWNLOAD_VIDEO.value:
-                        phone_state = PhoneState.DOWNLOADING_VIDEO
-                        video_name = instruction_data.get("video_name")
-                        cap = cv2.VideoCapture(f"videos/{video_name}")
-                        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-                        # Send video metadata
-                        metadata = struct.pack('>I', frame_count)
-                        phoneSocket.sendall(metadata)
-                        # Wait for client acknowledgment
-                        ack = phoneSocket.recv(1)
-                        if ack != b'\x01':
-                            phone_state = PhoneState.BROWSING_VIDEOS
-                            print("Given up on downloading")
+                        pass
+                        # try:
+                        #     video_name = instruction_data.get("video_name")
+                        #     cap = cv2.VideoCapture(f"videos/{video_name}")
+                        #     frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                        #     # Send video metadata
+                        #     phoneSocket.sendall(struct.pack('>I', frame_count))
+                        #     phone_state = PhoneState.DOWNLOADING_VIDEO
+                        #     print("Start sending video")
+                        # except Exception as e:
+                        #     cap.release()
+                        #     cv2.destroyAllWindows()
                     elif instruction_type == InstructionType.GET_STATUS.value:
                         pass
                     elif instruction_type == InstructionType.BACK.value:
@@ -464,11 +480,10 @@ def handleControls(phoneSocket):
                 send_event.set()
         except Exception as e:
             flag = False
-            #return to previous frame
-            if phone_state == PhoneState.DOWNLOADING_VIDEO:
-                cap.set(cv2.CAP_PROP_POS_FRAMES, current_frame)
             print(f"Phone connection lost in handleControls: {e}")
             break
+
+
 
 
 # Function to handle client connections
@@ -521,7 +536,6 @@ def start_tcp_server(server_ip, server_port):
 
 if __name__ == "__main__":
     server_ip = "0.0.0.0"
-
     if internal:
         server_ip = "192.168.1.17"
         print(f"IP for external connections: {getExternalIp()}:{server_port}")

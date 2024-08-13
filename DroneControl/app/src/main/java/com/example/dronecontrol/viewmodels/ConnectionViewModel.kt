@@ -13,6 +13,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.dronecontrol.collectAsState
+import com.example.dronecontrol.data_types.InstructionType
 import com.example.dronecontrol.services.ConnectionService
 import com.example.dronecontrol.sharedRepositories.SharedRepository
 import kotlinx.coroutines.Dispatchers
@@ -67,7 +68,7 @@ data class Coordinates(val x: Float, val y: Float, val z: Float, val rotation: F
 
 @Parcelize
 @Serializable
-data class Controls(val x: Float, val y: Float, val z: Float, val rotation: Float) : Parcelable
+data class Controls(val x: Float, val y: Float, val z: Float, val rotation: Float,val type:Int) : Parcelable
 
 
 class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel() {
@@ -238,7 +239,7 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
     private fun sendControls2Service(context: Context, action: String)
     {
         val controls = Controls(uiState.value.joystickX, uiState.value.joystickY,
-            uiState.value.joystickZ, uiState.value.joystickRotation)
+            uiState.value.joystickZ, uiState.value.joystickRotation,InstructionType.JOYSTICK.value)
 
         val intent = Intent(context, ConnectionService::class.java).apply {
             this.action = action
