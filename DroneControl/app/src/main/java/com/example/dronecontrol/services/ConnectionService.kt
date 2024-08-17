@@ -14,6 +14,7 @@ import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import com.example.dronecontrol.R
 import com.example.dronecontrol.private.BRANCH_NAME
+import com.example.dronecontrol.private.DOWNLOAD_FILE_PATH
 import com.example.dronecontrol.private.SERVER_FILE_PATH
 import com.example.dronecontrol.private.GITHUB_TOKEN
 import com.example.dronecontrol.private.REPO_NAME
@@ -54,6 +55,7 @@ class ConnectionService : Service() {
     private val channelId = "ConnectionService"
     private val notificationId = 1
 
+    private val internal=true
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate() {
         super.onCreate()
@@ -197,8 +199,12 @@ class ConnectionService : Service() {
     {
         serviceScope.launch(Dispatchers.IO)
         {
-            val addressPair = getCurrentIP(GITHUB_TOKEN, REPO_NAME, SERVER_FILE_PATH, BRANCH_NAME)
-
+            var addressPair:Pair<String, String>?
+            if(internal){
+                addressPair=Pair<String, String>("192.168.1.17", "6969")
+            }else {
+                addressPair = getCurrentIP(GITHUB_TOKEN, REPO_NAME, DOWNLOAD_FILE_PATH, BRANCH_NAME)
+            }
             if (addressPair == null)
             {
                 SharedRepository.setMainScreenErrorText("Unable to obtain server IP!")

@@ -200,12 +200,15 @@ def handle_video_download(cap, phoneSocket)->bool:
                 _, jpeg = cv2.imencode('.jpg', frame)
                 frame_data = jpeg.tobytes()
                 frame_size = len(frame_data)
-                print(len(frame_data))
+
                 # Send frame size and frame data
                 phoneSocket.sendall(struct.pack('>I', frame_size))
                 phoneSocket.sendall(frame_data)
 
                 current_frame += 1
+                if current_frame%4==0:
+                    print(frame_size)
+                    signal_message = phoneSocket.recv(1).decode('utf-8')
             frame_count = 0
             current_frame = 0
             cap.release()
@@ -304,7 +307,7 @@ def handleDroneMessages(droneSocket):
                 if record_video == RecordState.START_RECORDING or (
                         video_writer is None and record_video == RecordState.RECORDING):
                     # Initialize video writer
-                    fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Codec for mp4
+                    fourcc = cv2.VideoWriter_fourcc(*'H264')  # Codec for mp4
                     frame_width = source.shape[1]
                     frame_height = source.shape[0]
                     fps = 60  # Frames per second
@@ -368,7 +371,7 @@ def send_controls():
         try:
             data_to_send = json.dumps(command_dict).encode('utf-8')
             drone_socket = connections["drone"]
-            drone_socket.sendall(data_to_send.encode('utf-8'))
+            drone_socket.sendall(data_to_send)
             command_dict["type"] = InstructionType.JOYSTICK.value
         except AttributeError as e:
             print(f"Drone not connected")
@@ -451,17 +454,19 @@ def handleControls(phoneSocket):
                     # sets up the cv2 and video and frame counter
                     elif instruction_type == InstructionType.DOWNLOAD_VIDEO.value:
                         pass
-                        # try:
-                        #     video_name = instruction_data.get("video_name")
-                        #     cap = cv2.VideoCapture(f"videos/{video_name}")
-                        #     frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-                        #     # Send video metadata
-                        #     phoneSocket.sendall(struct.pack('>I', frame_count))
-                        #     phone_state = PhoneState.DOWNLOADING_VIDEO
-                        #     print("Start sending video")
-                        # except Exception as e:
-                        #     cap.release()
-                        #     cv2.destroyAllWindows()
+                        try:
+                            video_name = instruction_data.get("video_name")
+                            cap = cv2.VideoCapture(f"videos/{video_name}")
+                            frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                            # Send video metadata
+                            frame_count_bytes = struct.pack('>I', frame_count)
+                            print(f"Sending frame count: {frame_count}")
+                            phoneSocket.sendall(frame_count_bytes)
+                            phone_state = PhoneState.DOWNLOADING_VIDEO
+                            print("Start sending video")
+                        except Exception as e:
+                            cap.release()
+                            cv2.destroyAllWindows()
                     elif instruction_type == InstructionType.GET_STATUS.value:
                         pass
                     elif instruction_type == InstructionType.BACK.value:
@@ -492,7 +497,7 @@ def handle_client_connection(client_socket):
         Handles incoming client connections and directs them to the appropriate handler.
     """
     global connections
-
+    trying=True
     while True:
         try:
             message = client_socket.recv(1024).decode()
@@ -501,10 +506,13 @@ def handle_client_connection(client_socket):
                 case "drone":
                     connections["drone"] = client_socket
                     handleDroneMessages(client_socket)
+                    trying = False
                 case "phone":
                     connections["phone"] = client_socket
                     client_socket.sendall("0\n".encode())  # everything ok
                     handleControls(client_socket)
+                    trying = False
+
                 case _:
                     print(f"Received message: {message}")
                     client_socket.sendall("-1\n".encode())
