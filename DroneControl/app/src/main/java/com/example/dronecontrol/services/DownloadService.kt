@@ -1,22 +1,28 @@
 package com.example.dronecontrol.services
 
+import android.Manifest
+import android.app.Activity
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Color
 import android.media.MediaCodec
 import android.media.MediaCodecInfo
 import android.media.MediaFormat
 import android.media.MediaMuxer
+import android.net.Uri
 import android.os.Build
 import android.os.IBinder
 import android.os.Message
 import android.util.Log
 import androidx.annotation.RequiresApi
+import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.example.dronecontrol.R
 import com.example.dronecontrol.data_types.InstructionType
 import com.example.dronecontrol.private.BRANCH_NAME
@@ -25,14 +31,20 @@ import com.example.dronecontrol.private.GITHUB_TOKEN
 import com.example.dronecontrol.private.REPO_NAME
 import com.example.dronecontrol.sharedRepositories.SharedRepository
 import com.example.dronecontrol.utils.getCurrentIP
+import com.fasterxml.jackson.databind.JsonSerializer.None
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.DataInputStream
 import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
 import java.io.InputStream
 import java.io.InputStreamReader
 import java.io.OutputStream
@@ -74,6 +86,18 @@ class DownloadService : Service()
     @RequiresApi(Build.VERSION_CODES.O)
     fun downloadVideo(service: Service, videoName: String) {
         serviceDownloading = true
+        // Check and request storage permission if not granted
+//        if (ContextCompat.checkSelfPermission(service, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+//            != PackageManager.PERMISSION_GRANTED) {
+//
+//            // Request WRITE_EXTERNAL_STORAGE permission
+//            ActivityCompat.requestPermissions(
+//                service as Activity,
+//                arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE),
+//                1
+//            )
+//            return
+//        }
 
         downloadJob = serviceScope.launch(Dispatchers.IO)
         {
@@ -96,148 +120,117 @@ class DownloadService : Service()
 
             // Define the output video file
             val outputDir = getExternalFilesDir(null)
-            val outputFile = File(outputDir, "${videoName}_received.mp4")
+            val outputFile = File(outputDir, videoName)
 
-            // Setup MediaMuxer for video writing
-            val mediaMuxer = MediaMuxer(outputFile.absolutePath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4)
 
-            // Set up MediaCodec for encoding video
-            val videoEncoder = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_VIDEO_AVC)
-            val mediaFormat = MediaFormat.createVideoFormat(MediaFormat.MIMETYPE_VIDEO_AVC, WIDTH, HEIGHT)
-            mediaFormat.setInteger(MediaFormat.KEY_BIT_RATE, 4000000) // Adjust bitrate for quality
-            mediaFormat.setInteger(MediaFormat.KEY_FRAME_RATE, FRAME_RATE) // 60 fps
-            mediaFormat.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Flexible)
-            mediaFormat.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 5)
-            videoEncoder.configure(mediaFormat, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
-            videoEncoder.start()
-
-            var socket :Socket?=null
-            var working=true
-            var currFrame = 0
-            var videoTrackIndex = -1
-            var progressIncrement:Double = 1.0
-            var numFrames =0
             val auth: String = "phone"
             // val socketAddress = InetSocketAddress(uiState.value.host, uiState.value.port.toInt())
             val socketAddress = InetSocketAddress(addressPair.first, addressPair.second.toInt())
-            while(working) {
-                try {
-                    socket = Socket()
-                    // val socketAddress = InetSocketAddress(uiState.value.host, uiState.value.port.toInt())
-                    val socketAddress =
-                        InetSocketAddress(addressPair.first, addressPair.second.toInt())
-
-                    socket.connect(socketAddress, 2000)
-
-                    val outputStream: OutputStream = socket.getOutputStream()
-                    val inputStream: InputStream = socket.getInputStream()
-                    val reader = BufferedReader(InputStreamReader(inputStream))
-                    val dataInputStream = DataInputStream(socket.getInputStream())
-                    outputStream.write(auth.toByteArray(Charsets.UTF_8))
-                    outputStream.flush()
-                    var response = BufferedReader(InputStreamReader(inputStream)).readLine()
-
-                    //start the download only the first time
-                        if(currFrame==0) {
-                            val json = JSONObject().apply {
-                                put("type", InstructionType.DOWNLOAD_VIDEO.value)
-                                put("video_name", videoName)
-                            }
-                            outputStream.write(json.toString().toByteArray(Charsets.UTF_8))
-
-                            val frameSizeBytes = ByteArray(4)
-                            dataInputStream.readFully(frameSizeBytes)
-                            numFrames =
-                                ByteBuffer.wrap(frameSizeBytes).order(ByteOrder.BIG_ENDIAN).int
-                            Log.d("DownloadService", "Parsed frame number: $numFrames")
-
-
-                            progressIncrement = 100.0 / numFrames
-                        }
-                        //receive frames and create a video
-                        while (currFrame < numFrames) {
-                            val frameSize = dataInputStream.readInt()
-                            val frameData = ByteArray(frameSize)
-                            dataInputStream.readFully(frameData)
-
-                            // Process the frameData to fit MediaCodec's input format
-                            val bufferInfo = MediaCodec.BufferInfo()
-                            val inputBufferIndex = videoEncoder.dequeueInputBuffer(10000)
-                            if (inputBufferIndex >= 0) {
-                                val inputBuffer = videoEncoder.getInputBuffer(inputBufferIndex)
-                                inputBuffer?.clear()
-                                inputBuffer?.put(frameData)
-                                videoEncoder.queueInputBuffer(inputBufferIndex, 0, frameSize, 0, 0)
-                            }
-
-                            var outputBufferIndex =
-                                videoEncoder.dequeueOutputBuffer(bufferInfo, 10000)
-                            while (outputBufferIndex >= 0) {
-                                val outputBuffer = videoEncoder.getOutputBuffer(outputBufferIndex)
-                                outputBuffer?.let {
-                                    if (videoTrackIndex == -1) {
-                                        val format = videoEncoder.outputFormat
-                                        videoTrackIndex = mediaMuxer.addTrack(format)
-                                        mediaMuxer.start()
-                                    }
-                                    mediaMuxer.writeSampleData(videoTrackIndex, it, bufferInfo)
-                                }
-                                videoEncoder.releaseOutputBuffer(outputBufferIndex, false)
-                                outputBufferIndex =
-                                    videoEncoder.dequeueOutputBuffer(bufferInfo, 10000)
-                            }
-
-                            currFrame++
-                            if (currFrame==numFrames){
-                                working=false
-                            }
-                            if (currFrame % 4 == 0) {
-                                Log.d("DownloadService", "Parsed frame: $currFrame")
-                                outputStream.write(byteToSend.toInt())
-                                outputStream.flush()
-                                // Update notification progress
-                                updateNotification(
-                                    notificationId,
-                                    channelId,
-                                    "Downloading Video",
-                                    "Video is downloading to device",
-                                    R.drawable.download_icon,
-                                    oneTime = false,
-                                    progress = (currFrame * progressIncrement).toInt(),
-                                    maxProgress = 100
-                                )
-
-                            }
-
-                        }
-                }  catch (e: Exception) {
-                    Log.d("download", "at " + currFrame + " restarted cause: " + e)
-                    //the server finished sending and the download cannot be recovered
-                    //so just skip the last few frames
-                    if(currFrame>numFrames-4){
-                        working=false
-                    }
-
-                } finally {
-                    socket?.close()
-                    serviceDownloading = false
-                }
-            }
+            var socket:Socket?=null
             try {
-                mediaMuxer.stop()
-                mediaMuxer.release()
-                videoEncoder.stop()
-                videoEncoder.release()
-            } catch (e: Exception) {
-                Log.d("DownloadService", " saving failed :  " + e)
-            }
-            Log.d("DownloadService", "Finished downloading the video")
+                 socket = Socket()
+                // val socketAddress = InetSocketAddress(uiState.value.host, uiState.value.port.toInt())
+                val socketAddress =
+                    InetSocketAddress(addressPair.first, addressPair.second.toInt())
 
-            updateNotification(
-                notificationId, channelId, "Finished Downloading Video",
-                "Video saved to device", R.drawable.download_successs, oneTime = true, 100
-            )
+                socket.connect(socketAddress, 2000)
+
+                val outputStream: OutputStream = socket.getOutputStream()
+                val inputStream: InputStream = socket.getInputStream()
+                val reader = BufferedReader(InputStreamReader(inputStream))
+                val dataInputStream = DataInputStream(socket.getInputStream())
+                outputStream.write(auth.toByteArray(Charsets.UTF_8))
+                outputStream.flush()
+                var response1 = BufferedReader(InputStreamReader(inputStream)).readLine()
+
+                val json = JSONObject().apply {
+                    put("type", InstructionType.DOWNLOAD_VIDEO.value)
+                    put("video_name", videoName)
+                }
+                outputStream.write(json.toString().toByteArray(Charsets.UTF_8))
+
+                socket.close()
+
+                var progress=0
+                var jsonResponse:JSONObject?=null
+                while(true) {
+                    delay(3000)
+                    try {
+                        socket = Socket()
+                        //socket.soTimeout=3000
+                        // val socketAddress = InetSocketAddress(uiState.value.host, uiState.value.port.toInt())
+                        val socketAddress =
+                            InetSocketAddress(addressPair.first, addressPair.second.toInt())
+
+                        socket.connect(socketAddress, 2000)
+
+                        val outputStream: OutputStream = socket.getOutputStream()
+                        val reader = BufferedReader(InputStreamReader(inputStream))
+                        val inputStream = DataInputStream(socket.getInputStream())
+                        outputStream.write(auth.toByteArray(Charsets.UTF_8))
+                        outputStream.flush()
+                        var response = BufferedReader(InputStreamReader(inputStream)).readLine()
+
+                        val length = inputStream.readInt()
+                        Log.d("DownloadService", "Response length: $length")
+                        // Read the response data
+                        val responseData = ByteArray(length)
+                        inputStream.readFully(responseData)
+                        val responseJsonString = String(responseData, Charsets.UTF_8)
+                        jsonResponse=JSONObject(responseJsonString)
+                        Log.d("DownloadService",responseJsonString)
+//                        outputStream.write(2)
+//                        outputStream.flush()
+
+                        break
+                    }
+                    catch (e: Exception) {
+                        Log.d("DownloadService", "Working on uploading the video: "+e)
+                        progress=+10
+                        updateNotification(notificationId, channelId, "Downloading Video",
+                            "Working on uploading the video", R.drawable.download_icon,oneTime = false, progress,100)
+                    }
+                }
+                val status = jsonResponse!!.getInt("status")
+
+                if (status != 200) {
+                    // Handle failure
+                    updateNotification(notificationId, channelId, "Download Failed",
+                        "Failed to upload the video. Please try again.", R.drawable.download_failed, oneTime = true, 0, 100)
+                    service.stopSelf()
+                    return@launch
+                }
+                // If status is success, get the download URL
+                val fileUrl = jsonResponse.getString("link")
+
+                // Pass the URL to the browser to handle the download
+                openUrlInBrowser(service, fileUrl)
+
+                // Notify user that the download has been passed to the browser
+                updateNotification(notificationId, channelId, "Downloading in Browser",
+                    "The video is being downloaded in your browser.", R.drawable.download_successs, oneTime = true, 100)
+
+
+            } catch (e: Exception) {
+                Log.d("DownloadService", "Download failed: ${e.message}")
+
+                // Update notification for error
+                updateNotification(notificationId, channelId, "Download Failed",
+                    "Failed to download the video. Please try again.", R.drawable.download_failed, oneTime = true, 0, 100)
+            } finally {
+                socket?.close()
+                serviceDownloading = false
+                service.stopSelf()
+            }
         }
+    }
+
+    private fun openUrlInBrowser(context: Context, url: String) {
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            data = Uri.parse(url)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK // Start the activity from the service
+        }
+        context.startActivity(intent)
     }
 
     private fun updateNotification(notifId: Int, chanId: String, title: String, message: String,
@@ -305,14 +298,6 @@ class DownloadService : Service()
         val videoName = intent?.getStringExtra("videoName")
         if (videoName != null)
         {
-//            if (errorNotification != null)
-//            {
-//                // cancel error notification is active
-//                val notificationManager = this.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-//                notificationManager.cancel(errorNotificationId)
-//                errorNotification = null
-//            }
-
             downloadVideo(this, videoName)
         }
         else

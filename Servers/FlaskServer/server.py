@@ -94,6 +94,7 @@ frame_count =0
 frame= None
 current_frame = 0
 lock=threading.Lock()
+response=None
 # FUNCTIONS
 def changeServerIP(newIP):
     """
@@ -387,14 +388,31 @@ def handleControls(phoneSocket):
     """
        Handles control messages from the phone and forwards them to the queue.
     """
-    global command_dict,record_video, phone_state, cap, frame_count, send_event
+    global command_dict,record_video, phone_state, cap, frame_count, send_event, response
     buffer = ""
     flag = True
     while flag:
         try:
 
             if phone_state == PhoneState.DOWNLOADING_VIDEO:
-                flag=handle_video_download(cap, phoneSocket)
+                #flag=handle_video_download(cap, phoneSocket)
+                if response is None:
+                    flag=False
+                    print("Not ready")
+                    continue
+                else:
+                    json_data = json.dumps(response).encode('utf-8')
+                    # Send JSON data
+                    print(json_data)
+                    l=struct.pack('>I', len(json_data))
+                    print(len(json_data))
+                    phoneSocket.sendall(l)
+                    phoneSocket.sendall(json_data)
+                    print("in")
+                    #packed_data=phoneSocket.recv(1)
+                    print("Phone informed of the results: ")#+str(packed_data))
+                    response=None
+                    phone_state=PhoneState.BROWSING_VIDEOS
                 continue
 
             data = phoneSocket.recv(1024).decode('utf-8')
@@ -455,15 +473,37 @@ def handleControls(phoneSocket):
                     elif instruction_type == InstructionType.DOWNLOAD_VIDEO.value:
                         pass
                         try:
-                            video_name = instruction_data.get("video_name")
-                            cap = cv2.VideoCapture(f"videos/{video_name}")
-                            frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-                            # Send video metadata
-                            frame_count_bytes = struct.pack('>I', frame_count)
-                            print(f"Sending frame count: {frame_count}")
-                            phoneSocket.sendall(frame_count_bytes)
                             phone_state = PhoneState.DOWNLOADING_VIDEO
-                            print("Start sending video")
+                            print('Handle video download.')
+                            video_name = instruction_data.get("video_name")
+                            file_path = f"videos/{video_name}"
+
+                            # Upload the file
+                            # with open(file_path, 'rb') as file:
+                            #     response = requests.post('https://file.io/', files={'file': file})
+                            #
+                            # status=-1
+                            # file_url=''
+                            # # Check if the upload was successful
+                            # if response.status_code == 200:
+                            #     # Get the download link from the response
+                            #     file_url = response.json().get('link')
+                            #     status=200
+                            #     print(f'File uploaded successfully. Download URL: {file_url}')
+                            # else:
+                            #     print('File upload failed.')
+                            # response = {
+                            #     'status': status,
+                            #     'link': file_url
+                            # }
+
+                            #DUMMY
+                            time.sleep(5)
+                            response = {
+                                'status': 200,
+                                'link': 'google.com'
+                            }
+
                         except Exception as e:
                             cap.release()
                             cv2.destroyAllWindows()
