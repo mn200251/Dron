@@ -49,7 +49,7 @@ class InstructionType(Enum):
     DOWNLOAD_VIDEO = 9
     KILL_SWITCH = 10
     JOYSTICK = 11
-
+    GET_LINK = 12
     TURN_OFF = 13
     GET_STATUS = 14  # da proveri stanje jer neke instrukcije mozda nisu prosle npr pocni snimanje
     BACK = 15  # povratak iz browsinga videa/letova?
@@ -72,7 +72,7 @@ command_dict = {
     "rotation": 0.0
 }
 control_queue = queue.Queue(maxsize=MAX_QUEUE_SIZE)
-connections = {'drone': None, 'phone': None}
+connections = {'drone': None, 'phone': None,'phone2':None}
 # Interval to update the IP address on GitHub (in seconds)
 ip_update_interval = 60 * 10
 
@@ -184,42 +184,6 @@ def get_video_list():
             })
     return video_list
 
-def handle_video_download(cap, phoneSocket)->bool:
-    # sends the video (continue where the old thread left off in case of disconnect)
-    # to not skip frames either
-    # the cap.set must be used to move to the previous frame - i chose this
-    # or have the frame as global
-    global current_frame, frame_count, phone_state,lock
-    print("F:" +str(frame_count))
-    with lock:
-        cap.set(cv2.CAP_PROP_POS_FRAMES, current_frame)
-        try:
-            while frame_count > current_frame:
-                ret, frame = cap.read()
-                if not ret:
-                    break
-                _, jpeg = cv2.imencode('.jpg', frame)
-                frame_data = jpeg.tobytes()
-                frame_size = len(frame_data)
-
-                # Send frame size and frame data
-                phoneSocket.sendall(struct.pack('>I', frame_size))
-                phoneSocket.sendall(frame_data)
-
-                current_frame += 1
-                if current_frame%4==0:
-                    print(frame_size)
-                    signal_message = phoneSocket.recv(1).decode('utf-8')
-            frame_count = 0
-            current_frame = 0
-            cap.release()
-            cv2.destroyAllWindows()
-            phone_state = PhoneState.BROWSING_VIDEOS
-            print("Finished sending video")
-            return True
-        except Exception as e:
-            print("An error occured in video sending at frame "+str(current_frame))
-    return False
 
 
 
@@ -382,39 +346,72 @@ def send_controls():
             continue
 
 
+def handle_video_download(phoneSocket):
+    """
+    Handles the incoming control instructions like GET_STATUS, TURN_OFF, GET_LINK.
+    """
+    global  response
+    buffer = ""
+    is_active = True
+    status=""
+    try:
+        while is_active:
+            # Receive data from the socket
+            data = phoneSocket.recv(1024).decode('utf-8')
+            if not data:
+                continue
+
+            buffer += data
+            # Process all complete JSON objects in the buffer
+            while True:
+                start = buffer.find("{")
+                end = buffer.find("}")
+
+                if start == -1 or end == -1:
+                    break
+
+                json_str = buffer[start:end + 1]
+                buffer = buffer[end + 1:]
+
+                try:
+                    instruction_data = json.loads(json_str)
+                    instruction_type = instruction_data.get("type")
+                    print("Received instruction:", instruction_data)
+
+                    if instruction_type is None:
+                        print("Invalid instruction")
+                    elif instruction_type == InstructionType.GET_STATUS.value:
+                        if response is None:
+                            status= "no"
+                        else:
+                            status= "ok"
+                        phoneSocket.sendall(status.encode('utf-8'))
+                    elif instruction_type == InstructionType.GET_LINK.value:
+                        json_data = json.dumps(response).encode('utf-8')
+                        # Send JSON data
+                        print(json_data)
+                        phoneSocket.sendall(json_data)
+                        print("Phone informed of the results: ")
+                    else:
+                        print(f"Unknown instruction type in regard to video download: {instruction_type}")
+
+                except json.JSONDecodeError as e:
+                    print(f"JSON decode error: {e}")
+                    continue
+
+    except Exception as e:
+        print(f"An error occurred in video download handler: {e}")
 
 # drone
 def handleControls(phoneSocket):
     """
        Handles control messages from the phone and forwards them to the queue.
     """
-    global command_dict,record_video, phone_state, cap, frame_count, send_event, response
+    global command_dict,record_video, phone_state, send_event, response
     buffer = ""
     flag = True
     while flag:
         try:
-
-            if phone_state == PhoneState.DOWNLOADING_VIDEO:
-                #flag=handle_video_download(cap, phoneSocket)
-                if response is None:
-                    flag=False
-                    print("Not ready")
-                    continue
-                else:
-                    json_data = json.dumps(response).encode('utf-8')
-                    # Send JSON data
-                    print(json_data)
-                    l=struct.pack('>I', len(json_data))
-                    print(len(json_data))
-                    phoneSocket.sendall(l)
-                    phoneSocket.sendall(json_data)
-                    print("in")
-                    #packed_data=phoneSocket.recv(1)
-                    print("Phone informed of the results: ")#+str(packed_data))
-                    response=None
-                    phone_state=PhoneState.BROWSING_VIDEOS
-                continue
-
             data = phoneSocket.recv(1024).decode('utf-8')
 
             if not data:
@@ -473,36 +470,38 @@ def handleControls(phoneSocket):
                     elif instruction_type == InstructionType.DOWNLOAD_VIDEO.value:
                         pass
                         try:
+                            response = None
                             phone_state = PhoneState.DOWNLOADING_VIDEO
                             print('Handle video download.')
                             video_name = instruction_data.get("video_name")
                             file_path = f"videos/{video_name}"
 
-                            # Upload the file
-                            # with open(file_path, 'rb') as file:
-                            #     response = requests.post('https://file.io/', files={'file': file})
-                            #
-                            # status=-1
-                            # file_url=''
-                            # # Check if the upload was successful
-                            # if response.status_code == 200:
-                            #     # Get the download link from the response
-                            #     file_url = response.json().get('link')
-                            #     status=200
-                            #     print(f'File uploaded successfully. Download URL: {file_url}')
-                            # else:
-                            #     print('File upload failed.')
-                            # response = {
-                            #     'status': status,
-                            #     'link': file_url
-                            # }
 
-                            #DUMMY
-                            time.sleep(5)
+                            # Upload the file
+                            with open(file_path, 'rb') as file:
+                                response = requests.post('https://file.io/', files={'file': file})
+
+                            status=-1
+                            file_url=''
+                            # Check if the upload was successful
+                            if response.status_code == 200:
+                                # Get the download link from the response
+                                file_url = response.json().get('link')
+                                status=200
+                                print(f'File uploaded successfully. Download URL: {file_url}')
+                            else:
+                                print('File upload failed.')
                             response = {
-                                'status': 200,
-                                'link': 'google.com'
+                                'status': status,
+                                'link': file_url
                             }
+
+                            # #DUMMY
+                            # time.sleep(5)
+                            # response = {
+                            #     'status': 200,
+                            #     'link': 'https://www.google.com/'
+                            # }
 
                         except Exception as e:
                             cap.release()
@@ -552,7 +551,11 @@ def handle_client_connection(client_socket):
                     client_socket.sendall("0\n".encode())  # everything ok
                     handleControls(client_socket)
                     trying = False
-
+                case "phone2":
+                    connections["phone2"] = client_socket
+                    client_socket.sendall("0\n".encode())  # everything ok
+                    handle_video_download(client_socket)
+                    trying = False
                 case _:
                     print(f"Received message: {message}")
                     client_socket.sendall("-1\n".encode())

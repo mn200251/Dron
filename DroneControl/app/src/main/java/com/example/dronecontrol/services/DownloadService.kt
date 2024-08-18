@@ -39,6 +39,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.json.JSONException
 import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.DataInputStream
@@ -102,12 +103,14 @@ class DownloadService : Service()
         downloadJob = serviceScope.launch(Dispatchers.IO)
         {
             // startForegroundService("The service is downloading your video")
-            updateNotification(notificationId, channelId, "Downloading Video",
-                "Video is downloading to device", R.drawable.download_icon,oneTime = false,0,100)
-            var addressPair:Pair<String, String>?
-            if(internal){
-                addressPair=Pair<String, String>("192.168.1.17", "6969")
-            }else {
+            updateNotification(
+                notificationId, channelId, "Downloading Video",
+                "Video is transfering to device", R.drawable.download_icon, oneTime = false, 0, 100
+            )
+            var addressPair: Pair<String, String>?
+            if (internal) {
+                addressPair = Pair<String, String>("192.168.1.17", "6969")
+            } else {
                 addressPair = getCurrentIP(GITHUB_TOKEN, REPO_NAME, DOWNLOAD_FILE_PATH, BRANCH_NAME)
             }
 
@@ -123,12 +126,13 @@ class DownloadService : Service()
             val outputFile = File(outputDir, videoName)
 
 
-            val auth: String = "phone"
+            var auth: String = "phone"
             // val socketAddress = InetSocketAddress(uiState.value.host, uiState.value.port.toInt())
             val socketAddress = InetSocketAddress(addressPair.first, addressPair.second.toInt())
-            var socket:Socket?=null
+            var socket: Socket? = null
+            var status = false
             try {
-                 socket = Socket()
+                socket = Socket()
                 // val socketAddress = InetSocketAddress(uiState.value.host, uiState.value.port.toInt())
                 val socketAddress =
                     InetSocketAddress(addressPair.first, addressPair.second.toInt())
@@ -148,80 +152,108 @@ class DownloadService : Service()
                     put("video_name", videoName)
                 }
                 outputStream.write(json.toString().toByteArray(Charsets.UTF_8))
-
-                socket.close()
-
-                var progress=0
-                var jsonResponse:JSONObject?=null
-                while(true) {
-                    delay(3000)
-                    try {
-                        socket = Socket()
-                        //socket.soTimeout=3000
-                        // val socketAddress = InetSocketAddress(uiState.value.host, uiState.value.port.toInt())
-                        val socketAddress =
-                            InetSocketAddress(addressPair.first, addressPair.second.toInt())
-
-                        socket.connect(socketAddress, 2000)
-
-                        val outputStream: OutputStream = socket.getOutputStream()
-                        val reader = BufferedReader(InputStreamReader(inputStream))
-                        val inputStream = DataInputStream(socket.getInputStream())
-                        outputStream.write(auth.toByteArray(Charsets.UTF_8))
-                        outputStream.flush()
-                        var response = BufferedReader(InputStreamReader(inputStream)).readLine()
-
-                        val length = inputStream.readInt()
-                        Log.d("DownloadService", "Response length: $length")
-                        // Read the response data
-                        val responseData = ByteArray(length)
-                        inputStream.readFully(responseData)
-                        val responseJsonString = String(responseData, Charsets.UTF_8)
-                        jsonResponse=JSONObject(responseJsonString)
-                        Log.d("DownloadService",responseJsonString)
-//                        outputStream.write(2)
-//                        outputStream.flush()
-
-                        break
-                    }
-                    catch (e: Exception) {
-                        Log.d("DownloadService", "Working on uploading the video: "+e)
-                        progress=+10
-                        updateNotification(notificationId, channelId, "Downloading Video",
-                            "Working on uploading the video", R.drawable.download_icon,oneTime = false, progress,100)
-                    }
-                }
-                val status = jsonResponse!!.getInt("status")
-
-                if (status != 200) {
-                    // Handle failure
-                    updateNotification(notificationId, channelId, "Download Failed",
-                        "Failed to upload the video. Please try again.", R.drawable.download_failed, oneTime = true, 0, 100)
-                    service.stopSelf()
-                    return@launch
-                }
-                // If status is success, get the download URL
-                val fileUrl = jsonResponse.getString("link")
-
-                // Pass the URL to the browser to handle the download
-                openUrlInBrowser(service, fileUrl)
-
-                // Notify user that the download has been passed to the browser
-                updateNotification(notificationId, channelId, "Downloading in Browser",
-                    "The video is being downloaded in your browser.", R.drawable.download_successs, oneTime = true, 100)
-
-
             } catch (e: Exception) {
-                Log.d("DownloadService", "Download failed: ${e.message}")
-
-                // Update notification for error
-                updateNotification(notificationId, channelId, "Download Failed",
-                    "Failed to download the video. Please try again.", R.drawable.download_failed, oneTime = true, 0, 100)
+                Log.d("DownloadService", "Download failed to start: ${e.message}")
+                service.stopSelf()
+                return@launch
             } finally {
                 socket?.close()
-                serviceDownloading = false
-                service.stopSelf()
             }
+            delay(1000)
+            var progress = 0
+            var jsonResponse: JSONObject? = null
+            auth = "phone2"
+            while (true) {
+                delay(3000)
+                try {
+                    socket = Socket()
+                    //socket.soTimeout=3000
+                    // val socketAddress = InetSocketAddress(uiState.value.host, uiState.value.port.toInt())
+                    val socketAddress =
+                        InetSocketAddress(addressPair.first, addressPair.second.toInt())
+
+                    socket.connect(socketAddress, 2000)
+
+                    val outputStream: OutputStream = socket.getOutputStream()
+
+                    val reader = BufferedReader(InputStreamReader( socket.getInputStream()))
+                    val inputStream = DataInputStream(socket.getInputStream())
+
+                    //start communication
+                    outputStream.write(auth.toByteArray(Charsets.UTF_8))
+                    outputStream.flush()
+                    var response = BufferedReader(InputStreamReader(inputStream)).readLine()
+
+                    //wait for upload on server to finish
+                    var json = JSONObject().apply {
+                        put("type", InstructionType.GET_STATUS.value)
+                    }
+                    while (!status) {
+                        outputStream.write(json.toString().toByteArray(Charsets.UTF_8))
+                        val status_str = reader.readLine()
+                        if (status_str.equals("ok")) {
+                            status = true
+                        } else{
+                            delay(1000)
+                        }
+                        Log.d("DownloadService", status_str)
+                    }
+                    updateNotification(
+                        notificationId, channelId, "Video upload finished",
+                        "Starting the link handling.", R.drawable.download_successs, oneTime = true
+                    )
+                    //get the link
+                    var jsonResponse: JSONObject? = null
+                    json = JSONObject().apply {
+                        put("type", InstructionType.GET_LINK.value)
+                    }
+                    // Loop until we successfully receive and parse the JSON data
+                    while (jsonResponse == null) {
+                        try {
+                            outputStream.write(json.toString().toByteArray(Charsets.UTF_8))
+                            // Get the input stream to read from the socket
+                            val inputStream = socket.getInputStream()
+                            val reader = BufferedReader(InputStreamReader(inputStream))
+
+                            val jsonDataString =reader.readLine() ?: throw Exception("No data received")
+                            Log.d("DownloadService", jsonDataString)
+                            jsonResponse = JSONObject(jsonDataString)
+                            break
+
+                        } catch (e: JSONException) {
+                            // Handle the exception (you can log it, or just retry)
+                            Log.d("DownloadService", e.toString())
+                        }
+                    }
+                    //use the link
+                    // If status is success, get the download URL
+                    val fileUrl = jsonResponse!!.getString("link")
+
+                    // Pass the URL to the browser to handle the download
+                    openUrlInBrowser(service, fileUrl)
+
+                    // Notify user that the download has been passed to the browser
+                    updateNotification(
+                        notificationId,
+                        channelId,
+                        "Downloading in Browser",
+                        "The video is being downloaded in your browser.",
+                        R.drawable.download_successs,
+                        oneTime = true
+                    )
+                    break
+                } catch (e: Exception) {
+                    Log.d("DownloadService", "Working on uploading the video: " + e)
+                    updateNotification(
+                        notificationId, channelId, "Downloading Video",
+                        "Working on uploading the video", R.drawable.download_icon, oneTime = false
+                    )
+                } finally {
+                    socket?.close()
+                }
+            }
+            service.stopSelf()
+            return@launch
         }
     }
 
@@ -240,8 +272,7 @@ class DownloadService : Service()
             .setContentTitle(title)
             .setContentText(message)
             .setSmallIcon(icon)
-            .setPriority(NotificationCompat.PRIORITY_HIGH) // older versions use this to set priority
-            .setProgress(maxProgress, progress, false)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
             .build()
 
         // Notify the NotificationManager to update the notification
