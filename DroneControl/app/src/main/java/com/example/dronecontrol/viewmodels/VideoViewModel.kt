@@ -15,8 +15,6 @@ import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.net.Socket
 import org.json.JSONObject
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.State
 import androidx.lifecycle.SavedStateHandle
 import com.example.dronecontrol.data_types.InstructionType
 import com.example.dronecontrol.private.BRANCH_NAME
@@ -53,6 +51,115 @@ class VideoViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel
 
     @RequiresApi(Build.VERSION_CODES.O)
     fun fetchVideos() {
+        viewModelScope.launch(Dispatchers.IO) {
+            var socket: Socket? = null
+            var auth: String = "phone"
+            var addressPair: Pair<String, String>?
+            if (internal) {
+                addressPair = Pair<String, String>("192.168.1.17", "6969")
+            } else {
+                addressPair = getCurrentIP(GITHUB_TOKEN, REPO_NAME, DOWNLOAD_FILE_PATH, BRANCH_NAME)
+            }
+            val socketAddress = addressPair?.second?.let {
+                InetSocketAddress(
+                    addressPair?.first,
+                    it.toInt()
+                )
+            }
+            var numberOfVideos = 0
+            // Step 1: Connect to the server and authenticate
+            while (true) {
+                try {
+                    socket = Socket()
+                    socket.connect(socketAddress, 2000)
+                    val outputStream = DataOutputStream(socket.getOutputStream())
+                    val inputStream = DataInputStream(socket.getInputStream())
+
+
+                    outputStream.write(auth.toByteArray(Charsets.UTF_8))
+                    outputStream.flush()
+
+                    val response = BufferedReader(InputStreamReader(inputStream)).readLine()
+
+                    // Step 2: Send a request to get videos
+                    val request = JSONObject().apply {
+                        put("type", InstructionType.GET_VIDEOS.value)
+                    }
+                    outputStream.writeUTF(request.toString())
+                    outputStream.flush()
+                    val reader = BufferedReader(InputStreamReader( socket.getInputStream()))
+                    numberOfVideos = reader.readLine().toInt()
+                    Log.d("VideoViewModel", "Number of videos: $numberOfVideos")
+                    break
+                } catch (e: Exception) {
+                    Log.d("VideoViewModel", "Error: ${e.message}")
+                } finally {
+                    socket?.close()
+                }
+            }
+            // Step 3: Start receiving videos one by one
+            val videos = mutableListOf<Video>()
+            var cnt = 0
+            auth = "video_listing"
+            while (cnt < numberOfVideos) {
+                try {
+                    socket = Socket()
+                    socket.connect(socketAddress, 2000)
+                    val videoOutputStream = DataOutputStream(socket.getOutputStream())
+                    val videoInputStream = DataInputStream(socket.getInputStream())
+
+                    // Re-authenticate for the new connection
+                    videoOutputStream.write(auth.toByteArray(Charsets.UTF_8))
+                    videoOutputStream.flush()
+                    val videoResponse =BufferedReader(InputStreamReader(videoInputStream)).readLine()
+
+                    // Request the next video
+                    while(cnt < numberOfVideos) {
+                        val videoRequest = JSONObject().apply {
+                            put("type", InstructionType.GET_VIDEOS.value)
+                            put("index",cnt)
+                        }
+                        videoOutputStream.writeUTF(videoRequest.toString())
+
+                        // Read the length of the response
+                        val length = videoInputStream.readInt()
+                        Log.d("VideoViewModel", "Length: $length")
+                        val responseData = ByteArray(length)
+                        videoInputStream.readFully(responseData)
+
+                        // Parse the received video JSON data
+                        val responseJsonString = String(responseData, Charsets.UTF_8)
+                        val videoJson = JSONObject(responseJsonString)
+
+                        val filename = videoJson.getString("filename")
+                        val thumbnail =
+                            Base64.decode(
+                                videoJson.getString("thumbnail").toByteArray(),
+                                Base64.DEFAULT
+                            )
+                        val thumbnailBitmap =
+                            BitmapFactory.decodeByteArray(thumbnail, 0, thumbnail.size)
+
+                        // Add the video to the list
+                        videos.add(Video(filename, thumbnailBitmap))
+                        val updatedVideos = videos.toMutableList()
+                        savedStateHandle[VIDEO_STATE_KEY] = VideoState(updatedVideos)
+                        cnt++
+                    }
+                } catch (e: Exception) {
+                    // Handle exceptions and retry logic if necessary
+                    Log.d("VideoViewModel", "Error receiving video ${cnt}: ${e.message}")
+                } finally {
+                    socket?.close()
+                }
+            }
+            Log.d("VideoViewModel", "Finished receiving video list")
+
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun fetchVideosOld() {
         viewModelScope.launch(Dispatchers.IO) {
             var socket = Socket()
             var socketAddress:InetSocketAddress

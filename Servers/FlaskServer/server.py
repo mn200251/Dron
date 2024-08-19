@@ -45,7 +45,7 @@ class InstructionType(Enum):
     END_FLIGHT = 5
     GET_FLIGHTS = 6
     START_PREVIOUS_FLIGHT = 7
-    GET_VIDEOS = 8
+    GET_VIDEOS = 8 # start the video download and request video using inedex
     DOWNLOAD_VIDEO = 9
     KILL_SWITCH = 10
     JOYSTICK = 11
@@ -72,7 +72,7 @@ command_dict = {
     "rotation": 0.0
 }
 control_queue = queue.Queue(maxsize=MAX_QUEUE_SIZE)
-connections = {'drone': None, 'phone': None,'phone2':None}
+connections = {'drone': None, 'phone': None}
 # Interval to update the IP address on GitHub (in seconds)
 ip_update_interval = 60 * 10
 
@@ -89,12 +89,10 @@ record_video = RecordState.NOT_RECORDING
 stop_event = threading.Event()
 send_event = threading.Event()
 # For video download
-cap = None
-frame_count =0
-frame= None
-current_frame = 0
 lock=threading.Lock()
 response=None
+#Video listing
+video_list=[]
 # FUNCTIONS
 def changeServerIP(newIP):
     """
@@ -184,7 +182,16 @@ def get_video_list():
             })
     return video_list
 
-
+def get_video_names():
+    """
+    Get the list of video filenames without generating thumbnails.
+    """
+    video_dir = 'videos'
+    video_list = []
+    for filename in os.listdir(video_dir):
+        if filename.endswith(".mp4"):  # Check if the file is a video
+            video_list.append(filename)
+    return video_list
 
 
 # THREADS AND THEIR CREATION
@@ -346,6 +353,65 @@ def send_controls():
             continue
 
 
+def handle_video_listing(phoneSocket):
+    """
+       Handles requests to get the list of videos, including their thumbnails, and sends them one by one to avoid overflow.
+       """
+    global video_list
+    buffer = ""
+    print("in")
+    try:
+        while True:
+            # Receive data from the socket
+            data = phoneSocket.recv(1024).decode('utf-8')
+            if not data:
+                continue
+
+            buffer += data
+            # Extract the last complete JSON object
+            start = buffer.rfind("{")
+            end = buffer.rfind("}")
+
+            if start == -1 or end == -1:
+                continue
+
+            json_str = buffer[start:end + 1]
+
+            try:
+                instruction_data = json.loads(json_str)
+                instruction_type = instruction_data.get("type")
+                print("Received instruction:", instruction_data)
+
+                if instruction_type is None:
+                    print("Invalid instruction")
+                elif instruction_type == InstructionType.GET_VIDEOS.value:
+                    index = instruction_data.get("index")
+                    if index is not None and 0 <= index < len(video_list):
+                        video_name = video_list[index]
+                        thumbnail = generate_thumbnail(os.path.join('videos', video_name))
+                        video_data = {
+                            'filename': video_name,
+                            'thumbnail': thumbnail
+                        }
+                        video_json = json.dumps(video_data).encode('utf-8')
+                        json_length = len(video_json)
+
+                        # Send the length of the JSON
+                        phoneSocket.sendall(struct.pack('>I', json_length))
+
+                        # Send the actual JSON data
+                        phoneSocket.sendall(video_json)
+                        print(f"Sent video metadata for index {index}")
+                else:
+                    print(f"Unknown instruction type: {instruction_type}")
+
+            except json.JSONDecodeError as e:
+                print(f"JSON decode error: {e}")
+                continue
+
+    except Exception as e:
+        print(f"An error occurred in video requests handler: {e}")
+
 def handle_video_download(phoneSocket):
     """
     Handles the incoming control instructions like GET_STATUS, TURN_OFF, GET_LINK.
@@ -407,7 +473,7 @@ def handleControls(phoneSocket):
     """
        Handles control messages from the phone and forwards them to the queue.
     """
-    global command_dict,record_video, phone_state, send_event, response
+    global command_dict,record_video, phone_state, send_event, response , video_list
     buffer = ""
     flag = True
     while flag:
@@ -459,13 +525,9 @@ def handleControls(phoneSocket):
                         # start sending previous instructions
                         pass
                     elif instruction_type == InstructionType.GET_VIDEOS.value:
-                        phone_state = PhoneState.BROWSING_VIDEOS
-                        video_list_json = json.dumps(get_video_list()).encode('utf-8')
-                        json_length = len(video_list_json)
-                        print(json_length)
-                        phoneSocket.sendall(struct.pack('>I', json_length))
-                        phoneSocket.sendall(video_list_json)
-                        print("Finished Sending Video List")
+                        video_list=get_video_names()
+                        phoneSocket.sendall(str(len(video_list)).encode('utf-8'))
+                        print("Number of videos is "+str(len(video_list)))
                     # sets up the cv2 and video and frame counter
                     elif instruction_type == InstructionType.DOWNLOAD_VIDEO.value:
                         pass
@@ -504,12 +566,7 @@ def handleControls(phoneSocket):
                             # }
 
                         except Exception as e:
-                            cap.release()
-                            cv2.destroyAllWindows()
-                    elif instruction_type == InstructionType.GET_STATUS.value:
-                        pass
-                    elif instruction_type == InstructionType.BACK.value:
-                        pass
+                            print("An error occurred in controls: "+ str(e))
                     elif instruction_type == InstructionType.JOYSTICK.value:
                         tmp=command_dict["type"]
                         command_dict=instruction_data
@@ -551,10 +608,13 @@ def handle_client_connection(client_socket):
                     client_socket.sendall("0\n".encode())  # everything ok
                     handleControls(client_socket)
                     trying = False
-                case "phone2":
-                    connections["phone2"] = client_socket
+                case "video_download":
                     client_socket.sendall("0\n".encode())  # everything ok
                     handle_video_download(client_socket)
+                    trying = False
+                case "video_listing":
+                    client_socket.sendall("0\n".encode())  # everything ok
+                    handle_video_listing(client_socket)
                     trying = False
                 case _:
                     print(f"Received message: {message}")

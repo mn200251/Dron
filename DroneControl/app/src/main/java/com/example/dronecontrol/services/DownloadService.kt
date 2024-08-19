@@ -162,7 +162,7 @@ class DownloadService : Service()
             delay(1000)
             var progress = 0
             var jsonResponse: JSONObject? = null
-            auth = "phone2"
+            auth = "video_download"
             while (true) {
                 delay(3000)
                 try {
