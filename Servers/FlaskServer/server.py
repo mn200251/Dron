@@ -208,7 +208,8 @@ def send_frames():
         try:
             jpeg_bytes = video_queue.get(timeout=QUEUE_TIMEOUT)
             phone_socket = connections["phone"]
-            phone_socket.sendall(len(jpeg_bytes).to_bytes(4, byteorder='big', signed=False))
+            print(len(jpeg_bytes))
+            phone_socket.sendall(struct.pack('>I', len(jpeg_bytes)))
             phone_socket.sendall(jpeg_bytes)
         except queue.Empty:
             # Queue is empty, no frames to send
@@ -386,7 +387,11 @@ def handle_video_listing(phoneSocket):
                     print("Invalid instruction")
                 elif instruction_type == InstructionType.GET_VIDEOS.value:
                     index = instruction_data.get("index")
-                    if index is not None and 0 <= index < len(video_list):
+                    if index is None:
+                        video_list = get_video_names()
+                        phoneSocket.sendall(str(len(video_list)).encode('utf-8'))
+                        print("Number of videos is " + str(len(video_list)))
+                    elif index is not None and 0 <= index < len(video_list):
                         video_name = video_list[index]
                         thumbnail = generate_thumbnail(os.path.join('videos', video_name))
                         video_data = {
@@ -524,11 +529,6 @@ def handleControls(phoneSocket):
                         # send the pi to start streaming
                         # start sending previous instructions
                         pass
-                    elif instruction_type == InstructionType.GET_VIDEOS.value:
-                        video_list=get_video_names()
-                        phoneSocket.sendall(str(len(video_list)).encode('utf-8'))
-                        print("Number of videos is "+str(len(video_list)))
-                    # sets up the cv2 and video and frame counter
                     elif instruction_type == InstructionType.DOWNLOAD_VIDEO.value:
                         pass
                         try:

@@ -67,39 +67,9 @@ class VideoViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel
                 )
             }
             var numberOfVideos = 0
-            // Step 1: Connect to the server and authenticate
-            while (true) {
-                try {
-                    socket = Socket()
-                    socket.connect(socketAddress, 2000)
-                    val outputStream = DataOutputStream(socket.getOutputStream())
-                    val inputStream = DataInputStream(socket.getInputStream())
 
-
-                    outputStream.write(auth.toByteArray(Charsets.UTF_8))
-                    outputStream.flush()
-
-                    val response = BufferedReader(InputStreamReader(inputStream)).readLine()
-
-                    // Step 2: Send a request to get videos
-                    val request = JSONObject().apply {
-                        put("type", InstructionType.GET_VIDEOS.value)
-                    }
-                    outputStream.writeUTF(request.toString())
-                    outputStream.flush()
-                    val reader = BufferedReader(InputStreamReader( socket.getInputStream()))
-                    numberOfVideos = reader.readLine().toInt()
-                    Log.d("VideoViewModel", "Number of videos: $numberOfVideos")
-                    break
-                } catch (e: Exception) {
-                    Log.d("VideoViewModel", "Error: ${e.message}")
-                } finally {
-                    socket?.close()
-                }
-            }
-            // Step 3: Start receiving videos one by one
             val videos = mutableListOf<Video>()
-            var cnt = 0
+            var cnt = -1
             auth = "video_listing"
             while (cnt < numberOfVideos) {
                 try {
@@ -112,6 +82,22 @@ class VideoViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel
                     videoOutputStream.write(auth.toByteArray(Charsets.UTF_8))
                     videoOutputStream.flush()
                     val videoResponse =BufferedReader(InputStreamReader(videoInputStream)).readLine()
+
+                    //if first contact get the length of the list
+                    if(cnt==-1){
+                        //Send a request to get videos
+                        val request = JSONObject().apply {
+                            put("type", InstructionType.GET_VIDEOS.value)
+                        }
+                        videoOutputStream.writeUTF(request.toString())
+                        videoOutputStream.flush()
+                        val reader = BufferedReader(InputStreamReader( socket.getInputStream()))
+                        numberOfVideos = reader.readLine().toInt()
+                        Log.d("VideoViewModel", "Number of videos: $numberOfVideos")
+                        cnt=0
+                    }
+
+
 
                     // Request the next video
                     while(cnt < numberOfVideos) {
