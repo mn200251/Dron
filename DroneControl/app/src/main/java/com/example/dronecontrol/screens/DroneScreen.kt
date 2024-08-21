@@ -94,42 +94,10 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel(), context:
 
     val joystickSize = 160
 
-    // val iconModifier = Modifier.size(148.dp)
     val buttonSize = 60.dp
 
-    // var sendMovementJob: Job? by remember { mutableStateOf(null) }
-
-    /*
-    LaunchedEffect(Unit) {
-        var i = 255
-        while (true) {
-            if (i == 0)
-                i = 255
-
-
-            // Receive video frame here (e.g., from network or file)
-            // Update the 'frame' variable with the received frame
-            frame = createDummyBitmap(width, height, i) // Replace this with actual video frame
-            delay(15L) // 60fps
-            i--
-        }
-    }
-
-
 
     Canvas(modifier = Modifier.fillMaxSize()) {
-        frame?.let {
-            drawImage(it, topLeft = Offset.Zero)
-        }
-    }
-    */
-
-    Canvas(modifier = Modifier.fillMaxSize()) {
-        // uiState.frame?.let {
-        //     drawImage(it.asImageBitmap(), topLeft = Offset.Zero)
-        // }
-
-        // SharedRepository.getFrame()?.let { bitmap ->
         frame?.let { bitmap: Bitmap ->
             val canvasWidth = size.width
             val canvasHeight = size.height
@@ -191,8 +159,7 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel(), context:
 
         IconButton(
             onClick = {
-                connectionViewModel.updateIsRecordingVideo(!uiState.isRecordingVideo)
-                /* TODO() */
+                connectionViewModel.updateIsRecordingVideo(context,!uiState.isRecordingVideo)
             },
             modifier = Modifier
                 .align(Alignment.TopEnd)

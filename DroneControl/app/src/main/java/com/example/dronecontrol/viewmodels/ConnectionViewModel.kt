@@ -97,7 +97,7 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
         Log.d("ViewModel", "Zavrsio u startService")
     }
 
-    fun updateIsRecordingVideo(newValue: Boolean)
+    fun updateIsRecordingVideo(context:Context,newValue: Boolean)
     {
         savedStateHandle[UI_STATE_KEY] = _uiState2.value.copy(
             isRecordingVideo = newValue,
@@ -107,6 +107,9 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
                 isRecordingVideo = newValue,
             )
         }
+        // Send the appropriate action to the service
+        val action = if (newValue) "ACTION_START_RECORDING" else "ACTION_STOP_RECORDING"
+        startService(context, action)
     }
 
 
@@ -122,20 +125,6 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
             )
         }
     }
-
-    /*
-    private fun updateScreen(newScreen: SCREEN)
-    {
-        savedStateHandle[UI_STATE_KEY] = _uiState2.value.copy(
-            screenNumber = newScreen,
-        )
-        _uiState1.update { currentConnectionUiState ->
-            currentConnectionUiState.copy(
-                screenNumber = newScreen,
-            )
-        }
-    }
-     */
 
     // Updating the shared data through the repository
     fun updateFrame(newFrame: Bitmap?) {
@@ -220,20 +209,6 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
             )
         }
     }
-
-    /*
-    fun updateFrame(newFrame: Bitmap)
-    {
-        savedStateHandle[UI_STATE_KEY] = _uiState2.value.copy(
-            frame = newFrame
-        )
-        _uiState1.update { currentConnectionUiState ->
-            currentConnectionUiState.copy(
-                frame = newFrame
-            )
-        }
-    }
-    */
 
 
     private fun sendControls2Service(context: Context, action: String)

@@ -10,7 +10,7 @@ import time
 import socket
 import cv2
 import numpy as np
-
+import multiprocessing as mp
 import requests
 
 from github import Github
@@ -61,9 +61,12 @@ TIMEOUT = 3
 QUEUE_TIMEOUT = 5
 video_dir = "videos"
 # Global variables to manage connections
-phoneConnected = False
-droneConnected = False
+#video streaming
 video_queue = queue.Queue(maxsize=MAX_QUEUE_SIZE)
+#video download
+video_writer_proc = None
+video_frame_queue = None
+#command streaming
 command_dict = {
     "type": InstructionType.JOYSTICK.value,
     "x": 0.0,
@@ -83,7 +86,7 @@ server_port = 6969
 internal = True
 
 # To remember the states
-phone_state = PhoneState.STARTED
+phone_state = PhoneState.PILOTING
 record_video = RecordState.NOT_RECORDING
 
 stop_event = threading.Event()
@@ -208,7 +211,7 @@ def send_frames():
         try:
             jpeg_bytes = video_queue.get(timeout=QUEUE_TIMEOUT)
             phone_socket = connections["phone"]
-            print(len(jpeg_bytes))
+            #print(len(jpeg_bytes))
             phone_socket.sendall(struct.pack('>I', len(jpeg_bytes)))
             phone_socket.sendall(jpeg_bytes)
         except queue.Empty:
@@ -227,6 +230,26 @@ def send_frames():
             continue
 
 
+def video_writer_process(video_frame_queue, frame_size, fps, output_file):
+    """Process that handles writing video frames to a file."""
+    print("Saving started ")
+    try:
+        video_writer = None
+        while True:
+            frame = video_frame_queue.get()
+            if frame is None:  # Sentinel value to stop the process
+                break
+            if video_writer is None:
+                fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+                video_writer = cv2.VideoWriter(output_file, fourcc, fps, frame_size)
+
+            video_writer.write(frame)
+
+        if video_writer is not None:
+            video_writer.release()
+            video_frame_queue=None
+    except  Exception as e:
+        print("Video saving died: " + str(e))
 
 def handleDroneMessages(droneSocket):
     """
@@ -237,7 +260,7 @@ def handleDroneMessages(droneSocket):
     :param droneSocket:
     :return:
     """
-    global record_video, phone_state
+    global record_video, phone_state, video_writer_proc, video_frame_queue
     video_writer = None
     # stream alive
     flag = True
@@ -250,7 +273,7 @@ def handleDroneMessages(droneSocket):
 
                 # Convert bytes back to integer
                 size = int.from_bytes(size, byteorder='big', signed=False)
-
+                #print("size "+str(size))
                 # Receive the actual frame
                 frame_data = b''
                 while len(frame_data) < size:
@@ -277,27 +300,31 @@ def handleDroneMessages(droneSocket):
                 video_queue.put(jpeg_bytes)
 
                 # Check if recording needs to be started or restarted in new thread because of a disconnected
-                if record_video == RecordState.START_RECORDING or (
-                        video_writer is None and record_video == RecordState.RECORDING):
-                    # Initialize video writer
-                    fourcc = cv2.VideoWriter_fourcc(*'H264')  # Codec for mp4
-                    frame_width = source.shape[1]
-                    frame_height = source.shape[0]
-                    fps = 60  # Frames per second
-                    video_writer = cv2.VideoWriter(f'videos/recording_{int(time.time() * 1000)}.mp4', fourcc, fps,
-                                                   (frame_width, frame_height))
-                    record_video = RecordState.RECORDING
+                if record_video == RecordState.START_RECORDING:
+
+                    print("Start recording")
+                    if video_writer_proc is None or not video_writer_proc.is_alive():
+                        video_frame_queue = mp.Queue(maxsize=10)
+                        frame_width, frame_height = source.shape[1], source.shape[0]
+                        fps = 30  # Frames per second
+                        output_file = f'videos/recording_{int(time.time() * 1000)}.mp4'
+                        video_writer_proc = mp.Process(target=video_writer_process, args=(video_frame_queue, (frame_width, frame_height), fps, output_file))
+                        video_writer_proc.start()
+                        record_video = RecordState.RECORDING
 
                 if record_video == RecordState.RECORDING:
-                    video_writer.write(source)
+                    video_frame_queue.put(source)
 
                 if record_video == RecordState.STOP_RECORDING:
-                    if video_writer is not None:
-                        video_writer.release()
-                        video_writer = None
+                    print("End recording")
+                    if video_writer_proc is not None and video_frame_queue is not None:
+                        video_frame_queue.put(None)  # Stop the writer process
+                        # we will not block and just hope that it finishes
+                        #video_writer_proc.join()
+                        video_writer_proc = None
                     record_video = RecordState.NOT_RECORDING
 
-                cv2.imshow("Stream", source)
+                #cv2.imshow("Stream", source)
 
                 # Break the loop if 'q' is pressed
                 if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -311,8 +338,8 @@ def handleDroneMessages(droneSocket):
             except KeyboardInterrupt:
                 print("KeyboardInterrupt in handleCameraStream")
                 break
-            except:
-                print('Exception in handleCameraStream')
+            except Exception as e:
+                print('Exception in handleCameraStream '+str(e))
                 break
             finally:
                 # stream died because of a disconnect
@@ -557,13 +584,14 @@ def handleControls(phoneSocket):
                                 'status': status,
                                 'link': file_url
                             }
-
+                            flag = False
                             # #DUMMY
                             # time.sleep(5)
                             # response = {
                             #     'status': 200,
                             #     'link': 'https://www.google.com/'
                             # }
+
 
                         except Exception as e:
                             print("An error occurred in controls: "+ str(e))

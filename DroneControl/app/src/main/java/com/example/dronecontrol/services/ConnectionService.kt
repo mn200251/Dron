@@ -13,9 +13,9 @@ import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import com.example.dronecontrol.R
+import com.example.dronecontrol.data_types.InstructionType
 import com.example.dronecontrol.private.BRANCH_NAME
 import com.example.dronecontrol.private.DOWNLOAD_FILE_PATH
-import com.example.dronecontrol.private.SERVER_FILE_PATH
 import com.example.dronecontrol.private.GITHUB_TOKEN
 import com.example.dronecontrol.private.REPO_NAME
 import com.example.dronecontrol.sharedRepositories.SharedRepository
@@ -40,6 +40,7 @@ import java.net.Socket
 
 class ConnectionService : Service() {
 
+    private val TIMEOUT_THIRD: Long = 1000
     private var socket: Socket? = null
     private var isInForeground = false
     private val serviceScope = CoroutineScope(Dispatchers.IO + Job())
@@ -56,6 +57,9 @@ class ConnectionService : Service() {
     private val notificationId = 1
 
     private val internal=true
+
+    private var isRecordingVideo = false
+
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate() {
         super.onCreate()
@@ -64,16 +68,6 @@ class ConnectionService : Service() {
 
         connect2Server(this)
 
-        /*
-        if (!connectionActive)
-        {
-            this.stopSelf()
-            return
-        }
-        */
-
-
-        // startForegroundService()
     }
 
     // Method to update the notification based on the foreground status
@@ -165,6 +159,12 @@ class ConnectionService : Service() {
                 if (myData != null)
                     controls = myData
             }
+            "ACTION_START_RECORDING" -> {
+                startRecording()
+            }
+            "ACTION_STOP_RECORDING" -> {
+                stopRecording()
+            }
         }
 
         return START_STICKY
@@ -213,15 +213,15 @@ class ConnectionService : Service() {
 
             Log.d("IP", addressPair.first + ":" + addressPair.second)
 
-            var socket = Socket()
+            socket = Socket()
             // val socketAddress = InetSocketAddress(uiState.value.host, uiState.value.port.toInt())
             val socketAddress = InetSocketAddress(addressPair.first, addressPair.second.toInt())
 
             try{
-                socket.connect(socketAddress, 2000)
+                socket!!.connect(socketAddress, 2000)
 
-                val outputStream: OutputStream = socket.getOutputStream()
-                val inputStream: InputStream = socket.getInputStream()
+                val outputStream: OutputStream = socket!!.getOutputStream()
+                val inputStream: InputStream = socket!!.getInputStream()
                 val reader = BufferedReader(InputStreamReader(inputStream))
 
                 try {
@@ -230,14 +230,14 @@ class ConnectionService : Service() {
                     outputStream.write(auth.toByteArray(Charsets.UTF_8))
                     outputStream.flush()
 
-                    var response = BufferedReader(InputStreamReader(socket.inputStream)).readLine()
+                    var response = reader.readLine()
                     Log.d("Response", "Received response from server:$response")
 
                     startForegroundService()
 
                     if (response == "1") // drone not connected, wait?
                     {
-                        response = BufferedReader(InputStreamReader(socket.inputStream)).readLine()
+                        response = reader.readLine()
                     }
                     if (response != "0") // an unknown error has occured
                     {
@@ -252,17 +252,17 @@ class ConnectionService : Service() {
                     SharedRepository.setScreen(SCREEN.DroneScreen)
                     connectionActive = true
 
-                    socket.tcpNoDelay = true
+                    socket!!.tcpNoDelay = true
 
                     sendMovementJob = serviceScope.launch(Dispatchers.Default)
                     {
-                        sendMovement(socket)
+                        sendMovement(socket!!)
                     }
 
                     // called from thread that connects to server
                     receiveVideoStreamJob = serviceScope.launch(Dispatchers.Default)
                     {
-                        receiveVideoStream(socket)
+                        receiveVideoStream(socket!!)
                     }
 
                 } catch (e: Exception) {
@@ -338,14 +338,45 @@ class ConnectionService : Service() {
         this.stopSelf()
     }
 
+    private val instructionMap = mapOf("type" to InstructionType.HEARTBEAT.value)
     private fun heartbeat(outputStream: OutputStream)
     {
-        val jsonString = Json.encodeToString("ping")
+        val jsonString = Json.encodeToString(instructionMap)
 
         outputStream.write(jsonString.toByteArray(Charsets.UTF_8))
         outputStream.flush()
     }
 
+    // Start recording method
+    private fun startRecording() {
+        if (connectionActive && !isRecordingVideo) {
+            isRecordingVideo = true
+            sendJsonInstruction(InstructionType.START_RECORDING.value)
+        }
+    }
+
+    // Stop recording method
+    private fun stopRecording() {
+        if (connectionActive && isRecordingVideo) {
+            isRecordingVideo = false
+            sendJsonInstruction(InstructionType.STOP_RECORDING.value)
+        }
+    }
+
+    // Method to send JSON instructions
+    private fun sendJsonInstruction(type: Int) {
+        serviceScope.launch {
+            try {
+                val outputStream: OutputStream = socket!!.getOutputStream()
+                val jsonString = Json.encodeToString(mapOf("type" to type))
+                outputStream.write(jsonString.toByteArray(Charsets.UTF_8))
+                outputStream.flush()
+                Log.e("ConnectionService", "Recording switch")
+            } catch (e: Exception) {
+                Log.e("ConnectionService", "Error sending JSON instruction: ${e}")
+            }
+        }
+    }
 
     private fun sendControls(outputStream: OutputStream) {
         // Step 2: Serialize the data class instance to a JSON string
@@ -378,7 +409,7 @@ class ConnectionService : Service() {
                     while (controls == null)
                     {
                         heartbeat(outputStream)
-                        delay(200)
+                        delay(TIMEOUT_THIRD)
                     }
                 }
             }
