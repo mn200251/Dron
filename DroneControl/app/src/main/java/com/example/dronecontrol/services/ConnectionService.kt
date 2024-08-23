@@ -14,10 +14,13 @@ import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import com.example.dronecontrol.R
 import com.example.dronecontrol.data_types.InstructionType
+import com.example.dronecontrol.exceptions.SocketException
 import com.example.dronecontrol.private.BRANCH_NAME
 import com.example.dronecontrol.private.DOWNLOAD_FILE_PATH
 import com.example.dronecontrol.private.GITHUB_TOKEN
+import com.example.dronecontrol.private.INTERNAL
 import com.example.dronecontrol.private.REPO_NAME
+import com.example.dronecontrol.private.SERVER_FILE_PATH
 import com.example.dronecontrol.sharedRepositories.SharedRepository
 import com.example.dronecontrol.utils.getCurrentIP
 import com.example.dronecontrol.viewmodels.Controls
@@ -56,8 +59,6 @@ class ConnectionService : Service() {
     private val channelId = "ConnectionService"
     private val notificationId = 1
 
-    private val internal=true
-
     private var isRecordingVideo = false
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -71,15 +72,18 @@ class ConnectionService : Service() {
     }
 
     // Method to update the notification based on the foreground status
-    private fun updateNotification(isInForeground: Boolean) {
-        val contentText = if (isInForeground) {
+    private fun updateNotification(isInForeground: Boolean, customTitle: String? = null, customText: String? = null) {
+        var contentText = if (isInForeground && customText == null) {
             "The service is running in the foreground"
         } else {
             "The service is running in the background"
         }
+        var contentTitle = customTitle ?: "Connected to Server"
+        contentText = customText ?: contentText
+
 
         notification = NotificationCompat.Builder(this, channelId)
-            .setContentTitle("Connected to Server")
+            .setContentTitle(contentTitle)
             .setContentText(contentText)
             .setSmallIcon(R.drawable.connected_icon)
             .build()
@@ -165,6 +169,11 @@ class ConnectionService : Service() {
             "ACTION_STOP_RECORDING" -> {
                 stopRecording()
             }
+
+            "ACTION_CONNECTION_NOT_ACTIVE" -> {
+                connectionActive = false
+            }
+
         }
 
         return START_STICKY
@@ -200,10 +209,10 @@ class ConnectionService : Service() {
         serviceScope.launch(Dispatchers.IO)
         {
             var addressPair:Pair<String, String>?
-            if(internal){
+            if(INTERNAL){
                 addressPair=Pair<String, String>("192.168.1.17", "6969")
             }else {
-                addressPair = getCurrentIP(GITHUB_TOKEN, REPO_NAME, DOWNLOAD_FILE_PATH, BRANCH_NAME)
+                addressPair = getCurrentIP(GITHUB_TOKEN, REPO_NAME, SERVER_FILE_PATH, BRANCH_NAME)
             }
             if (addressPair == null)
             {
@@ -256,13 +265,13 @@ class ConnectionService : Service() {
 
                     sendMovementJob = serviceScope.launch(Dispatchers.Default)
                     {
-                        sendMovement(socket!!)
+                        sendMovement()
                     }
 
                     // called from thread that connects to server
                     receiveVideoStreamJob = serviceScope.launch(Dispatchers.Default)
                     {
-                        receiveVideoStream(socket!!)
+                        receiveVideoStream()
                     }
 
                 } catch (e: Exception) {
@@ -285,12 +294,98 @@ class ConnectionService : Service() {
         }
     }
 
-    // called from thread that connects to server
-    private suspend fun receiveVideoStream(socket: Socket)
+    @RequiresApi(Build.VERSION_CODES.O)
+    suspend fun reconnect()
     {
-        val inputStream: InputStream = socket.getInputStream()
-        val dataInputStream: DataInputStream = DataInputStream(inputStream)
+        updateNotification(isInForeground, customTitle = "Lost connection",
+            customText = "Trying to reconnnect to server...")
 
+        var addressPair:Pair<String, String>?
+        if (INTERNAL){
+            addressPair = Pair<String, String>("192.168.1.17", "6969")
+        }else {
+            addressPair = getCurrentIP(GITHUB_TOKEN, REPO_NAME, SERVER_FILE_PATH, BRANCH_NAME)
+        }
+        if (addressPair == null)
+        {
+            SharedRepository.setMainScreenErrorText("Unable to obtain server IP!")
+            return
+        }
+
+        Log.d("IP", addressPair.first + ":" + addressPair.second)
+
+        val newSocket = Socket()
+        // val socketAddress = InetSocketAddress(uiState.value.host, uiState.value.port.toInt())
+        val socketAddress = InetSocketAddress(addressPair.first, addressPair.second.toInt())
+
+        while (connectionActive && socket == null)
+        {
+            try{
+                newSocket.connect(socketAddress, 2000)
+
+                val outputStream: OutputStream = newSocket.getOutputStream()
+                val inputStream: InputStream = newSocket.getInputStream()
+                val reader = BufferedReader(InputStreamReader(inputStream))
+
+                try {
+                    // authenticate user
+                    val auth: String = "phone"
+                    outputStream.write(auth.toByteArray(Charsets.UTF_8))
+                    outputStream.flush()
+
+                    var response = reader.readLine()
+                    Log.d("Response", "Received response from server:$response")
+
+                    startForegroundService()
+
+                    if (response == "1") // drone not connected, wait?
+                    {
+                        response = reader.readLine()
+                    }
+                    if (response != "0") // an unknown error has occured
+                    {
+                        SharedRepository.setMainScreenErrorText("An unknown internal server error has occured!")
+                        return
+                    }
+
+                    // reconnected successfully
+                    socket = newSocket
+
+                    SharedRepository.setMainScreenErrorText("")
+                    SharedRepository.setScreen(SCREEN.DroneScreen)
+
+                    socket!!.tcpNoDelay = true
+
+
+                } catch (e: Exception) {
+                    Log.d("Connection Exception - Inner Try", e.message.toString())
+                    SharedRepository.setMainScreenErrorText("An error has occurred while connecting to the server!")
+                    removeNotification(notificationId)
+                } finally {
+
+                }
+            } catch (e: Exception) {
+                Log.d("Connection Exception", e.message.toString())
+                SharedRepository.setMainScreenErrorText("An error has occurred while connecting to the server!")
+                removeNotification(notificationId)
+                // return@launch
+            } finally {
+
+            }
+        }
+
+        // if connection still active -> new socket, update notification
+        if (connectionActive)
+            updateNotification(isInForeground)
+    }
+
+    // called from thread that connects to server
+    private suspend fun receiveVideoStream()
+    {
+        var inputStream: InputStream = socket!!.getInputStream()
+        var dataInputStream: DataInputStream = DataInputStream(inputStream)
+
+        /*
         try {
             while (connectionActive)
             {
@@ -309,29 +404,58 @@ class ConnectionService : Service() {
                 val bitmap = BitmapFactory.decodeByteArray(jpegData, 0, size)
 
                 SharedRepository.setFrame(bitmap)
-
-//                val sizeBytes = ByteArray(4)
-//                dataInputStream.readFully(sizeBytes)
-//                val size = java.nio.ByteBuffer.wrap(sizeBytes).int
-//
-//                // Read the JPEG data
-//                val jpegData = ByteArray(size)
-//                dataInputStream.readFully(jpegData)
-//
-//                // Convert JPEG data to Bitmap
-//                val bitmap = BitmapFactory.decodeByteArray(jpegData, 0, size)
-
             }
         }
         catch (e: Exception)
         {
             Log.e("ConnectionService VideoStream receiveVideoStream Exception", e.message.toString())
-
-
         }
         finally {
             inputStream.close()
         }
+         */
+        while (connectionActive)
+        {
+            try {
+                while (!isInForeground)
+                {
+                    delay(100)
+                }
+
+                if (socket == null)
+                    throw SocketException("Socket is null!")
+
+                val size: Int = dataInputStream.readInt()
+
+                // Read the JPEG data
+                val jpegData = ByteArray(size)
+                dataInputStream.readFully(jpegData)
+
+                // Convert JPEG data to Bitmap
+                val bitmap = BitmapFactory.decodeByteArray(jpegData, 0, size)
+
+                SharedRepository.setFrame(bitmap)
+            }
+            catch (e: Exception)
+            {
+                socket = null
+                Log.e("ConnectionService VideoStream receiveVideoStream Exception", e.message.toString())
+                inputStream.close()
+                dataInputStream.close()
+
+                // wait for control thread to make new socket
+                while (socket == null)
+                    delay(100)
+
+                inputStream = socket!!.getInputStream()
+                dataInputStream = DataInputStream(inputStream)
+            }
+            finally {
+
+            }
+        }
+        inputStream.close()
+        dataInputStream.close()
 
         Log.v("ConnectionService VideoStream", "Exited!")
 
@@ -388,11 +512,13 @@ class ConnectionService : Service() {
         controls = null
     }
 
-    private suspend fun sendMovement(socket: Socket)
+    @RequiresApi(Build.VERSION_CODES.O)
+    private suspend fun sendMovement()
     {
-        val outputStream: OutputStream = socket.getOutputStream()
+        // val outputStream: OutputStream = socket!!.getOutputStream()
         // val coordinates = Coordinates(0f, 0f, 0f)
 
+        /*
         try {
             while(connectionActive)
             {
@@ -421,7 +547,52 @@ class ConnectionService : Service() {
         finally {
             outputStream.close()
         }
+        */
 
+        var outputStream: OutputStream = socket!!.getOutputStream()
+
+        while(connectionActive)
+        {
+            try {
+                if (socket == null)
+                    throw SocketException("Socket is null!")
+
+                if (controls != null)
+                {
+                    sendControls(outputStream)
+
+                    delay(100)
+                }
+                else
+                {
+                    delay(100)
+
+                    while (controls == null)
+                    {
+                        heartbeat(outputStream)
+                        delay(TIMEOUT_THIRD)
+                    }
+                }
+            }
+            catch (e: Exception)
+            {
+                socket = null
+                Log.e("ConnectionService sendControls Exception", e.message.toString())
+
+                SharedRepository.setMainScreenErrorText("Connection to server has been lost!")
+                SharedRepository.setScreen(SCREEN.MainScreen)
+
+                outputStream.close()
+
+                reconnect()
+                outputStream = socket!!.getOutputStream()
+            }
+            finally {
+                // outputStream.close()
+            }
+        }
+
+        outputStream.close()
         Log.v("ConnectionService sendControls", "Exited!")
     }
 }

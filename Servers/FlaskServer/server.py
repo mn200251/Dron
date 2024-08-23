@@ -20,7 +20,6 @@ from serverPrivateData import *
 from enum import Enum
 
 
-
 class RecordState(Enum):
     NOT_RECORDING = 0
     START_RECORDING = 1
@@ -45,7 +44,7 @@ class InstructionType(Enum):
     END_FLIGHT = 5
     GET_FLIGHTS = 6
     START_PREVIOUS_FLIGHT = 7
-    GET_VIDEOS = 8 # start the video download and request video using inedex
+    GET_VIDEOS = 8  # start the video download and request video using inedex
     DOWNLOAD_VIDEO = 9
     KILL_SWITCH = 10
     JOYSTICK = 11
@@ -83,7 +82,7 @@ ip_update_interval = 60 * 10
 server_port = 6969
 
 # Flag to determine if the server is internal or external
-internal = True
+internal = False
 
 # To remember the states
 phone_state = PhoneState.PILOTING
@@ -92,10 +91,12 @@ record_video = RecordState.NOT_RECORDING
 stop_event = threading.Event()
 send_event = threading.Event()
 # For video download
-lock=threading.Lock()
-response=None
+lock = threading.Lock()
+response = None
 #Video listing
-video_list=[]
+video_list = []
+
+
 # FUNCTIONS
 def changeServerIP(newIP):
     """
@@ -185,6 +186,7 @@ def get_video_list():
             })
     return video_list
 
+
 def get_video_names():
     """
     Get the list of video filenames without generating thumbnails.
@@ -247,9 +249,10 @@ def video_writer_process(video_frame_queue, frame_size, fps, output_file):
 
         if video_writer is not None:
             video_writer.release()
-            video_frame_queue=None
+            video_frame_queue = None
     except  Exception as e:
         print("Video saving died: " + str(e))
+
 
 def handleDroneMessages(droneSocket):
     """
@@ -308,7 +311,8 @@ def handleDroneMessages(droneSocket):
                         frame_width, frame_height = source.shape[1], source.shape[0]
                         fps = 30  # Frames per second
                         output_file = f'videos/recording_{int(time.time() * 1000)}.mp4'
-                        video_writer_proc = mp.Process(target=video_writer_process, args=(video_frame_queue, (frame_width, frame_height), fps, output_file))
+                        video_writer_proc = mp.Process(target=video_writer_process, args=(
+                        video_frame_queue, (frame_width, frame_height), fps, output_file))
                         video_writer_proc.start()
                         record_video = RecordState.RECORDING
 
@@ -339,7 +343,7 @@ def handleDroneMessages(droneSocket):
                 print("KeyboardInterrupt in handleCameraStream")
                 break
             except Exception as e:
-                print('Exception in handleCameraStream '+str(e))
+                print('Exception in handleCameraStream ' + str(e))
                 break
             finally:
                 # stream died because of a disconnect
@@ -363,7 +367,7 @@ def send_controls():
 
     :return:
     """
-    global stop_event, connections,send_event
+    global stop_event, connections, send_event
 
     while not stop_event.is_set():
         send_event.wait()
@@ -444,14 +448,15 @@ def handle_video_listing(phoneSocket):
     except Exception as e:
         print(f"An error occurred in video requests handler: {e}")
 
+
 def handle_video_download(phoneSocket):
     """
     Handles the incoming control instructions like GET_STATUS, TURN_OFF, GET_LINK.
     """
-    global  response
+    global response
     buffer = ""
     is_active = True
-    status=""
+    status = ""
     try:
         while is_active:
             # Receive data from the socket
@@ -480,9 +485,9 @@ def handle_video_download(phoneSocket):
                         print("Invalid instruction")
                     elif instruction_type == InstructionType.GET_STATUS.value:
                         if response is None:
-                            status= "no"
+                            status = "no"
                         else:
-                            status= "ok"
+                            status = "ok"
                         phoneSocket.sendall(status.encode('utf-8'))
                     elif instruction_type == InstructionType.GET_LINK.value:
                         json_data = json.dumps(response).encode('utf-8')
@@ -500,12 +505,13 @@ def handle_video_download(phoneSocket):
     except Exception as e:
         print(f"An error occurred in video download handler: {e}")
 
+
 # drone
 def handleControls(phoneSocket):
     """
        Handles control messages from the phone and forwards them to the queue.
     """
-    global command_dict,record_video, phone_state, send_event, response , video_list
+    global command_dict, record_video, phone_state, send_event, response, video_list
     buffer = ""
     flag = True
     while flag:
@@ -516,7 +522,7 @@ def handleControls(phoneSocket):
                 continue
 
             buffer += data
-            flag_pass_commands=False
+            flag_pass_commands = False
             # Process all complete JSON objects in the buffer
             while True:
                 start = buffer.find("{")
@@ -565,18 +571,17 @@ def handleControls(phoneSocket):
                             video_name = instruction_data.get("video_name")
                             file_path = f"videos/{video_name}"
 
-
                             # Upload the file
                             with open(file_path, 'rb') as file:
                                 response = requests.post('https://file.io/', files={'file': file})
 
-                            status=-1
-                            file_url=''
+                            status = -1
+                            file_url = ''
                             # Check if the upload was successful
                             if response.status_code == 200:
                                 # Get the download link from the response
                                 file_url = response.json().get('link')
-                                status=200
+                                status = 200
                                 print(f'File uploaded successfully. Download URL: {file_url}')
                             else:
                                 print('File upload failed.')
@@ -594,12 +599,12 @@ def handleControls(phoneSocket):
 
 
                         except Exception as e:
-                            print("An error occurred in controls: "+ str(e))
+                            print("An error occurred in controls: " + str(e))
                     elif instruction_type == InstructionType.JOYSTICK.value:
-                        tmp=command_dict["type"]
-                        command_dict=instruction_data
-                        command_dict["type"]=tmp
-                        flag_pass_commands=True
+                        tmp = command_dict["type"]
+                        command_dict = instruction_data
+                        command_dict["type"] = tmp
+                        flag_pass_commands = True
                     else:
                         print("Bad")
 
@@ -613,15 +618,13 @@ def handleControls(phoneSocket):
             break
 
 
-
-
 # Function to handle client connections
 def handle_client_connection(client_socket):
     """
         Handles incoming client connections and directs them to the appropriate handler.
     """
     global connections
-    trying=True
+    trying = True
     while True:
         try:
             message = client_socket.recv(1024).decode()

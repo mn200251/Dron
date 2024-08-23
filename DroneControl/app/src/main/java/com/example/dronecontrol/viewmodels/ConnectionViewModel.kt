@@ -94,7 +94,25 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
             monitorControls(context)
         }
 
+        this.updateScreenNumber(SCREEN.DroneScreen)
+
         Log.d("ViewModel", "Zavrsio u startService")
+    }
+
+    fun stopService(context: Context)
+    {
+        Log.d("ViewModel", "Usao u stopService")
+        val intent = Intent(context, ConnectionService::class.java).apply {
+            this.action = "ACTION_CONNECTION_NOT_ACTIVE"
+        }
+
+        context.startService(intent)
+
+        setMonitorMovementBoolean(false)
+
+        this.updateScreenNumber(SCREEN.MainScreen)
+
+        Log.d("ViewModel", "Zavrsio u stopService")
     }
 
     fun updateIsRecordingVideo(context:Context,newValue: Boolean)

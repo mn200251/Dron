@@ -42,6 +42,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
@@ -119,12 +121,19 @@ class MainActivity : ComponentActivity() {
         if (isFinishing)
         {
             // stop connection service
-            val intent = Intent(this, ConnectionService::class.java)
-            stopService(intent)
+            // val intent = Intent(this, ConnectionService::class.java)
+            // stopService(intent)
+            val intent = Intent(this, ConnectionService::class.java).apply {
+                this.action = "ACTION_CONNECTION_NOT_ACTIVE"
+            }
+
+            this.startService(intent)
 
             // cancel all notifications when exiting app
-            val notificationManager = this.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.cancelAll()
+            // connectionService notifications already cancelled when stopping service
+            // val notificationManager = this.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+
+            // notificationManager.cancel()
         }
     }
 

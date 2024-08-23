@@ -20,7 +20,9 @@ import com.example.dronecontrol.data_types.InstructionType
 import com.example.dronecontrol.private.BRANCH_NAME
 import com.example.dronecontrol.private.DOWNLOAD_FILE_PATH
 import com.example.dronecontrol.private.GITHUB_TOKEN
+import com.example.dronecontrol.private.INTERNAL
 import com.example.dronecontrol.private.REPO_NAME
+import com.example.dronecontrol.private.SERVER_FILE_PATH
 import com.example.dronecontrol.utils.getCurrentIP
 import kotlinx.parcelize.Parcelize
 import org.json.JSONArray
@@ -47,7 +49,6 @@ class VideoViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel
 
     val videoState = _videoState
 
-    val internal=true
 
     @RequiresApi(Build.VERSION_CODES.O)
     fun fetchVideos() {
@@ -55,10 +56,10 @@ class VideoViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel
             var socket: Socket? = null
             var auth: String = "phone"
             var addressPair: Pair<String, String>?
-            if (internal) {
+            if (INTERNAL) {
                 addressPair = Pair<String, String>("192.168.1.17", "6969")
             } else {
-                addressPair = getCurrentIP(GITHUB_TOKEN, REPO_NAME, DOWNLOAD_FILE_PATH, BRANCH_NAME)
+                addressPair = getCurrentIP(GITHUB_TOKEN, REPO_NAME, SERVER_FILE_PATH, BRANCH_NAME)
             }
             val socketAddress = addressPair?.second?.let {
                 InetSocketAddress(
@@ -150,10 +151,10 @@ class VideoViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel
             var socket = Socket()
             var socketAddress:InetSocketAddress
 
-            if(internal){
+            if(INTERNAL){
                 socketAddress = InetSocketAddress("192.168.1.17", 6969)
             }else {
-                val addressPair = getCurrentIP(GITHUB_TOKEN, REPO_NAME, DOWNLOAD_FILE_PATH, BRANCH_NAME)
+                val addressPair = getCurrentIP(GITHUB_TOKEN, REPO_NAME, SERVER_FILE_PATH, BRANCH_NAME)
                 socketAddress = InetSocketAddress(addressPair?.first, addressPair?.second!!.toInt())
             }
 

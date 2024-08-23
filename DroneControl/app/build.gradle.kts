@@ -86,7 +86,7 @@ dependencies {
 
     implementation(libs.androidx.ui.text.google.fonts)
 
-    implementation("com.squareup.okhttp3:okhttp:4.9.3")
+    implementation("com.squareup.okhttp3:okhttp:4.10.0")
 }
 
 

@@ -28,7 +28,9 @@ import com.example.dronecontrol.data_types.InstructionType
 import com.example.dronecontrol.private.BRANCH_NAME
 import com.example.dronecontrol.private.DOWNLOAD_FILE_PATH
 import com.example.dronecontrol.private.GITHUB_TOKEN
+import com.example.dronecontrol.private.INTERNAL
 import com.example.dronecontrol.private.REPO_NAME
+import com.example.dronecontrol.private.SERVER_FILE_PATH
 import com.example.dronecontrol.sharedRepositories.SharedRepository
 import com.example.dronecontrol.utils.getCurrentIP
 import com.fasterxml.jackson.databind.JsonSerializer.None
@@ -68,8 +70,6 @@ class DownloadService : Service()
 
     private var serviceDownloading = false
 
-    private val internal=true
-
     private val WIDTH=1920  //prebaci na sta god da su dimenzije pi snimka
     private val HEIGHT = 1080
     private val FRAME_RATE= 30
@@ -108,10 +108,10 @@ class DownloadService : Service()
                 "Video is transfering to device", R.drawable.download_icon, oneTime = false, 0, 100
             )
             var addressPair: Pair<String, String>?
-            if (internal) {
+            if (INTERNAL) {
                 addressPair = Pair<String, String>("192.168.1.17", "6969")
             } else {
-                addressPair = getCurrentIP(GITHUB_TOKEN, REPO_NAME, DOWNLOAD_FILE_PATH, BRANCH_NAME)
+                addressPair = getCurrentIP(GITHUB_TOKEN, REPO_NAME, SERVER_FILE_PATH, BRANCH_NAME)
             }
 
             if (addressPair == null) {

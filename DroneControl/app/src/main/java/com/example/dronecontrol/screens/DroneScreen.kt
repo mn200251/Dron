@@ -44,6 +44,7 @@ import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.input.pointer.positionChangeConsumed
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
@@ -122,8 +123,9 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel(), context:
     ) {
         IconButton(
             onClick = {
-                val intent: Intent = Intent(context, ConnectionService::class.java)
-                context.stopService(intent)
+//                val intent: Intent = Intent(context, ConnectionService::class.java)
+//                context.stopService(intent)
+                connectionViewModel.stopService(context)
 
                 SharedRepository.setScreen(SCREEN.MainScreen)
             },
