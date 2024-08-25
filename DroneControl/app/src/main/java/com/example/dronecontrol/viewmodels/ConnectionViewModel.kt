@@ -115,7 +115,7 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
         Log.d("ViewModel", "Zavrsio u stopService")
     }
 
-    fun updateIsRecordingVideo(context:Context,newValue: Boolean)
+    fun updateIsRecordingVideo(context:Context, newValue: Boolean)
     {
         savedStateHandle[UI_STATE_KEY] = _uiState2.value.copy(
             isRecordingVideo = newValue,
@@ -125,11 +125,47 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
                 isRecordingVideo = newValue,
             )
         }
+
         // Send the appropriate action to the service
         val action = if (newValue) "ACTION_START_RECORDING" else "ACTION_STOP_RECORDING"
-        startService(context, action)
+        // startService(context, action)
+
+        val intent = Intent(context, ConnectionService::class.java).apply {
+            this.action = action
+        }
+
+        context.startService(intent)
     }
 
+    fun updatePoweredOn(context: Context, newValue: Boolean)
+    {
+        SharedRepository.setPoweredOn(newValue)
+
+        val action = if (newValue) "ACTION_TURN_ON" else "ACTION_TURN_OFF"
+
+        val intent = Intent(context, ConnectionService::class.java).apply {
+            this.action = action
+        }
+
+        context.startService(intent)
+
+        // stop recording flight if kill switch activated
+        if (!newValue)
+            updateIsRecordingFlight(context, false)
+    }
+
+    fun updateIsRecordingFlight(context: Context, newValue: Boolean)
+    {
+        SharedRepository.setRecordingFlight(newValue)
+
+        val action = if (newValue) "ACTION_START_FLIGHT" else "ACTION_END_FLIGHT"
+
+        val intent = Intent(context, ConnectionService::class.java).apply {
+            this.action = action
+        }
+
+        context.startService(intent)
+    }
 
 
     private fun setMonitorMovementBoolean(newValue: Boolean)

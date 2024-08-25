@@ -10,7 +10,7 @@ enum class InstructionType(val value: Int) {
     START_PREVIOUS_FLIGHT(7),
     GET_VIDEOS(8),
     DOWNLOAD_VIDEO(9),
-    KILL_SWITCH(10),
+    TURN_ON(10),
     JOYSTICK(11),
     GET_LINK(12),
     TURN_OFF(13),

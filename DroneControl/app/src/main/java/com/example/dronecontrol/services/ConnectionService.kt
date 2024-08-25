@@ -174,6 +174,21 @@ class ConnectionService : Service() {
                 connectionActive = false
             }
 
+            "ACTION_TURN_ON" -> {
+                turnOn()
+            }
+
+            "ACTION_TURN_OFF" -> {
+                turnOff()
+            }
+
+            "ACTION_START_FLIGHT" -> {
+                startFlight()
+            }
+
+            "ACTION_END_FLIGHT" -> {
+                endFlight()
+            }
         }
 
         return START_STICKY
@@ -201,6 +216,7 @@ class ConnectionService : Service() {
         receiveVideoStreamJob?.cancel()
 
         socket?.close()
+        connectionActive = false
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -484,6 +500,32 @@ class ConnectionService : Service() {
         if (connectionActive && isRecordingVideo) {
             isRecordingVideo = false
             sendJsonInstruction(InstructionType.STOP_RECORDING.value)
+        }
+    }
+
+    private fun turnOn()
+    {
+        if (connectionActive) {
+            sendJsonInstruction(InstructionType.TURN_ON.value)
+        }
+    }
+
+    private fun turnOff()
+    {
+        if (connectionActive ) {
+            sendJsonInstruction(InstructionType.TURN_OFF.value)
+        }
+    }
+
+    private fun startFlight() {
+        if (connectionActive ) {
+            sendJsonInstruction(InstructionType.START_FLIGHT.value)
+        }
+    }
+
+    private fun endFlight() {
+        if (connectionActive ) {
+            sendJsonInstruction(InstructionType.END_FLIGHT.value)
         }
     }
 

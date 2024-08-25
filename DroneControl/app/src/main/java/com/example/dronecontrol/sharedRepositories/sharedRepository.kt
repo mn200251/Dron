@@ -19,6 +19,12 @@ object SharedRepository {
     private val _screenNumber = MutableLiveData<SCREEN>(SCREEN.MainScreen)
     val screenNumber: LiveData<SCREEN> get() = _screenNumber
 
+    private val _isPoweredOn = MutableLiveData<Boolean>(false)
+    val isPoweredOn: LiveData<Boolean> get() = _isPoweredOn
+
+    private val _isRecordingFlight = MutableLiveData<Boolean>(false)
+    val isRecordingFlight: LiveData<Boolean> get() = _isRecordingFlight
+
     // Thread-safe setter for frame
     fun setFrame(newFrame: Bitmap?) {
         _frame.postValue(newFrame)
@@ -34,10 +40,24 @@ object SharedRepository {
         _screenNumber.postValue(newScreenNumber)
     }
 
+    fun setPoweredOn(newValue: Boolean)
+    {
+        _isPoweredOn.postValue(newValue)
+    }
+
+    fun setRecordingFlight(newValue: Boolean)
+    {
+        _isRecordingFlight.postValue(newValue)
+    }
+
     // Thread-safe getters (in case you need them outside LiveData observation)
     fun getFrame(): Bitmap? = _frame.value
 
     fun getMainScreenErrorText(): String = _mainScreenErrorText.value ?: ""
 
     fun getScreen(): SCREEN = _screenNumber.value ?: SCREEN.MainScreen
+
+    fun getPoweredOn(): Boolean = _isPoweredOn.value ?: false
+
+    fun getRecordingFlight(): Boolean = _isRecordingFlight.value ?: false
 }

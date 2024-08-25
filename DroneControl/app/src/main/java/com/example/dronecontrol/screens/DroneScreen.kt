@@ -10,9 +10,11 @@ import android.util.Log
 import android.view.MotionEvent
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
@@ -87,6 +89,9 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel(), context:
     var leftDotPosition by remember { mutableStateOf(Offset(0f, 0f)) }
 
     val frame by SharedRepository.frame.collectAsState(null) // Use a default value
+    
+    val isPoweredOn by SharedRepository.isPoweredOn.collectAsState(initial = false)
+    val isRecordingFlight by SharedRepository.isRecordingFlight.collectAsState(initial = false)
 
     val currLocalDensity = LocalDensity.current
 
@@ -95,7 +100,7 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel(), context:
 
     val joystickSize = 160
 
-    val buttonSize = 60.dp
+    val buttonSize = 70.dp
 
 
     Canvas(modifier = Modifier.fillMaxSize()) {
@@ -121,41 +126,84 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel(), context:
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
-        IconButton(
-            onClick = {
+        Row(
+            modifier = Modifier
+                .padding(start = 14.dp, top = 14.dp)
+        ) {
+            IconButton(
+                onClick = {
 //                val intent: Intent = Intent(context, ConnectionService::class.java)
 //                context.stopService(intent)
-                connectionViewModel.stopService(context)
+                    connectionViewModel.stopService(context)
 
-                SharedRepository.setScreen(SCREEN.MainScreen)
+                    SharedRepository.setScreen(SCREEN.MainScreen)
+                },
+                modifier = Modifier
+                    //.align(Alignment.TopStart)
+                    //.padding(start = 14.dp, top = 14.dp)
+                    .size(buttonSize)
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.exit_icon),
+                    contentDescription = "Exit Button Icon",
+                    tint = Color(64, 64, 64, 75),
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .padding(start = 14.dp)
+                    .size(buttonSize)
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onLongPress = {
+                                connectionViewModel.updatePoweredOn(context, !isPoweredOn)
+                            }
+                        )
+                    }
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.power_button),
+                    contentDescription = "Power Button Icon",
+                    tint = if (isPoweredOn) Color(0, 255, 0, 75)
+                    else Color(255, 0, 0, 75),
+                )
+            }
+        }
+
+        IconButton(
+            onClick = {
+                    connectionViewModel.updateIsRecordingFlight(context,!isRecordingFlight)
             },
+            enabled = isPoweredOn,
             modifier = Modifier
-                .align(Alignment.TopStart)
-                .padding(start = 14.dp, top = 14.dp)
+                .align(Alignment.TopEnd)
+                .padding(top = 14.dp, end = 14.dp + buttonSize + 14.dp)
+                .padding(start = 10.dp)
                 .size(buttonSize)
         ) {
             Icon(
-                painter = painterResource(id = R.drawable.exit_icon),
-                contentDescription = "Exit Button Icon",
-                tint = Color(64, 64, 64, 75),
-                // modifier = iconModifier
+                painter = painterResource(id = R.drawable.flight_button),
+                contentDescription = "Flight Button Icon",
+                tint =
+                    if (!isRecordingFlight) Color(0, 0, 0, 75)
+                    else Color(255, 0, 0, 75),
             )
         }
 
-        // Button 3 in the upper right corner, placed below Button 2
         IconButton(
-            onClick = { /* Handle click */ },
+            onClick = { /* TODO GET FLIGHTS AND ADD WINDOW TO SELECT FLIGHT (ADD flightActive boolean?) */},
+            enabled = isPoweredOn,
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(top = 14.dp, end = 14.dp)
-                .padding(start = 10.dp)
+                .padding(start = 14.dp)
                 .size(buttonSize)
         ) {
             Icon(
                 painter = painterResource(id = R.drawable.replay_icon),
                 contentDescription = "Replay Button Icon",
                 tint = Color(64, 64, 64, 75),
-                // modifier = iconModifier
             )
         }
 
@@ -165,8 +213,8 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel(), context:
             },
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .padding(top = 70.dp, end = 14.dp)
-                .padding(start = 10.dp)
+                .padding(top = 78.dp, end = 14.dp)
+                .padding(start = 14.dp)
                 .size(buttonSize)
         ) {
             Icon(
