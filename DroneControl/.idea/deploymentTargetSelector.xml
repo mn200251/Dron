@@ -7,7 +7,7 @@
         <DropdownSelection timestamp="2024-08-24T14:48:41.581242400Z">
           <Target type="DEFAULT_BOOT">
             <handle>
-              <DeviceId pluginId="PhysicalDevice" identifier="serial=R3CT405YP1F" />
+              <DeviceId pluginId="LocalEmulator" identifier="path=C:\Users\Guca\.android\avd\Pixel_8_Pro_API_UpsideDownCakePrivacySandbox_2.avd" />
             </handle>
           </Target>
         </DropdownSelection>

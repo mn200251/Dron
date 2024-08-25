@@ -52,6 +52,8 @@ class InstructionType(Enum):
     TURN_OFF = 13
     GET_STATUS = 14  # da proveri stanje jer neke instrukcije mozda nisu prosle npr pocni snimanje
     BACK = 15  # povratak iz browsinga videa/letova?
+    RECORD_START = 16
+    RECORD_STOP = 17
 
 
 # Constants
@@ -88,13 +90,22 @@ internal = False
 phone_state = PhoneState.PILOTING
 record_video = RecordState.NOT_RECORDING
 
+# Events
 stop_event = threading.Event()
 send_event = threading.Event()
+
 # For video download
 lock = threading.Lock()
 response = None
+
 #Video listing
 video_list = []
+
+# Instruction_recording
+recording = False
+start_time = None
+previous_time = None
+instructions = []
 
 
 # FUNCTIONS
