@@ -52,8 +52,8 @@ class InstructionType(Enum):
     TURN_OFF = 13
     GET_STATUS = 14  # da proveri stanje jer neke instrukcije mozda nisu prosle npr pocni snimanje
     BACK = 15  # povratak iz browsinga videa/letova?
-    RECORD_START = 16
-    RECORD_STOP = 17
+    RECORD_INST_START = 16
+    RECORD_INST_STOP = 17
 
 
 # Constants
@@ -84,7 +84,7 @@ ip_update_interval = 60 * 10
 server_port = 6969
 
 # Flag to determine if the server is internal or external
-internal = False
+internal = True
 
 # To remember the states
 phone_state = PhoneState.PILOTING
@@ -107,6 +107,8 @@ start_time = None
 previous_time = None
 instructions = []
 
+# Autopilot
+autopilot_active = False
 
 # FUNCTIONS
 def changeServerIP(newIP):
@@ -209,6 +211,18 @@ def get_video_names():
             video_list.append(filename)
     return video_list
 
+
+def save_instructions_to_file():
+    global instructions, start_time
+    # Create a unique filename with the datetime
+    filename = f"flight_scripts/script_{time.strftime('%Y%m%d_%H%M%S')}.json"
+
+    # Save instructions to the file
+    with open(filename, 'w') as f:
+        json.dump({
+            "start_time": start_time,
+            "instructions": instructions
+        }, f, indent=4)
 
 # THREADS AND THEIR CREATION
 def send_frames():
@@ -375,10 +389,9 @@ def send_controls():
     Ako dođe do greške tokom slanja, pokusa ponovo.
     Funkcija koristi timeout kako bi se izbeglo blokiranje i osigurava da se zaustavi kada je signalizovano putem stop_event.
 
-
     :return:
     """
-    global stop_event, connections, send_event
+    global stop_event, connections, send_event, command_dict, previous_time
 
     while not stop_event.is_set():
         send_event.wait()
@@ -387,6 +400,24 @@ def send_controls():
             data_to_send = json.dumps(command_dict).encode('utf-8')
             drone_socket = connections["drone"]
             drone_socket.sendall(data_to_send)
+            if recording:
+                # Calculate delta time
+                current_time = time.time()
+                delta_time = current_time - previous_time
+                previous_time = current_time
+
+                # Create joystick instruction
+                joystick_instruction = {
+                    "type": InstructionType.RECORD_JOYSTICK,
+                    "x": command_dict['x'],
+                    "y": command_dict['y'],
+                    "z": command_dict['z'],
+                    "rotation": command_dict['rotation'],
+                    "delta_time": delta_time
+                }
+
+                # Append to the instructions list
+                instructions.append(joystick_instruction)
             command_dict["type"] = InstructionType.JOYSTICK.value
         except AttributeError as e:
             print(f"Drone not connected")
@@ -522,7 +553,7 @@ def handleControls(phoneSocket):
     """
        Handles control messages from the phone and forwards them to the queue.
     """
-    global command_dict, record_video, phone_state, send_event, response, video_list
+    global send_event, autopilot_active
     buffer = ""
     flag = True
     while flag:
@@ -549,75 +580,12 @@ def handleControls(phoneSocket):
                     instruction_data = json.loads(json_str)
                     instruction_type = instruction_data.get("type")
                     print(instruction_data)
-                    if instruction_type is None:
-                        print("Invalid instruction")
-                    elif instruction_type == InstructionType.HEARTBEAT.value:
-                        pass
-                    elif instruction_type == InstructionType.START_RECORDING.value:
-                        record_video = RecordState.START_RECORDING
-                    elif instruction_type == InstructionType.STOP_RECORDING.value:
-                        record_video = RecordState.STOP_RECORDING
-                    elif instruction_type == InstructionType.START_FLIGHT.value:
-                        phone_state = PhoneState.PILOTING
-                        # send the pi to start streaming
-                        pass
-                    elif instruction_type == InstructionType.END_FLIGHT.value:
-                        phone_state = PhoneState.STARTED
-                        # send the pi to stop streaming
-                        pass
-                    elif instruction_type == InstructionType.GET_FLIGHTS.value:
-                        phone_state = PhoneState.BROWSING_FLIGHTS
-                        pass
-                    elif instruction_type == InstructionType.START_PREVIOUS_FLIGHT.value:
-                        phone_state = PhoneState.AUTOPILOT
-                        # send the pi to start streaming
-                        # start sending previous instructions
-                        pass
-                    elif instruction_type == InstructionType.DOWNLOAD_VIDEO.value:
-                        pass
-                        try:
-                            response = None
-                            phone_state = PhoneState.DOWNLOADING_VIDEO
-                            print('Handle video download.')
-                            video_name = instruction_data.get("video_name")
-                            file_path = f"videos/{video_name}"
-
-                            # Upload the file
-                            with open(file_path, 'rb') as file:
-                                response = requests.post('https://file.io/', files={'file': file})
-
-                            status = -1
-                            file_url = ''
-                            # Check if the upload was successful
-                            if response.status_code == 200:
-                                # Get the download link from the response
-                                file_url = response.json().get('link')
-                                status = 200
-                                print(f'File uploaded successfully. Download URL: {file_url}')
-                            else:
-                                print('File upload failed.')
-                            response = {
-                                'status': status,
-                                'link': file_url
-                            }
-                            flag = False
-                            # #DUMMY
-                            # time.sleep(5)
-                            # response = {
-                            #     'status': 200,
-                            #     'link': 'https://www.google.com/'
-                            # }
-
-
-                        except Exception as e:
-                            print("An error occurred in controls: " + str(e))
-                    elif instruction_type == InstructionType.JOYSTICK.value:
-                        tmp = command_dict["type"]
-                        command_dict = instruction_data
-                        command_dict["type"] = tmp
-                        flag_pass_commands = True
-                    else:
-                        print("Bad")
+                    # cancel autopilot and switch back to manual mode
+                    if autopilot_active and instruction_type != InstructionType.HEARTBEAT.value:
+                        autopilot_active = False
+                    # handle manual instructions
+                    if not autopilot_active:
+                        flag, flag_pass_commands = process_instruction(instruction_data)
 
                 except json.JSONDecodeError:
                     print("Received invalid JSON data")
@@ -627,6 +595,115 @@ def handleControls(phoneSocket):
             flag = False
             print(f"Phone connection lost in handleControls: {e}")
             break
+
+def process_instruction(instruction_data):
+    global record_video, start_time, previous_time, recording, instructions, response, phone_state, command_dict
+    instruction_type = instruction_data.get("type")
+    flag=False
+    flag_pass_commands=False
+    if instruction_type is None:
+        print("Invalid instruction")
+    elif instruction_type == InstructionType.HEARTBEAT.value:
+        pass
+    elif instruction_type == InstructionType.START_RECORDING.value:
+        record_video = RecordState.START_RECORDING
+        if recording:
+            start_instruction = {
+                "type": instruction_type,
+                "delta_time": time.time() - previous_time
+            }
+            instructions.append(start_instruction)
+    elif instruction_type == InstructionType.STOP_RECORDING.value:
+        record_video = RecordState.STOP_RECORDING
+        if recording:
+            stop_instruction = {
+                "type": instruction_type,
+                "delta_time": time.time() - previous_time
+            }
+            instructions.append(stop_instruction)
+    elif instruction_type == InstructionType.START_PREVIOUS_FLIGHT.value:
+        autopilot_thread = threading.Thread(target=handleAutopilot, args=(instruction_data['file'],))
+        autopilot_thread.start()
+    elif instruction_type == InstructionType.DOWNLOAD_VIDEO.value:
+        try:
+            response = None
+            phone_state = PhoneState.DOWNLOADING_VIDEO
+            print('Handle video download.')
+            video_name = instruction_data.get("video_name")
+            file_path = f"videos/{video_name}"
+
+            # Upload the file
+            with open(file_path, 'rb') as file:
+                response = requests.post('https://file.io/', files={'file': file})
+
+            status = -1
+            file_url = ''
+            # Check if the upload was successful
+            if response.status_code == 200:
+                # Get the download link from the response
+                file_url = response.json().get('link')
+                status = 200
+                print(f'File uploaded successfully. Download URL: {file_url}')
+            else:
+                print('File upload failed.')
+            response = {
+                'status': status,
+                'link': file_url
+            }
+            flag = False
+            # #DUMMY
+            # time.sleep(5)
+            # response = {
+            #     'status': 200,
+            #     'link': 'https://www.google.com/'
+            # }
+
+        except Exception as e:
+            print("An error occurred in controls: " + str(e))
+    elif instruction_type == InstructionType.JOYSTICK.value:
+        tmp = command_dict["type"]
+        command_dict = instruction_data
+        command_dict["type"] = tmp
+        flag_pass_commands = True
+    elif instruction_type == InstructionType.RECORD_INST_START.value:
+        start_time = time.time()
+        previous_time = start_time
+        recording = True
+    elif instruction_type == InstructionType.RECORD_INST_STOP.value:
+        recording = False
+        save_instructions_to_file()
+        previous_time = None
+        start_time = None
+        instructions = []
+    else:
+        print("Bad")
+    return flag, flag_pass_commands
+
+def handleAutopilot(instruction_file):
+    """
+    Autopilot to replay a previous flight from file.
+    Saved instructions should not allow for instructions that can fail,
+    so a try catch or retry is not needed
+
+    :param instruction_file:
+    :return:
+    """
+    global autopilot_active, previous_time, send_event
+
+    autopilot_active = True
+    with open(instruction_file, 'r') as f:
+        data = json.load(f)
+        instructions_list = data['instructions']
+
+    for instruction in instructions_list:
+        if not autopilot_active:
+            break
+
+        flag, flag_pass_command= process_instruction(instruction)
+        if flag_pass_command:
+            send_event.set()
+        time.sleep(instruction["delta_time"])
+    autopilot_active = False
 
 
 # Function to handle client connections
