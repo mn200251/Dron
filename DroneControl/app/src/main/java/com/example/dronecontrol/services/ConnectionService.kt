@@ -60,6 +60,7 @@ class ConnectionService : Service() {
     private val notificationId = 1
 
     private var isRecordingVideo = false
+    private var isRecordingInstructions = false
 
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate() {
@@ -148,7 +149,7 @@ class ConnectionService : Service() {
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
 
-        Log.d("SERVICE", "Usao u onStartCommand()")
+        Log.d("ConnectionServiceStart", "Usao u onStartCommand() sa: " + intent?.action)
 
         when (intent?.action) {
             "ACTION_APP_BACKGROUND" -> {
@@ -169,7 +170,12 @@ class ConnectionService : Service() {
             "ACTION_STOP_RECORDING" -> {
                 stopRecording()
             }
-
+            "ACTION_START_INSTRUCTION_RECORDING" -> {
+                startInstructionRecording()
+            }
+            "ACTION_STOP_INSTRUCTION_RECORDING" -> {
+                stopInstructionRecording()
+            }
             "ACTION_CONNECTION_NOT_ACTIVE" -> {
                 connectionActive = false
             }
@@ -479,15 +485,29 @@ class ConnectionService : Service() {
     }
 
     private val instructionMap = mapOf("type" to InstructionType.HEARTBEAT.value)
-    private fun heartbeat(outputStream: OutputStream)
+    private fun heartbeat()
     {
         val jsonString = Json.encodeToString(instructionMap)
 
-        outputStream.write(jsonString.toByteArray(Charsets.UTF_8))
-        outputStream.flush()
+        sendJsonInstruction(InstructionType.HEARTBEAT.value)
     }
 
     // Start recording method
+    private fun startInstructionRecording() {
+        if (connectionActive && !isRecordingInstructions) {
+            isRecordingVideo = true
+            sendJsonInstruction(InstructionType.RECORD_INST_START.value)
+        }
+    }
+
+    // Stop recording method
+    private fun stopInstructionRecording() {
+        if (connectionActive && isRecordingInstructions) {
+            isRecordingVideo = false
+            sendJsonInstruction(InstructionType.RECORD_INST_STOP.value)
+        }
+    }
+
     private fun startRecording() {
         if (connectionActive && !isRecordingVideo) {
             isRecordingVideo = true
@@ -537,7 +557,7 @@ class ConnectionService : Service() {
                 val jsonString = Json.encodeToString(mapOf("type" to type))
                 outputStream.write(jsonString.toByteArray(Charsets.UTF_8))
                 outputStream.flush()
-                Log.e("ConnectionService", "Recording switch")
+                //Log.e("ConnectionService", "Recording switch")
             } catch (e: Exception) {
                 Log.e("ConnectionService", "Error sending JSON instruction: ${e}")
             }
@@ -611,7 +631,7 @@ class ConnectionService : Service() {
 
                     while (controls == null)
                     {
-                        heartbeat(outputStream)
+                        heartbeat()
                         delay(TIMEOUT_THIRD)
                     }
                 }

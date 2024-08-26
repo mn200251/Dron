@@ -175,7 +175,7 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel(), context:
             onClick = {
                     connectionViewModel.updateIsRecordingFlight(context,!isRecordingFlight)
             },
-            enabled = isPoweredOn,
+            enabled = true,
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(top = 14.dp, end = 14.dp + buttonSize + 14.dp)

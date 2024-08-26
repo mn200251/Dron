@@ -15,5 +15,7 @@ enum class InstructionType(val value: Int) {
     GET_LINK(12),
     TURN_OFF(13),
     GET_STATUS(14), // Check the status as some instructions might not have passed, e.g., start recording
-    BACK(15) // Return from browsing videos/flights
+    BACK(15), // Return from browsing videos/flights
+    RECORD_INST_START ( 16),
+    RECORD_INST_STOP ( 17 )
 }
