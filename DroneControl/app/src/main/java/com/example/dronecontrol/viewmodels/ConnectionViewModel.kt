@@ -160,7 +160,7 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
     {
         SharedRepository.setRecordingFlight(newValue)
 
-        val action = if (newValue) "ACTION_START_FLIGHT" else "ACTION_END_FLIGHT"
+        val action = if (newValue) "ACTION_START_INSTRUCTION_RECORDING" else "ACTION_STOP_INSTRUCTION_RECORDING"
 
         val intent = Intent(context, ConnectionService::class.java).apply {
             this.action = action
@@ -171,7 +171,6 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
 
         context.startService(intent)
     }
-
 
     private fun setMonitorMovementBoolean(newValue: Boolean)
     {

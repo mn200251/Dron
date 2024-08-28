@@ -185,7 +185,7 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel(), context:
                         false,
                     )
             },
-            enabled = isPoweredOn,
+            enabled = true,
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(top = 14.dp, end = 14.dp + buttonSize + 14.dp)

@@ -109,7 +109,7 @@ class DownloadService : Service()
             )
             var addressPair: Pair<String, String>?
             if (INTERNAL) {
-                addressPair = Pair<String, String>("192.168.1.17", "6969")
+                addressPair = Pair<String, String>("192.168.1.17", "6970")
             } else {
                 addressPair = getCurrentIP(GITHUB_TOKEN, REPO_NAME, SERVER_FILE_PATH, BRANCH_NAME)
             }
@@ -131,37 +131,11 @@ class DownloadService : Service()
             val socketAddress = InetSocketAddress(addressPair.first, addressPair.second.toInt())
             var socket: Socket? = null
             var status = false
-            try {
-                socket = Socket()
-                // val socketAddress = InetSocketAddress(uiState.value.host, uiState.value.port.toInt())
-                val socketAddress =
-                    InetSocketAddress(addressPair.first, addressPair.second.toInt())
 
-                socket.connect(socketAddress, 2000)
-
-                val outputStream: OutputStream = socket.getOutputStream()
-                val inputStream: InputStream = socket.getInputStream()
-                val reader = BufferedReader(InputStreamReader(inputStream))
-                val dataInputStream = DataInputStream(socket.getInputStream())
-                outputStream.write(auth.toByteArray(Charsets.UTF_8))
-                outputStream.flush()
-                var response1 = BufferedReader(InputStreamReader(inputStream)).readLine()
-
-                val json = JSONObject().apply {
-                    put("type", InstructionType.DOWNLOAD_VIDEO.value)
-                    put("video_name", videoName)
-                }
-                outputStream.write(json.toString().toByteArray(Charsets.UTF_8))
-            } catch (e: Exception) {
-                Log.d("DownloadService", "Download failed to start: ${e.message}")
-                service.stopSelf()
-                return@launch
-            } finally {
-                socket?.close()
-            }
             delay(1000)
             var progress = 0
             var jsonResponse: JSONObject? = null
+            var first=true
             auth = "video_download"
             while (true) {
                 delay(3000)
@@ -183,7 +157,17 @@ class DownloadService : Service()
                     outputStream.write(auth.toByteArray(Charsets.UTF_8))
                     outputStream.flush()
                     var response = BufferedReader(InputStreamReader(inputStream)).readLine()
+                    if(first){
+                        val json = JSONObject().apply {
+                            put("type", InstructionType.DOWNLOAD_VIDEO.value)
+                            put("video_name", videoName)
+                        }
+                        outputStream.write(json.toString().toByteArray(Charsets.UTF_8))
+                        outputStream.flush()
 
+                        first=false
+                        delay(1000)
+                    }
                     //wait for upload on server to finish
                     var json = JSONObject().apply {
                         put("type", InstructionType.GET_STATUS.value)

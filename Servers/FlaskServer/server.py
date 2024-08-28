@@ -1,70 +1,23 @@
-# from flask import Flask
+
 import base64
 import json
-import os
 import queue
 import struct
 import threading
-import time
-
-import socket
 import cv2
 import numpy as np
 import multiprocessing as mp
-import requests
-
-from github import Github
-
-from serverPrivateData import *
-
-from enum import Enum
 
 
-class RecordState(Enum):
-    NOT_RECORDING = 0
-    START_RECORDING = 1
-    RECORDING = 2
-    STOP_RECORDING = 3
+from Shared import *
 
-
-class PhoneState(Enum):
-    STARTED = 0  # on main screen
-    AUTOPILOT = 1  # recreating flight
-    PILOTING = 2  # client is controling the drone
-    BROWSING_VIDEOS = 3  # not needed
-    BROWSING_FLIGHTS = 4  #
-    DOWNLOADING_VIDEO = 5  #
-
-
-class InstructionType(Enum):
-    HEARTBEAT = 1
-    START_RECORDING = 2
-    STOP_RECORDING = 3
-    START_FLIGHT = 4
-    END_FLIGHT = 5
-    GET_FLIGHTS = 6
-    START_PREVIOUS_FLIGHT = 7
-    GET_VIDEOS = 8  # start the video download and request video using inedex
-    DOWNLOAD_VIDEO = 9
-    KILL_SWITCH = 10
-    JOYSTICK = 11
-    GET_LINK = 12
-    TURN_OFF = 13
-    GET_STATUS = 14  # da proveri stanje jer neke instrukcije mozda nisu prosle npr pocni snimanje
-    BACK = 15  # povratak iz browsinga videa/letova?
-
-
-# Constants
-MAX_QUEUE_SIZE = 120
-TIMEOUT = 3
-QUEUE_TIMEOUT = 5
-video_dir = "videos"
-# Global variables to manage connections
 #video streaming
 video_queue = queue.Queue(maxsize=MAX_QUEUE_SIZE)
+
 #video download
 video_writer_proc = None
 video_frame_queue = None
+
 #command streaming
 command_dict = {
     "type": InstructionType.JOYSTICK.value,
@@ -75,129 +28,43 @@ command_dict = {
 }
 control_queue = queue.Queue(maxsize=MAX_QUEUE_SIZE)
 connections = {'drone': None, 'phone': None}
-# Interval to update the IP address on GitHub (in seconds)
-ip_update_interval = 60 * 10
-
-# Server port
-server_port = 6969
-
-# Flag to determine if the server is internal or external
-internal = False
 
 # To remember the states
 phone_state = PhoneState.PILOTING
 record_video = RecordState.NOT_RECORDING
 
-stop_event = threading.Event()
+# Events
 send_event = threading.Event()
+
 # For video download
 lock = threading.Lock()
 response = None
+
 #Video listing
 video_list = []
 
+# Instruction_recording
+recording = False
+start_time = None
+previous_time = None
+instructions = []
+
+# Autopilot
+autopilot_active = False
 
 # FUNCTIONS
-def changeServerIP(newIP):
-    """
-        Updates the server IP address stored in a GitHub repository.
-    """
-    # Authenticate to GitHub
-    g = Github(GITHUB_TOKEN)
 
-    # Get the repository
-    repo = g.get_repo(REPO_NAME)
+def save_instructions_to_file():
+    global instructions, start_time
+    # Create a unique filename with the datetime
+    filename = f"{script_dir}/script_{time.strftime('%Y%m%d_%H%M%S')}.json"
 
-    # Get the file contents
-    try:
-        file = repo.get_contents(FILE_PATH, ref=BRANCH_NAME)
-    except Exception as e:
-        if "404" in str(e):
-            repo.create_file(FILE_PATH, f'Created server_ip.txt with current IP: {newIP}', newIP,
-                             branch=BRANCH_NAME)
-            return
-        else:
-            # Other errors
-            print(f"An error occurred: {e}")
-            return
-
-    currentIP = file.decoded_content.decode()
-
-    if currentIP == newIP:
-        print("changeServerIP - Server IP didn't change")
-        return
-
-    # Commit and push the changes
-    repo.update_file(file.path, f'Updated server_ip.txt with new IP: {newIP}', newIP, file.sha,
-                     branch=BRANCH_NAME)
-
-
-def getInternalIp():
-    """
-        Retrieves the internal IP address of the server.
-    """
-    hostname = socket.gethostname()
-    ip_address = socket.gethostbyname(hostname)
-    return ip_address
-
-
-def getExternalIp():
-    """
-        Retrieves the external IP address of the server.
-    """
-    response = requests.get('https://api.ipify.org?format=json')
-    ip_data = response.json()
-    ip_address = ip_data['ip']
-    return ip_address
-
-
-def monitorIP():
-    """
-        Periodically updates the server's external IP address on GitHub.
-    """
-    while True:
-        newIP = getExternalIp() + ":" + str(server_port)
-        changeServerIP(newIP)
-
-        time.sleep(ip_update_interval)
-
-
-def generate_thumbnail(video_path):
-    cap = cv2.VideoCapture(video_path)
-    success, frame = cap.read()
-    cap.release()
-    if success:
-        _, buffer = cv2.imencode('.jpg', frame)
-        thumbnail_bytes = buffer.tobytes()
-        return base64.b64encode(thumbnail_bytes).decode('utf-8')
-    return None
-
-
-def get_video_list():
-    video_dir = 'videos'
-    video_list = []
-    for filename in os.listdir(video_dir):
-        if filename.endswith(".mp4"):  # Check if the file is a video
-            video_path = os.path.join(video_dir, filename)
-            thumbnail = generate_thumbnail(video_path)
-            video_list.append({
-                'filename': filename,
-                'thumbnail': thumbnail
-            })
-    return video_list
-
-
-def get_video_names():
-    """
-    Get the list of video filenames without generating thumbnails.
-    """
-    video_dir = 'videos'
-    video_list = []
-    for filename in os.listdir(video_dir):
-        if filename.endswith(".mp4"):  # Check if the file is a video
-            video_list.append(filename)
-    return video_list
-
+    # Save instructions to the file
+    with open(filename, 'w') as f:
+        json.dump({
+            "start_time": start_time,
+            "instructions": instructions
+        }, f, indent=4)
 
 # THREADS AND THEIR CREATION
 def send_frames():
@@ -364,10 +231,9 @@ def send_controls():
     Ako dođe do greške tokom slanja, pokusa ponovo.
     Funkcija koristi timeout kako bi se izbeglo blokiranje i osigurava da se zaustavi kada je signalizovano putem stop_event.
 
-
     :return:
     """
-    global stop_event, connections, send_event
+    global stop_event, connections, send_event, command_dict, previous_time
 
     while not stop_event.is_set():
         send_event.wait()
@@ -376,6 +242,24 @@ def send_controls():
             data_to_send = json.dumps(command_dict).encode('utf-8')
             drone_socket = connections["drone"]
             drone_socket.sendall(data_to_send)
+            if recording:
+                # Calculate delta time
+                current_time = time.time()
+                delta_time = current_time - previous_time
+                previous_time = current_time
+
+                # Create joystick instruction
+                joystick_instruction = {
+                    "type": InstructionType.RECORD_JOYSTICK,
+                    "x": command_dict['x'],
+                    "y": command_dict['y'],
+                    "z": command_dict['z'],
+                    "rotation": command_dict['rotation'],
+                    "delta_time": delta_time
+                }
+
+                # Append to the instructions list
+                instructions.append(joystick_instruction)
             command_dict["type"] = InstructionType.JOYSTICK.value
         except AttributeError as e:
             print(f"Drone not connected")
@@ -385,133 +269,13 @@ def send_controls():
             continue
 
 
-def handle_video_listing(phoneSocket):
-    """
-       Handles requests to get the list of videos, including their thumbnails, and sends them one by one to avoid overflow.
-       """
-    global video_list
-    buffer = ""
-    print("in")
-    try:
-        while True:
-            # Receive data from the socket
-            data = phoneSocket.recv(1024).decode('utf-8')
-            if not data:
-                continue
-
-            buffer += data
-            # Extract the last complete JSON object
-            start = buffer.rfind("{")
-            end = buffer.rfind("}")
-
-            if start == -1 or end == -1:
-                continue
-
-            json_str = buffer[start:end + 1]
-
-            try:
-                instruction_data = json.loads(json_str)
-                instruction_type = instruction_data.get("type")
-                print("Received instruction:", instruction_data)
-
-                if instruction_type is None:
-                    print("Invalid instruction")
-                elif instruction_type == InstructionType.GET_VIDEOS.value:
-                    index = instruction_data.get("index")
-                    if index is None:
-                        video_list = get_video_names()
-                        phoneSocket.sendall(str(len(video_list)).encode('utf-8'))
-                        print("Number of videos is " + str(len(video_list)))
-                    elif index is not None and 0 <= index < len(video_list):
-                        video_name = video_list[index]
-                        thumbnail = generate_thumbnail(os.path.join('videos', video_name))
-                        video_data = {
-                            'filename': video_name,
-                            'thumbnail': thumbnail
-                        }
-                        video_json = json.dumps(video_data).encode('utf-8')
-                        json_length = len(video_json)
-
-                        # Send the length of the JSON
-                        phoneSocket.sendall(struct.pack('>I', json_length))
-
-                        # Send the actual JSON data
-                        phoneSocket.sendall(video_json)
-                        print(f"Sent video metadata for index {index}")
-                else:
-                    print(f"Unknown instruction type: {instruction_type}")
-
-            except json.JSONDecodeError as e:
-                print(f"JSON decode error: {e}")
-                continue
-
-    except Exception as e:
-        print(f"An error occurred in video requests handler: {e}")
-
-
-def handle_video_download(phoneSocket):
-    """
-    Handles the incoming control instructions like GET_STATUS, TURN_OFF, GET_LINK.
-    """
-    global response
-    buffer = ""
-    is_active = True
-    status = ""
-    try:
-        while is_active:
-            # Receive data from the socket
-            data = phoneSocket.recv(1024).decode('utf-8')
-            if not data:
-                continue
-
-            buffer += data
-            # Process all complete JSON objects in the buffer
-            while True:
-                start = buffer.find("{")
-                end = buffer.find("}")
-
-                if start == -1 or end == -1:
-                    break
-
-                json_str = buffer[start:end + 1]
-                buffer = buffer[end + 1:]
-
-                try:
-                    instruction_data = json.loads(json_str)
-                    instruction_type = instruction_data.get("type")
-                    print("Received instruction:", instruction_data)
-
-                    if instruction_type is None:
-                        print("Invalid instruction")
-                    elif instruction_type == InstructionType.GET_STATUS.value:
-                        if response is None:
-                            status = "no"
-                        else:
-                            status = "ok"
-                        phoneSocket.sendall(status.encode('utf-8'))
-                    elif instruction_type == InstructionType.GET_LINK.value:
-                        json_data = json.dumps(response).encode('utf-8')
-                        # Send JSON data
-                        print(json_data)
-                        phoneSocket.sendall(json_data)
-                        print("Phone informed of the results: ")
-                    else:
-                        print(f"Unknown instruction type in regard to video download: {instruction_type}")
-
-                except json.JSONDecodeError as e:
-                    print(f"JSON decode error: {e}")
-                    continue
-
-    except Exception as e:
-        print(f"An error occurred in video download handler: {e}")
-
 
 # drone
 def handleControls(phoneSocket):
     """
        Handles control messages from the phone and forwards them to the queue.
     """
-    global command_dict, record_video, phone_state, send_event, response, video_list
+    global send_event, autopilot_active
     buffer = ""
     flag = True
     while flag:
@@ -538,75 +302,12 @@ def handleControls(phoneSocket):
                     instruction_data = json.loads(json_str)
                     instruction_type = instruction_data.get("type")
                     print(instruction_data)
-                    if instruction_type is None:
-                        print("Invalid instruction")
-                    elif instruction_type == InstructionType.HEARTBEAT.value:
-                        pass
-                    elif instruction_type == InstructionType.START_RECORDING.value:
-                        record_video = RecordState.START_RECORDING
-                    elif instruction_type == InstructionType.STOP_RECORDING.value:
-                        record_video = RecordState.STOP_RECORDING
-                    elif instruction_type == InstructionType.START_FLIGHT.value:
-                        phone_state = PhoneState.PILOTING
-                        # send the pi to start streaming
-                        pass
-                    elif instruction_type == InstructionType.END_FLIGHT.value:
-                        phone_state = PhoneState.STARTED
-                        # send the pi to stop streaming
-                        pass
-                    elif instruction_type == InstructionType.GET_FLIGHTS.value:
-                        phone_state = PhoneState.BROWSING_FLIGHTS
-                        pass
-                    elif instruction_type == InstructionType.START_PREVIOUS_FLIGHT.value:
-                        phone_state = PhoneState.AUTOPILOT
-                        # send the pi to start streaming
-                        # start sending previous instructions
-                        pass
-                    elif instruction_type == InstructionType.DOWNLOAD_VIDEO.value:
-                        pass
-                        try:
-                            response = None
-                            phone_state = PhoneState.DOWNLOADING_VIDEO
-                            print('Handle video download.')
-                            video_name = instruction_data.get("video_name")
-                            file_path = f"videos/{video_name}"
-
-                            # Upload the file
-                            with open(file_path, 'rb') as file:
-                                response = requests.post('https://file.io/', files={'file': file})
-
-                            status = -1
-                            file_url = ''
-                            # Check if the upload was successful
-                            if response.status_code == 200:
-                                # Get the download link from the response
-                                file_url = response.json().get('link')
-                                status = 200
-                                print(f'File uploaded successfully. Download URL: {file_url}')
-                            else:
-                                print('File upload failed.')
-                            response = {
-                                'status': status,
-                                'link': file_url
-                            }
-                            flag = False
-                            # #DUMMY
-                            # time.sleep(5)
-                            # response = {
-                            #     'status': 200,
-                            #     'link': 'https://www.google.com/'
-                            # }
-
-
-                        except Exception as e:
-                            print("An error occurred in controls: " + str(e))
-                    elif instruction_type == InstructionType.JOYSTICK.value:
-                        tmp = command_dict["type"]
-                        command_dict = instruction_data
-                        command_dict["type"] = tmp
-                        flag_pass_commands = True
-                    else:
-                        print("Bad")
+                    # cancel autopilot and switch back to manual mode
+                    if autopilot_active and instruction_type != InstructionType.HEARTBEAT.value:
+                        autopilot_active = False
+                    # handle manual instructions
+                    if not autopilot_active:
+                        flag_pass_commands = process_instruction(instruction_data)
 
                 except json.JSONDecodeError:
                     print("Received invalid JSON data")
@@ -617,14 +318,85 @@ def handleControls(phoneSocket):
             print(f"Phone connection lost in handleControls: {e}")
             break
 
+def process_instruction(instruction_data):
+    global record_video, start_time, previous_time, recording, instructions, response, phone_state, command_dict
+    instruction_type = instruction_data.get("type")
+    flag_pass_commands=False
+    if instruction_type is None:
+        print("Invalid instruction")
+    elif instruction_type == InstructionType.HEARTBEAT.value:
+        pass
+    elif instruction_type == InstructionType.START_RECORDING.value:
+        record_video = RecordState.START_RECORDING
+        if recording:
+            start_instruction = {
+                "type": instruction_type,
+                "delta_time": time.time() - previous_time
+            }
+            instructions.append(start_instruction)
+    elif instruction_type == InstructionType.STOP_RECORDING.value:
+        record_video = RecordState.STOP_RECORDING
+        if recording:
+            stop_instruction = {
+                "type": instruction_type,
+                "delta_time": time.time() - previous_time
+            }
+            instructions.append(stop_instruction)
+    elif instruction_type == InstructionType.START_PREVIOUS_FLIGHT.value:
+        autopilot_thread = threading.Thread(target=handleAutopilot, args=(instruction_data['file'],))
+        autopilot_thread.start()
+    elif instruction_type == InstructionType.JOYSTICK.value:
+        tmp = command_dict["type"]
+        command_dict = instruction_data
+        command_dict["type"] = tmp
+        flag_pass_commands = True
+    elif instruction_type == InstructionType.RECORD_INST_START.value:
+        start_time = time.time()
+        previous_time = start_time
+        recording = True
+    elif instruction_type == InstructionType.RECORD_INST_STOP.value:
+        recording = False
+        save_instructions_to_file()
+        previous_time = None
+        start_time = None
+        instructions = []
+    else:
+        print("Bad")
+    return flag_pass_commands
+
+def handleAutopilot(instruction_file):
+    """
+    Autopilot to replay a previous flight from file.
+    Saved instructions should not allow for instructions that can fail,
+    so a try catch or retry is not needed
+
+    :param instruction_file:
+    :return:
+    """
+    global autopilot_active, previous_time, send_event
+
+    autopilot_active = True
+    with open(instruction_file, 'r') as f:
+        data = json.load(f)
+        instructions_list = data['instructions']
+
+    for instruction in instructions_list:
+        if not autopilot_active:
+            break
+
+        flag, flag_pass_command= process_instruction(instruction)
+        if flag_pass_command:
+            send_event.set()
+        time.sleep(instruction["delta_time"])
+    autopilot_active = False
+
 
 # Function to handle client connections
-def handle_client_connection(client_socket):
+def handle_client_connection_general(client_socket):
     """
         Handles incoming client connections and directs them to the appropriate handler.
     """
     global connections
-    trying = True
     while True:
         try:
             message = client_socket.recv(1024).decode()
@@ -633,69 +405,17 @@ def handle_client_connection(client_socket):
                 case "drone":
                     connections["drone"] = client_socket
                     handleDroneMessages(client_socket)
-                    trying = False
                 case "phone":
                     connections["phone"] = client_socket
                     client_socket.sendall("0\n".encode())  # everything ok
                     handleControls(client_socket)
-                    trying = False
-                case "video_download":
-                    client_socket.sendall("0\n".encode())  # everything ok
-                    handle_video_download(client_socket)
-                    trying = False
-                case "video_listing":
-                    client_socket.sendall("0\n".encode())  # everything ok
-                    handle_video_listing(client_socket)
-                    trying = False
                 case _:
                     print(f"Received message: {message}")
                     client_socket.sendall("-1\n".encode())
                     break
-
-
+            break
         except Exception as e:
             print(f"Connection failed to establish: {e}")
             break
     client_socket.close()
 
-
-# Function to start the TCP server
-def start_tcp_server(server_ip, server_port):
-    """
-        Starts the TCP server to listen for incoming connections.
-    """
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.bind((server_ip, server_port))
-    server_socket.listen(5)
-    print(f"TCP Server started on {server_ip}:{server_port}")
-
-    while not stop_event.is_set():
-        client_socket, addr = server_socket.accept()
-        print(f"Accepted connection from {addr}")
-        client_handler = threading.Thread(target=handle_client_connection, args=(client_socket,))
-        client_handler.start()
-
-
-if __name__ == "__main__":
-    server_ip = "0.0.0.0"
-    if internal:
-        server_ip = "192.168.1.17"
-        print(f"IP for external connections: {getExternalIp()}:{server_port}")
-    else:
-        print(f"IP for external connections: {getExternalIp()}:{server_port}")
-
-    # Start the TCP server in a separate thread
-    tcp_server_thread = threading.Thread(target=start_tcp_server, args=(server_ip, server_port))
-    tcp_server_thread.start()
-
-    send_frames_thread = threading.Thread(target=send_frames, args=())
-    send_frames_thread.start()
-
-    control_send_thread = threading.Thread(target=send_controls)
-    control_send_thread.start()
-
-    if not internal:
-        monitor_ip_thread = threading.Thread(target=monitorIP)
-        monitor_ip_thread.start()
-
-    tcp_server_thread.join()
