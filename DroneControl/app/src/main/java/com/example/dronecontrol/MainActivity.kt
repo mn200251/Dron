@@ -127,7 +127,8 @@ class MainActivity : ComponentActivity() {
                 this.action = "ACTION_CONNECTION_NOT_ACTIVE"
             }
 
-            this.startService(intent)
+            this.stopService(intent)
+            // this.startService(intent)
 
             // cancel all notifications when exiting app
             // connectionService notifications already cancelled when stopping service

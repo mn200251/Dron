@@ -25,11 +25,13 @@ import com.example.dronecontrol.sharedRepositories.SharedRepository
 import com.example.dronecontrol.utils.getCurrentIP
 import com.example.dronecontrol.viewmodels.Controls
 import com.example.dronecontrol.viewmodels.SCREEN
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.BufferedReader
@@ -183,7 +185,11 @@ class ConnectionService : Service() {
             }
 
             "ACTION_START_FLIGHT" -> {
-                startFlight()
+                val videoName = intent.getStringExtra("name")
+
+                if (videoName != null) {
+                    startFlight(videoName)
+                }
             }
 
             "ACTION_END_FLIGHT" -> {
@@ -316,6 +322,9 @@ class ConnectionService : Service() {
         updateNotification(isInForeground, customTitle = "Lost connection",
             customText = "Trying to reconnnect to server...")
 
+        SharedRepository.setMainScreenErrorText("Trying to reconnnect to server...")
+        SharedRepository.setScreen(SCREEN.MainScreen)
+
         var addressPair:Pair<String, String>?
         if (INTERNAL){
             addressPair = Pair<String, String>("192.168.1.17", "6969")
@@ -378,7 +387,7 @@ class ConnectionService : Service() {
                     SharedRepository.setMainScreenErrorText("An error has occurred while connecting to the server!")
                     removeNotification(notificationId)
                 } finally {
-
+                    delay(1) // used to stop thread if needed
                 }
             } catch (e: Exception) {
                 Log.d("Connection Exception", e.message.toString())
@@ -386,7 +395,7 @@ class ConnectionService : Service() {
                 removeNotification(notificationId)
                 // return@launch
             } finally {
-
+                delay(1) // used to stop thread if needed
             }
         }
 
@@ -401,35 +410,6 @@ class ConnectionService : Service() {
         var inputStream: InputStream = socket!!.getInputStream()
         var dataInputStream: DataInputStream = DataInputStream(inputStream)
 
-        /*
-        try {
-            while (connectionActive)
-            {
-                while (!isInForeground)
-                {
-                    delay(100)
-                }
-
-                val size: Int = dataInputStream.readInt()
-
-                // Read the JPEG data
-                val jpegData = ByteArray(size)
-                dataInputStream.readFully(jpegData)
-
-                // Convert JPEG data to Bitmap
-                val bitmap = BitmapFactory.decodeByteArray(jpegData, 0, size)
-
-                SharedRepository.setFrame(bitmap)
-            }
-        }
-        catch (e: Exception)
-        {
-            Log.e("ConnectionService VideoStream receiveVideoStream Exception", e.message.toString())
-        }
-        finally {
-            inputStream.close()
-        }
-         */
         while (connectionActive)
         {
             try {
@@ -451,6 +431,11 @@ class ConnectionService : Service() {
                 val bitmap = BitmapFactory.decodeByteArray(jpegData, 0, size)
 
                 SharedRepository.setFrame(bitmap)
+            }
+            catch (e: CancellationException)
+            {
+                Log.e("ConnectionService VideoStream receiveVideoStream Exception", "CancellationException")
+                return
             }
             catch (e: Exception)
             {
@@ -517,9 +502,35 @@ class ConnectionService : Service() {
         }
     }
 
-    private fun startFlight() {
-        if (connectionActive ) {
-            sendJsonInstruction(InstructionType.START_FLIGHT.value)
+    @Serializable
+    data class StartFlight(val type: Int, val name: String)
+
+    private fun startFlight(videoName: String) {
+        if (connectionActive) {
+
+            serviceScope.launch {
+                try {
+                    val outputStream: OutputStream = socket!!.getOutputStream()
+
+                    // Create an instance of Instruction with the given type and extras
+                    val instruction = StartFlight(InstructionType.START_FLIGHT.value, videoName)
+
+                    // Serialize the instruction to JSON string
+                    val jsonString = Json.encodeToString(instruction)
+
+                    // Send the JSON string over the socket
+                    outputStream.write(jsonString.toByteArray(Charsets.UTF_8))
+                    outputStream.flush()
+
+                    Log.d("ConnectionService", "Sent JSON instruction: $jsonString")
+                }
+                catch (e: Exception)
+                {
+                    Log.e("ConnectionService", "Error sending JSON instruction: ${e.message}")
+                }
+            }
+
+            // sendJsonInstruction(InstructionType.START_FLIGHT.value)
         }
     }
 
@@ -557,40 +568,6 @@ class ConnectionService : Service() {
     @RequiresApi(Build.VERSION_CODES.O)
     private suspend fun sendMovement()
     {
-        // val outputStream: OutputStream = socket!!.getOutputStream()
-        // val coordinates = Coordinates(0f, 0f, 0f)
-
-        /*
-        try {
-            while(connectionActive)
-            {
-                if (controls != null)
-                {
-                    sendControls(outputStream)
-
-                    delay(100)
-                }
-                else
-                {
-                    delay(100)
-
-                    while (controls == null)
-                    {
-                        heartbeat(outputStream)
-                        delay(TIMEOUT_THIRD)
-                    }
-                }
-            }
-        }
-        catch (e: Exception)
-        {
-            Log.e("ConnectionService sendControls Exception", e.message.toString())
-        }
-        finally {
-            outputStream.close()
-        }
-        */
-
         var outputStream: OutputStream = socket!!.getOutputStream()
 
         while(connectionActive)
@@ -615,6 +592,11 @@ class ConnectionService : Service() {
                         delay(TIMEOUT_THIRD)
                     }
                 }
+            }
+            catch (e: CancellationException)
+            {
+                Log.e("ConnectionService sendControls Exception", "CancellationException")
+                return
             }
             catch (e: Exception)
             {
