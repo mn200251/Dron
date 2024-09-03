@@ -59,6 +59,7 @@ import com.example.dronecontrol.collectAsState
 import com.example.dronecontrol.models.ModifiedJoyStick
 import com.example.dronecontrol.services.ConnectionService
 import com.example.dronecontrol.sharedRepositories.SharedRepository
+import com.example.dronecontrol.utils.InputDialog
 import com.example.dronecontrol.viewmodels.ConnectionViewModel
 import com.example.dronecontrol.viewmodels.SCREEN
 import kotlin.math.roundToInt
@@ -99,6 +100,9 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel(), context:
     val joystickAreaHeight = 0.65f
 
     val joystickSize = 160
+
+    var showFlightDialog by remember { mutableStateOf(false) }
+    var flightName by remember { mutableStateOf("") }
 
     val buttonSize = 70.dp
 
@@ -173,7 +177,13 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel(), context:
 
         IconButton(
             onClick = {
-                    connectionViewModel.updateIsRecordingFlight(context,!isRecordingFlight)
+                if (!isRecordingFlight)
+                    showFlightDialog = true
+                else
+                    connectionViewModel.updateIsRecordingFlight(
+                        context,
+                        false,
+                    )
             },
             enabled = true,
             modifier = Modifier
@@ -349,6 +359,24 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel(), context:
                     }
                 }
             }
+        }
+
+        if (showFlightDialog)
+        {
+            InputDialog(
+                onConfirm = { name ->
+
+                        connectionViewModel.updateIsRecordingFlight(
+                            context,
+                            !isRecordingFlight,
+                            name
+                        )
+
+                        showFlightDialog = false
+            },
+                onDismiss = {
+                    showFlightDialog = false
+                })
         }
     }
 }

@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.os.Bundle
 import android.os.Parcelable
 import android.util.Log
 import androidx.compose.runtime.Composable
@@ -94,7 +95,7 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
             monitorControls(context)
         }
 
-        this.updateScreenNumber(SCREEN.DroneScreen)
+        // this.updateScreenNumber(SCREEN.DroneScreen)
 
         Log.d("ViewModel", "Zavrsio u startService")
     }
@@ -106,7 +107,8 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
             this.action = "ACTION_CONNECTION_NOT_ACTIVE"
         }
 
-        context.startService(intent)
+        // context.startService(intent)
+        context.stopService(intent)
 
         setMonitorMovementBoolean(false)
 
@@ -154,7 +156,7 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
             updateIsRecordingFlight(context, false)
     }
 
-    fun updateIsRecordingFlight(context: Context, newValue: Boolean)
+    fun updateIsRecordingFlight(context: Context, newValue: Boolean, flightName: String? = null)
     {
         SharedRepository.setRecordingFlight(newValue)
 
@@ -162,6 +164,9 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
 
         val intent = Intent(context, ConnectionService::class.java).apply {
             this.action = action
+
+            if (flightName != null)
+                putExtra("name", flightName)
         }
 
         context.startService(intent)
