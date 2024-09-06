@@ -12,7 +12,7 @@ pygame.init()
 pygame.font.init()
 text_font = pygame.font.SysFont("Comic Sans MS", 15)
 pygame.display.set_caption("drone simulator")
-pygame.display.set_icon(pygame.image.load("./drone_simulation/drone_icon.png"))
+pygame.display.set_icon(pygame.image.load(".\drone_simulation\drone_icon.png"))
 
 SCREEN_WIDTH = 1200
 SCREEN_HEIGHT = 600
