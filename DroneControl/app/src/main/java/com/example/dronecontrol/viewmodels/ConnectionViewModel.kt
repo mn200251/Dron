@@ -1,40 +1,56 @@
 package com.example.dronecontrol.viewmodels
 
+import android.content.Context
+import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.os.Bundle
 import android.os.Parcelable
 import android.util.Log
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.dronecontrol.collectAsState
+import com.example.dronecontrol.data_types.InstructionType
+import com.example.dronecontrol.services.ConnectionService
+import com.example.dronecontrol.sharedRepositories.SharedRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.parcelize.Parcelize
-import java.io.BufferedReader
-import java.io.InputStream
-import java.io.InputStreamReader
-import java.io.OutputStream
-import java.net.InetSocketAddress
-import java.net.Socket
-
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
+import java.io.DataInputStream
+import java.io.InputStream
+import java.net.Socket
 
 
 @Parcelize
 data class ConnectionState(
-    var host: String = "",
-    var port: String = "",
-    var mainScreenErrorText: String = "",
-    var screenNumber: SCREEN = SCREEN.MainScreen,
+    // var host: String = "",
+    // var port: String = "",
+    // var mainScreenErrorText: String = "",
+    // var screenNumber: SCREEN = SCREEN.MainScreen,
 
     var joystickX: Float = 0f,
     var joystickY: Float = 0f,
-    var SliderZ: Float = 0f,
+    var joystickZ: Float = 0f,
+    var joystickRotation: Float = 0f,
+
     var isSendingMovement: Boolean = false,
-    var connectionActive: Boolean = false,
+
+    var isRecordingVideo: Boolean = false,
+    // var connectionActive: Boolean = false,
+
+    // var frame: Bitmap? = null,
+
+    var monitorMovementBoolean: Boolean = false,
 
     // @RawValue var socket: Socket? = null
 ) : Parcelable
@@ -43,11 +59,17 @@ const val UI_STATE_KEY = "uiState"
 
 enum class SCREEN{
     MainScreen,
-    DroneScreen
+    DroneScreen,
+    VideoListScreen
 }
 
 @Serializable
-data class Coordinates(val x: Float, val y: Float, val z: Float)
+data class Coordinates(val x: Float, val y: Float, val z: Float, val rotation: Float)
+
+
+@Parcelize
+@Serializable
+data class Controls(val x: Float, val y: Float, val z: Float, val rotation: Float,val type:Int) : Parcelable
 
 
 class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel() {
@@ -58,58 +80,126 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
 
     val uiState = _uiState2
 
+    fun startService(context: Context, action: String) {
+        Log.d("ViewModel", "Usao u startService")
+        val intent = Intent(context, ConnectionService::class.java).apply {
+            this.action = action
+        }
 
-    private fun updateScreen(newScreen: SCREEN)
+        context.startService(intent)
+
+        setMonitorMovementBoolean(true)
+
+        viewModelScope.launch(Dispatchers.Default)
+        {
+            monitorControls(context)
+        }
+
+        // this.updateScreenNumber(SCREEN.DroneScreen)
+
+        Log.d("ViewModel", "Zavrsio u startService")
+    }
+
+    fun stopService(context: Context)
+    {
+        Log.d("ViewModel", "Usao u stopService")
+        val intent = Intent(context, ConnectionService::class.java).apply {
+            this.action = "ACTION_CONNECTION_NOT_ACTIVE"
+        }
+
+        // context.startService(intent)
+        context.stopService(intent)
+
+        setMonitorMovementBoolean(false)
+
+        this.updateScreenNumber(SCREEN.MainScreen)
+
+        Log.d("ViewModel", "Zavrsio u stopService")
+    }
+
+    fun updateIsRecordingVideo(context:Context, newValue: Boolean)
     {
         savedStateHandle[UI_STATE_KEY] = _uiState2.value.copy(
-            screenNumber = newScreen,
+            isRecordingVideo = newValue,
         )
         _uiState1.update { currentConnectionUiState ->
             currentConnectionUiState.copy(
-                screenNumber = newScreen,
+                isRecordingVideo = newValue,
+            )
+        }
+
+        // Send the appropriate action to the service
+        val action = if (newValue) "ACTION_START_RECORDING" else "ACTION_STOP_RECORDING"
+        // startService(context, action)
+
+        val intent = Intent(context, ConnectionService::class.java).apply {
+            this.action = action
+        }
+
+        context.startService(intent)
+    }
+
+    fun updatePoweredOn(context: Context, newValue: Boolean)
+    {
+        SharedRepository.setPoweredOn(newValue)
+
+        val action = if (newValue) "ACTION_TURN_ON" else "ACTION_TURN_OFF"
+
+        val intent = Intent(context, ConnectionService::class.java).apply {
+            this.action = action
+        }
+
+        context.startService(intent)
+
+        // stop recording flight if kill switch activated
+        if (!newValue)
+            updateIsRecordingFlight(context, false)
+    }
+
+    fun updateIsRecordingFlight(context: Context, newValue: Boolean, flightName: String? = null)
+    {
+        SharedRepository.setRecordingFlight(newValue)
+
+        val action = if (newValue) "ACTION_START_INSTRUCTION_RECORDING" else "ACTION_STOP_INSTRUCTION_RECORDING"
+
+        val intent = Intent(context, ConnectionService::class.java).apply {
+            this.action = action
+
+            if (flightName != null)
+                putExtra("name", flightName)
+        }
+
+        context.startService(intent)
+    }
+
+    private fun setMonitorMovementBoolean(newValue: Boolean)
+    {
+        savedStateHandle[UI_STATE_KEY] = _uiState2.value.copy(
+            monitorMovementBoolean = newValue,
+        )
+        _uiState1.update { currentConnectionUiState ->
+            currentConnectionUiState.copy(
+                monitorMovementBoolean = newValue,
             )
         }
     }
 
-
-    fun updateHost(newHost: String)
-    {
-        savedStateHandle[UI_STATE_KEY] = _uiState2.value.copy(
-            host = newHost,
-        )
-        _uiState1.update { currentConnectionUiState ->
-            currentConnectionUiState.copy(
-                host = newHost,
-            )
-        }
+    // Updating the shared data through the repository
+    fun updateFrame(newFrame: Bitmap?) {
+        SharedRepository.setFrame(newFrame)
     }
 
-    fun updatePort(newPort: String)
-    {
-        savedStateHandle[UI_STATE_KEY] = _uiState2.value.copy(
-            port = newPort,
-        )
-        _uiState1.update { currentConnectionUiState ->
-            currentConnectionUiState.copy(
-                port = newPort,
-            )
-        }
+    fun updateMainScreenErrorText(errorText: String) {
+        SharedRepository.setMainScreenErrorText(errorText)
     }
 
-    fun updateMainScreenErrorText(newError:String)
-    {
-        savedStateHandle[UI_STATE_KEY] = _uiState2.value.copy(
-            mainScreenErrorText = newError,
-        )
-        _uiState1.update { currentConnectionUiState ->
-            currentConnectionUiState.copy(
-                mainScreenErrorText = newError,
-            )
-        }
+    fun updateScreenNumber(newScreenNumber: SCREEN) {
+        SharedRepository.setScreen(newScreenNumber)
     }
+
 
     // x and y are normalized to 0-1
-    fun updateJoystickMovement(x: Float, y: Float)
+    fun updateRightJoystickMovement(x: Float, y: Float)
     {
         savedStateHandle[UI_STATE_KEY] = _uiState2.value.copy(
             joystickX = x,
@@ -121,9 +211,34 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
                 joystickY = y,
             )
         }
+
+        if (uiState.value.joystickX == 0f && uiState.value.joystickY == 0f &&
+            uiState.value.joystickZ == 0f && uiState.value.joystickRotation == 0f)
+            updateIsSendingMovement(false)
+        else
+            updateIsSendingMovement(true)
     }
 
-    fun updateIsSendingMovement(isSendingMovement: Boolean)
+    fun updateLeftJoystickMovement(normalizedX: Float, normalizedY: Float) {
+        savedStateHandle[UI_STATE_KEY] = _uiState2.value.copy(
+            joystickZ = normalizedX,
+            joystickRotation = normalizedY,
+        )
+        _uiState1.update { currentConnectionUiState ->
+            currentConnectionUiState.copy(
+                joystickZ = normalizedX,
+                joystickRotation = normalizedY,
+            )
+        }
+
+        if (uiState.value.joystickX == 0f && uiState.value.joystickY == 0f &&
+            uiState.value.joystickZ == 0f && uiState.value.joystickRotation == 0f)
+            updateIsSendingMovement(false)
+        else
+            updateIsSendingMovement(true)
+    }
+
+    private fun updateIsSendingMovement(isSendingMovement: Boolean)
     {
         savedStateHandle[UI_STATE_KEY] = _uiState2.value.copy(
             isSendingMovement = isSendingMovement
@@ -135,173 +250,53 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
         }
     }
 
-    fun updateConnectionActive(connectionActive: Boolean)
+    private fun resetControls()
     {
         savedStateHandle[UI_STATE_KEY] = _uiState2.value.copy(
-            connectionActive = connectionActive
+            joystickX = 0f,
+            joystickY = 0f,
+            joystickZ = 0f,
+            joystickRotation = 0f,
         )
         _uiState1.update { currentConnectionUiState ->
             currentConnectionUiState.copy(
-                connectionActive = connectionActive
+                joystickX = 0f,
+                joystickY = 0f,
+                joystickZ = 0f,
+                joystickRotation = 0f,
             )
         }
     }
 
-    fun connect2Server()
+
+    private fun sendControls2Service(context: Context, action: String)
     {
-        viewModelScope.launch(Dispatchers.Default)
-        {
-            // check if host is correct ipv4 address
-            val ipv4Regex = """^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$""".toRegex()
-            val isIPv4 = ipv4Regex.matches(uiState.value.host)
+        val controls = Controls(uiState.value.joystickX, uiState.value.joystickY,
+            uiState.value.joystickZ, uiState.value.joystickRotation,InstructionType.JOYSTICK.value)
 
-            if (!isIPv4)
-            {
-                updateMainScreenErrorText("IP Address is incorrect format!")
-                return@launch
-            }
-
-            // try to convert port to int
-            try {
-                val port: Int = uiState.value.port.toInt()
-            }
-            catch (e: NumberFormatException)
-            {
-                updateMainScreenErrorText("Port must be an Integer!")
-                return@launch
-            }
-
-            var socket = Socket()
-            val socketAddress = InetSocketAddress(uiState.value.host, uiState.value.port.toInt())
-
-            try{
-                socket.connect(socketAddress, 2000)
-
-                val outputStream: OutputStream = socket.getOutputStream()
-                val inputStream: InputStream = socket.getInputStream()
-                val reader = BufferedReader(InputStreamReader(inputStream))
-
-                try {
-                    // authenticate user
-                    val auth: String = "phone"
-                    outputStream.write(auth.toByteArray(Charsets.UTF_8))
-                    outputStream.flush()
-
-                    var response = BufferedReader(InputStreamReader(socket.inputStream)).readLine()
-                    Log.d("Response", "Received response from server:$response")
-
-                    if (response == "1") // drone not connected, wait?
-                    {
-                        response = BufferedReader(InputStreamReader(socket.inputStream)).readLine()
-                    }
-                    if (response != "0") // an unknown error has occured
-                    {
-                        updateMainScreenErrorText("An unknown internal server error has occured!")
-                        return@launch
-                    }
-                    // response == 0 - drone connected
-
-                    // start 1 thread for controls
-                    updateMainScreenErrorText("")
-
-                    updateScreen(SCREEN.DroneScreen)
-                    updateConnectionActive(true)
-
-                    socket.tcpNoDelay = true
-
-                    viewModelScope.launch(Dispatchers.Default)
-                    {
-                        sendMovement(socket)
-                    }
-
-                    // called from thread that connects to server
-                    receiveVideoStream(socket)
-
-                } catch (e: Exception) {
-
-                } finally {
-                    outputStream.close()
-                    reader.close()
-                    inputStream.close()
-                }
-            } catch (e: Exception) {
-                Log.d("Connection Exception", e.message.toString())
-                updateMainScreenErrorText("An error has occurred while connecting to the server!")
-                return@launch
-            } finally {
-                // connectionActive will be false
-                updateScreen(SCREEN.DroneScreen)
-
-                socket.close()
-            }
+        val intent = Intent(context, ConnectionService::class.java).apply {
+            this.action = action
+            putExtra("ControlData", controls)
         }
+        context.startService(intent)
+
+        // ContextCompat.startForegroundService(context, intent)
     }
 
-    // called from thread that connects to server
-    private fun receiveVideoStream(socket: Socket)
+    // ako se ugasi konekcija i startuje nova STVORICE MEMORY LEAK!\
+    // ne moze Job da se cuva u data class
+    // ah
+    suspend fun monitorControls(context: Context)
     {
-        val inputStream: InputStream = socket.getInputStream()
-        // val reader = BufferedReader(InputStreamReader(inputStream))
-
-        try {
-            while (uiState.value.connectionActive)
-            {
-                // var response = BufferedReader(InputStreamReader(socket.inputStream)).readLine()
-
-                // update frame shown on phone
-            }
-        }
-        catch (e: Exception)
+        while (uiState.value.monitorMovementBoolean)
         {
-            Log.e("VideoStream Exception", e.message.toString())
-        }
-        finally {
-            inputStream.close()
-        }
-
-        Log.v("VideoStream", "Exited!")
-    }
-
-    private fun createAndSendJson(outputStream: OutputStream, x: Float, y: Float, z: Float) {
-        // Step 2: Serialize the data class instance to a JSON string
-        val coordinates = Coordinates(x, y, z)
-        val jsonString = Json.encodeToString(coordinates)
-
-        outputStream.write(jsonString.toByteArray(Charsets.UTF_8))
-        outputStream.flush()
-    }
-
-    suspend fun sendMovement(socket: Socket)
-    {
-        val outputStream: OutputStream = socket.getOutputStream()
-        // val coordinates = Coordinates(0f, 0f, 0f)
-
-        try {
-            while(uiState.value.connectionActive)
+            if (uiState.value.isSendingMovement)
             {
-                if (uiState.value.isSendingMovement)
-                {
-                    // turning left right
-                    createAndSendJson(outputStream, uiState.value.joystickX, uiState.value.joystickY, uiState.value.SliderZ)
-
-                    delay(10)
-                }
-                else
-                {
-                    delay(100)
-                }
+                sendControls2Service(context, "ACTION_APP_FOREGROUND")
             }
-        }
-        catch (e: Exception)
-        {
-            Log.e("Controls Exception", e.message.toString())
-        }
-        finally {
-            outputStream.close()
-        }
 
-        Log.v("Controls", "Exited!")
+            delay(30)
+        }
     }
-
 
 }

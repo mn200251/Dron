@@ -79,6 +79,14 @@ dependencies {
     implementation (libs.jetstick)
 
     implementation(libs.kotlinx.serialization.json)
+
+    implementation (libs.github.api)
+
+    implementation("com.google.accompanist:accompanist-permissions:0.31.1-alpha")
+
+    implementation(libs.androidx.ui.text.google.fonts)
+
+    implementation("com.squareup.okhttp3:okhttp:4.10.0")
 }
 
 
