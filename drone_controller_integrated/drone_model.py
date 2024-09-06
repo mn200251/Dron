@@ -210,7 +210,6 @@ class Drone():
             (error_psi * Izz) / (4 * b) + (error_theta * Iyy) / (2 * k * L),
         ])
         self.pd_params_integral += self.euler_angles * dt
-        self.euler_angles = np.array([0, 0, 0], dtype=float)
 
         thrusts = k * square_angular_vel
         powers = np.square(thrusts * thrusts * thrusts / (2 * pe.DroneParameters.rho * pe.DroneParameters.A))
@@ -225,6 +224,14 @@ class Drone():
         print(powers)
         for i in range(4):
             self.motor_set_power_percent(i, ((-1) ** (i + 1)) * powers[i])
+
+        return np.array([
+            0, ((-1) ** (0 + 1)) * powers[0],
+            1, ((-1) ** (1 + 1)) * powers[1],
+            2, ((-1) ** (2 + 1)) * powers[2],
+            3, ((-1) ** (3 + 1)) * powers[3],
+        ])
+
 
 if __name__ == "__main__":
     drone = Drone(np.array([0, 0, 0], dtype=float), 5)

@@ -20,9 +20,12 @@ pe.init_gravity_vector(ground)
 running = True
 pid_on = True
 def user_input_handling():
+    # must set drone.motor_set_power_percent
+    # not just return values, because of calculations
     # self.drone.motor_set_power_percent
     # for user input
     pass
+    return None
 
 # pid stuff
 curr_state = sc.StateController()
@@ -44,21 +47,32 @@ def read_sensor_data(curr_state):
         drone.euler_angles = 7
 
 def pid_action(curr_state):
-    if curr_state.loop_cycle % curr_state.pid_sleep_time == 0:
-        if pid_on:
-            drone.pd()
-            drone.euler_angles = np.array([0, 0, 0], dtype=float)
+    if not pid_on: return
+    if curr_state.loop_cycle % curr_state.pid_sleep_time != 0:
+        pid_updated_values = drone.pd()
+        drone.euler_angles = np.array([0, 0, 0], dtype=float)
         curr_state.pid_activation_cycle += 1
+        return pid_updated_values
+    return None
 
 def update(curr_state):
     drone.update()
     pid_reset_params(curr_state)
     read_sensor_data(curr_state)
+    pid_updated_values = pid_action(curr_state)
     curr_state.loop_cycle += 1
     if curr_state.loop_cycle == curr_state.lcm:
         curr_state.loop_cycle = 0
+    return pid_updated_values
 
 while running:
-    user_input_handling()
+    new_motor_values = user_input_handling()
     if not running: break
-    update(curr_state)
+    pid_updated_values = update(curr_state)
+    # use strategy here to update actual values
+    if pid_updated_values:
+        # set pwm here to pid_updated_values
+        pass
+    else:
+        # set pwm here to new_motor_values
+        pass
