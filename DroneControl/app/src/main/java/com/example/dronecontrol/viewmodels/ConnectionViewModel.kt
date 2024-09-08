@@ -45,7 +45,7 @@ data class ConnectionState(
 
     var isSendingMovement: Boolean = false,
 
-    var isRecordingVideo: Boolean = false,
+    // var isRecordingVideo: Boolean = false,
     // var connectionActive: Boolean = false,
 
     // var frame: Bitmap? = null,
@@ -119,14 +119,16 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
 
     fun updateIsRecordingVideo(context:Context, newValue: Boolean)
     {
-        savedStateHandle[UI_STATE_KEY] = _uiState2.value.copy(
-            isRecordingVideo = newValue,
-        )
-        _uiState1.update { currentConnectionUiState ->
-            currentConnectionUiState.copy(
-                isRecordingVideo = newValue,
-            )
-        }
+//        savedStateHandle[UI_STATE_KEY] = _uiState2.value.copy(
+//            isRecordingVideo = newValue,
+//        )
+//        _uiState1.update { currentConnectionUiState ->
+//            currentConnectionUiState.copy(
+//                isRecordingVideo = newValue,
+//            )
+//        }
+
+        // SharedRepository.setRecordingVideo(newValue)
 
         // Send the appropriate action to the service
         val action = if (newValue) "ACTION_START_RECORDING" else "ACTION_STOP_RECORDING"
@@ -141,7 +143,7 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
 
     fun updatePoweredOn(context: Context, newValue: Boolean)
     {
-        SharedRepository.setPoweredOn(newValue)
+        // SharedRepository.setPoweredOn(newValue)
 
         val action = if (newValue) "ACTION_TURN_ON" else "ACTION_TURN_OFF"
 
@@ -158,7 +160,7 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
 
     fun updateIsRecordingFlight(context: Context, newValue: Boolean, flightName: String? = null)
     {
-        SharedRepository.setRecordingFlight(newValue)
+        // SharedRepository.setRecordingFlight(newValue)
 
         val action = if (newValue) "ACTION_START_INSTRUCTION_RECORDING" else "ACTION_STOP_INSTRUCTION_RECORDING"
 

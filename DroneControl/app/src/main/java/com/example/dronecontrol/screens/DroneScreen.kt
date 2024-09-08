@@ -93,6 +93,7 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel(), context:
     
     val isPoweredOn by SharedRepository.isPoweredOn.collectAsState(initial = false)
     val isRecordingFlight by SharedRepository.isRecordingFlight.collectAsState(initial = false)
+    val isRecordingVideo by SharedRepository.isRecordingVideo.collectAsState(initial = false)
 
     val currLocalDensity = LocalDensity.current
 
@@ -219,7 +220,7 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel(), context:
 
         IconButton(
             onClick = {
-                connectionViewModel.updateIsRecordingVideo(context,!uiState.isRecordingVideo)
+                connectionViewModel.updateIsRecordingVideo(context,!isRecordingVideo)
             },
             modifier = Modifier
                 .align(Alignment.TopEnd)
@@ -233,7 +234,7 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel(), context:
 //                    else R.drawable.recording_button),
                 contentDescription = "Recording Button Icon",
                 tint =
-                    if (!uiState.isRecordingVideo) Color(0, 0, 0, 75)
+                    if (!isRecordingVideo) Color(0, 0, 0, 75)
                     else Color(255, 0, 0, 75),
                 // modifier = iconModifier
             )

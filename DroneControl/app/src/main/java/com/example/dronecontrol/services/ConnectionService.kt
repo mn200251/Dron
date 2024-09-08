@@ -61,8 +61,8 @@ class ConnectionService : Service() {
     private val channelId = "ConnectionService"
     private val notificationId = 1
 
-    private var isRecordingVideo = false
-    private var isRecordingInstructions = false
+    // private var isRecordingVideo = false
+    // private var isRecordingInstructions = false
 
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate() {
@@ -479,31 +479,47 @@ class ConnectionService : Service() {
 
     // Start recording method
     private fun startInstructionRecording() {
-        if (connectionActive && !isRecordingInstructions) {
-            isRecordingVideo = true
+        if (connectionActive && !SharedRepository.getRecordingFlight()) {
+            SharedRepository.setRecordingFlight(true)
+
             sendJsonInstruction(InstructionType.RECORD_INST_START.value)
+            Log.d("ConnectionService", "startInstructionRecording success")
+        }
+        else
+        {
+            Log.d("ConnectionService", "startInstructionRecording else branch conn = " + connectionActive.toString() +
+                    ", recording flight = " + SharedRepository.getRecordingFlight().toString())
         }
     }
 
     // Stop recording method
     private fun stopInstructionRecording() {
-        if (connectionActive && isRecordingInstructions) {
-            isRecordingVideo = false
+        if (connectionActive && SharedRepository.getRecordingFlight()) {
+            SharedRepository.setRecordingFlight(false)
+
             sendJsonInstruction(InstructionType.RECORD_INST_STOP.value)
+            Log.d("ConnectionService", "stopInstructionRecording success")
+        }
+        else
+        {
+            Log.d("ConnectionService", "stopInstructionRecording else branch conn = " + connectionActive.toString() +
+                    ", recording flight = " + SharedRepository.getRecordingFlight().toString())
         }
     }
 
     private fun startRecording() {
-        if (connectionActive && !isRecordingVideo) {
-            isRecordingVideo = true
+        if (connectionActive && !SharedRepository.getRecordingVideo()) {
+            SharedRepository.setRecordingVideo(true)
+
             sendJsonInstruction(InstructionType.START_RECORDING.value)
         }
     }
 
     // Stop recording method
     private fun stopRecording() {
-        if (connectionActive && isRecordingVideo) {
-            isRecordingVideo = false
+        if (connectionActive && SharedRepository.getRecordingVideo()) {
+            SharedRepository.setRecordingVideo(false)
+
             sendJsonInstruction(InstructionType.STOP_RECORDING.value)
         }
     }
@@ -511,6 +527,8 @@ class ConnectionService : Service() {
     private fun turnOn()
     {
         if (connectionActive) {
+            SharedRepository.setPoweredOn(true)
+
             sendJsonInstruction(InstructionType.TURN_ON.value)
         }
     }
@@ -518,6 +536,8 @@ class ConnectionService : Service() {
     private fun turnOff()
     {
         if (connectionActive ) {
+            SharedRepository.setPoweredOn(false)
+
             sendJsonInstruction(InstructionType.TURN_OFF.value)
         }
     }
@@ -542,6 +562,8 @@ class ConnectionService : Service() {
                     outputStream.write(jsonString.toByteArray(Charsets.UTF_8))
                     outputStream.flush()
 
+                    SharedRepository.setRecordingFlight(true)
+
                     Log.d("ConnectionService", "Sent JSON instruction: $jsonString")
                 }
                 catch (e: Exception)
@@ -556,6 +578,8 @@ class ConnectionService : Service() {
 
     private fun endFlight() {
         if (connectionActive ) {
+            SharedRepository.setRecordingFlight(true)
+
             sendJsonInstruction(InstructionType.END_FLIGHT.value)
         }
     }
