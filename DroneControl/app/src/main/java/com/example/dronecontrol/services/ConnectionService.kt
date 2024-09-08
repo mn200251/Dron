@@ -237,11 +237,11 @@ class ConnectionService : Service() {
         serviceScope.launch(Dispatchers.IO)
         {
             var addressPair:Pair<String, String>?
-            if(INTERNAL){
-                addressPair=Pair<String, String>("192.168.1.17", "6969")
-            }else {
+            if(INTERNAL)
+                addressPair=Pair("192.168.1.17", "6969")
+            else
                 addressPair = getCurrentIP(GITHUB_TOKEN, REPO_NAME, SERVER_FILE_PATH, BRANCH_NAME)
-            }
+
             if (addressPair == null)
             {
                 SharedRepository.setMainScreenErrorText("Unable to obtain server IP!")
@@ -251,7 +251,6 @@ class ConnectionService : Service() {
             Log.d("IP", addressPair.first + ":" + addressPair.second)
 
             socket = Socket()
-            // val socketAddress = InetSocketAddress(uiState.value.host, uiState.value.port.toInt())
             val socketAddress = InetSocketAddress(addressPair.first, addressPair.second.toInt())
 
             try{
@@ -283,12 +282,12 @@ class ConnectionService : Service() {
                     }
                     // response == 0 - drone connected
 
-                    // start 1 thread for controls
+                    getDroneStatus(inputStream)
+
                     SharedRepository.setMainScreenErrorText("")
-
                     SharedRepository.setScreen(SCREEN.DroneScreen)
-                    connectionActive = true
 
+                    connectionActive = true
                     socket!!.tcpNoDelay = true
 
                     sendMovementJob = serviceScope.launch(Dispatchers.Default)
@@ -320,6 +319,21 @@ class ConnectionService : Service() {
 
             }
         }
+    }
+
+    private fun getDroneStatus(inputStream: InputStream)
+    {
+        var receivedByte = inputStream.read().toByte()
+        val isPoweredOn = receivedByte == 1.toByte()
+        SharedRepository.setPoweredOn(isPoweredOn)
+
+        receivedByte = inputStream.read().toByte()
+        val isRecordingVideo = receivedByte == 1.toByte()
+        SharedRepository.setRecordingVideo(isRecordingVideo)
+
+        receivedByte = inputStream.read().toByte()
+        val isRecordingFlight= receivedByte == 1.toByte()
+        SharedRepository.setRecordingFlight(isRecordingFlight)
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -378,6 +392,8 @@ class ConnectionService : Service() {
                         SharedRepository.setMainScreenErrorText("An unknown internal server error has occured!")
                         return
                     }
+
+                    getDroneStatus(inputStream)
 
                     // reconnected successfully
                     socket = newSocket

@@ -35,7 +35,7 @@ class InstructionType(Enum):
     START_PREVIOUS_FLIGHT = 7
     GET_VIDEOS = 8  # start the video download and request video using inedex
     DOWNLOAD_VIDEO = 9
-    KILL_SWITCH = 10
+    TURN_ON = 10
     JOYSTICK = 11
     GET_LINK = 12
     TURN_OFF = 13
@@ -59,7 +59,7 @@ server_port = 6969
 download_port = 6970
 
 # Flag to determine if the server is internal or external
-internal = True
+internal = False
 
 # Interval to update the IP address on GitHub (in seconds)
 ip_update_interval = 60 * 10
