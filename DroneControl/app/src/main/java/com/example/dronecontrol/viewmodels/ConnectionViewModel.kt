@@ -292,7 +292,7 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
     {
         while (uiState.value.monitorMovementBoolean)
         {
-            if (uiState.value.isSendingMovement)
+            if (uiState.value.isSendingMovement && SharedRepository.getPoweredOn())
             {
                 sendControls2Service(context, "ACTION_APP_FOREGROUND")
             }
