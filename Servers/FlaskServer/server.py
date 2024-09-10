@@ -326,22 +326,22 @@ def process_instruction(instruction_data):
         print("Invalid instruction")
     elif instruction_type == InstructionType.HEARTBEAT.value:
         pass
-    elif instruction_type == InstructionType.START_RECORDING.value:
-        record_video = RecordState.START_RECORDING
-        if recording:
-            start_instruction = {
-                "type": instruction_type,
-                "delta_time": time.time() - previous_time
-            }
-            instructions.append(start_instruction)
-    elif instruction_type == InstructionType.STOP_RECORDING.value:
-        record_video = RecordState.STOP_RECORDING
-        if recording:
-            stop_instruction = {
-                "type": instruction_type,
-                "delta_time": time.time() - previous_time
-            }
-            instructions.append(stop_instruction)
+    # elif instruction_type == InstructionType.START_RECORDING.value:
+    #     record_video = RecordState.START_RECORDING
+    #     if recording:
+    #         start_instruction = {
+    #             "type": instruction_type,
+    #             "delta_time": time.time() - previous_time
+    #         }
+    #         instructions.append(start_instruction)
+    # elif instruction_type == InstructionType.STOP_RECORDING.value:
+    #     record_video = RecordState.STOP_RECORDING
+    #     if recording:
+    #         stop_instruction = {
+    #             "type": instruction_type,
+    #             "delta_time": time.time() - previous_time
+    #         }
+    #         instructions.append(stop_instruction)
     elif instruction_type == InstructionType.START_PREVIOUS_FLIGHT.value:
         autopilot_thread = threading.Thread(target=handleAutopilot, args=(instruction_data['file'],))
         autopilot_thread.start()
@@ -360,8 +360,8 @@ def process_instruction(instruction_data):
         previous_time = None
         start_time = None
         instructions = []
-    else:
-        print("Bad")
+    # else:
+    #     print("Bad")
     return flag_pass_commands
 
 def handleAutopilot(instruction_file):
