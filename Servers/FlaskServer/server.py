@@ -30,6 +30,7 @@ control_queue = queue.Queue(maxsize=MAX_QUEUE_SIZE)
 connections = {'drone': None, 'phone': None}
 
 # To remember the states
+isPoweredOn = False
 phone_state = PhoneState.PILOTING
 record_video = RecordState.NOT_RECORDING
 
@@ -44,13 +45,13 @@ response = None
 video_list = []
 
 # Instruction_recording
-recording = False
+isRecordingMacro = False
 start_time = None
 previous_time = None
 instructions = []
 
 # Autopilot
-autopilot_active = False
+isAutopilotAcive = False
 
 # FUNCTIONS
 
@@ -242,7 +243,7 @@ def send_controls():
             data_to_send = json.dumps(command_dict).encode('utf-8')
             drone_socket = connections["drone"]
             drone_socket.sendall(data_to_send)
-            if recording:
+            if isRecordingMacro:
                 # Calculate delta time
                 current_time = time.time()
                 delta_time = current_time - previous_time
@@ -275,7 +276,7 @@ def handleControls(phoneSocket):
     """
        Handles control messages from the phone and forwards them to the queue.
     """
-    global send_event, autopilot_active
+    global send_event, isAutopilotAcive
     buffer = ""
     flag = True
     while flag:
@@ -303,10 +304,10 @@ def handleControls(phoneSocket):
                     instruction_type = instruction_data.get("type")
                     print(instruction_data)
                     # cancel autopilot and switch back to manual mode
-                    if autopilot_active and instruction_type != InstructionType.HEARTBEAT.value:
-                        autopilot_active = False
+                    if isAutopilotAcive and instruction_type != InstructionType.HEARTBEAT.value:
+                        isAutopilotAcive = False
                     # handle manual instructions
-                    if not autopilot_active:
+                    if not isAutopilotAcive:
                         flag_pass_commands = process_instruction(instruction_data)
 
                 except json.JSONDecodeError:
@@ -319,7 +320,7 @@ def handleControls(phoneSocket):
             break
 
 def process_instruction(instruction_data):
-    global record_video, start_time, previous_time, recording, instructions, response, phone_state, command_dict
+    global record_video, start_time, previous_time, isRecordingMacro, instructions, response, phone_state, command_dict
     instruction_type = instruction_data.get("type")
     flag_pass_commands=False
     if instruction_type is None:
@@ -353,9 +354,9 @@ def process_instruction(instruction_data):
     elif instruction_type == InstructionType.RECORD_INST_START.value:
         start_time = time.time()
         previous_time = start_time
-        recording = True
+        isRecordingMacro = True
     elif instruction_type == InstructionType.RECORD_INST_STOP.value:
-        recording = False
+        isRecordingMacro = False
         save_instructions_to_file()
         previous_time = None
         start_time = None
@@ -373,22 +374,22 @@ def handleAutopilot(instruction_file):
     :param instruction_file:
     :return:
     """
-    global autopilot_active, previous_time, send_event
+    global isAutopilotAcive, previous_time, send_event
 
-    autopilot_active = True
+    isAutopilotAcive = True
     with open(instruction_file, 'r') as f:
         data = json.load(f)
         instructions_list = data['instructions']
 
     for instruction in instructions_list:
-        if not autopilot_active:
+        if not isAutopilotAcive:
             break
 
         flag, flag_pass_command= process_instruction(instruction)
         if flag_pass_command:
             send_event.set()
         time.sleep(instruction["delta_time"])
-    autopilot_active = False
+    isAutopilotAcive = False
 
 
 # Function to handle client connections
@@ -408,6 +409,7 @@ def handle_client_connection_general(client_socket):
                 case "phone":
                     connections["phone"] = client_socket
                     client_socket.sendall("0\n".encode())  # everything ok
+                    sendDroneStatus(client_socket)
                     handleControls(client_socket)
                 case _:
                     print(f"Received message: {message}")
@@ -418,4 +420,27 @@ def handle_client_connection_general(client_socket):
             print(f"Connection failed to establish: {e}")
             break
     client_socket.close()
+
+
+
+def sendDroneStatus(socket):
+    """
+        Sends critical drone booleans to phone client:
+        1. If drone is powered on
+        2. If recording is active
+        3. If macro replay is active
+    """
+    isPoweredOnByte = b'\x01' if isPoweredOn else b'\x00'
+    socket.sendall(isPoweredOnByte)
+
+    isRecordingVideoByte = b'\x01' if (record_video == RecordState.RECORDING
+                                       or record_video == RecordState.START_RECORDING) else b'\x00'
+    socket.sendall(isRecordingVideoByte)
+
+    isRecordingMacroByte = b'\x01' if isRecordingMacro else b'\x00'
+    socket.sendall(isRecordingMacroByte)
+
+
+
+
 
