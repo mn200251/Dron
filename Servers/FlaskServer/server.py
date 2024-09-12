@@ -429,16 +429,20 @@ def sendDroneStatus(socket):
         1. If drone is powered on
         2. If recording is active
         3. If macro replay is active
+
+        :param socket:
+        :return:
     """
-    isPoweredOnByte = b'\x01' if isPoweredOn else b'\x00'
-    socket.sendall(isPoweredOnByte)
 
-    isRecordingVideoByte = b'\x01' if (record_video == RecordState.RECORDING
-                                       or record_video == RecordState.START_RECORDING) else b'\x00'
-    socket.sendall(isRecordingVideoByte)
+    isPoweredOnByte = "1\n" if isPoweredOn else "0\n"
+    socket.sendall(isPoweredOnByte.encode())
 
-    isRecordingMacroByte = b'\x01' if isRecordingMacro else b'\x00'
-    socket.sendall(isRecordingMacroByte)
+    isRecordingVideoByte = "1\n" if (record_video == RecordState.RECORDING
+                                       or record_video == RecordState.START_RECORDING) else "0\n"
+    socket.sendall(isRecordingVideoByte.encode())
+
+    isRecordingMacroByte = "1\n" if isRecordingMacro else "0\n"
+    socket.sendall(isRecordingMacroByte.encode())
 
 
 

@@ -282,7 +282,7 @@ class ConnectionService : Service() {
                     }
                     // response == 0 - drone connected
 
-                    getDroneStatus(inputStream)
+                    getDroneStatus(reader)
 
                     SharedRepository.setMainScreenErrorText("")
                     SharedRepository.setScreen(SCREEN.DroneScreen)
@@ -321,18 +321,18 @@ class ConnectionService : Service() {
         }
     }
 
-    private fun getDroneStatus(inputStream: InputStream)
+    private fun getDroneStatus(reader: BufferedReader)
     {
-        var receivedByte = inputStream.read().toByte()
-        val isPoweredOn = receivedByte == 1.toByte()
+        var receivedByte = reader.readLine()
+        val isPoweredOn = receivedByte == "1"
         SharedRepository.setPoweredOn(isPoweredOn)
 
-        receivedByte = inputStream.read().toByte()
-        val isRecordingVideo = receivedByte == 1.toByte()
+        receivedByte = reader.readLine()
+        val isRecordingVideo = receivedByte == "1"
         SharedRepository.setRecordingVideo(isRecordingVideo)
 
-        receivedByte = inputStream.read().toByte()
-        val isRecordingFlight= receivedByte == 1.toByte()
+        receivedByte = reader.readLine()
+        val isRecordingFlight = receivedByte == "1"
         SharedRepository.setRecordingFlight(isRecordingFlight)
     }
 
@@ -393,7 +393,7 @@ class ConnectionService : Service() {
                         return
                     }
 
-                    getDroneStatus(inputStream)
+                    getDroneStatus(reader)
 
                     // reconnected successfully
                     socket = newSocket
