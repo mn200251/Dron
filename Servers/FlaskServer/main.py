@@ -38,7 +38,7 @@ if __name__ == "__main__":
     tcp_server_thread.start()
 
     tcp_download_process = multiprocessing.Process(target=start_tcp_server,
-                                                   args=(server_ip, download_port, handle_client_connection_video))
+                                                   args=(server_ip, download_server_port, handle_client_connection_video))
     tcp_download_process.start()
 
     send_frames_thread = threading.Thread(target=send_frames, args=())

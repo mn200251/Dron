@@ -54,9 +54,6 @@ QUEUE_TIMEOUT = 5
 video_dir = "videos"
 script_dir = "flight_scripts"
 
-# Server port
-server_port = 6969
-download_port = 6970
 
 # Flag to determine if the server is internal or external
 internal = False
@@ -67,7 +64,7 @@ ip_update_interval = 60 * 10
 stop_event = threading.Event()
 
 
-def changeServerIP(newIP):
+def changeServerIP(newIP, path):
     """
         Updates the server IP address stored in a GitHub repository.
     """
@@ -79,10 +76,10 @@ def changeServerIP(newIP):
 
     # Get the file contents
     try:
-        file = repo.get_contents(FILE_PATH, ref=BRANCH_NAME)
+        file = repo.get_contents(path, ref=BRANCH_NAME)
     except Exception as e:
         if "404" in str(e):
-            repo.create_file(FILE_PATH, f'Created server_ip.txt with current IP: {newIP}', newIP,
+            repo.create_file(FILE_PATH, f'Created file with current IP: {newIP}', newIP,
                              branch=BRANCH_NAME)
             return
         else:
@@ -125,7 +122,11 @@ def monitorIP():
         Periodically updates the server's external IP address on GitHub.
     """
     while True:
-        newIP = getExternalIp() + ":" + str(server_port)
-        changeServerIP(newIP)
+        ipAddr = getExternalIp()
+        newIP = ipAddr + ":" + str(server_port)
+        newDownloadIp = ipAddr + ":" + str(download_server_port)
+
+        changeServerIP(newIP, FILE_PATH)
+        changeServerIP(newDownloadIp, DOWNLOAD_FILE_PATH)
 
         time.sleep(ip_update_interval)

@@ -5,6 +5,7 @@ import socket
 import base64
 import struct
 
+
 def stream_video_to_server(video_path, server_ip, server_port):
     # Create a client socket
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -43,6 +44,7 @@ def stream_video_to_server(video_path, server_ip, server_port):
     client_socket.close()
     print("Video streaming finished.")
 
+
 if __name__ == "__main__":
     # Example usage
     VIDEO_PATH = 'videos/VID_20230416_123915.mp4'  # Replace with the path to your video file
@@ -51,4 +53,4 @@ if __name__ == "__main__":
     try:
         stream_video_to_server(VIDEO_PATH, SERVER_IP, SERVER_PORT)
     except Exception as e:
-        print("Streamer died "+str(e))
+        print("Streamer died " + str(e))
