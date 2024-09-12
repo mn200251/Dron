@@ -1,13 +1,12 @@
 package com.example.dronecontrol.screens
 
-import android.app.Activity
+import android.Manifest.permission.POST_NOTIFICATIONS
 import android.content.Context
-import android.graphics.fonts.Font
+import android.content.pm.PackageManager
 import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,13 +15,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -39,19 +35,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat.finishAffinity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.dronecontrol.MainActivity
 import com.example.dronecontrol.R
@@ -60,8 +55,6 @@ import com.example.dronecontrol.sharedRepositories.SharedRepository
 import com.example.dronecontrol.viewmodels.ConnectionViewModel
 import com.example.dronecontrol.viewmodels.SCREEN
 import kotlinx.coroutines.delay
-import kotlin.math.cos
-import kotlin.math.sin
 import kotlin.system.exitProcess
 
 
@@ -136,6 +129,24 @@ fun MainScreen(connectionViewModel: ConnectionViewModel = viewModel(), context: 
 
     val mainScreenErrorText by SharedRepository.mainScreenErrorText.collectAsState("")
 
+    val currContext = LocalContext.current
+
+    val requestPermissionLauncherVideoListScreen = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isPermissionGranted ->
+        if (isPermissionGranted) {
+            connectionViewModel.updateScreenNumber(SCREEN.VideoListScreen)
+        }
+    }
+
+    val requestPermissionLauncherDroneScreen = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isPermissionGranted ->
+        if (isPermissionGranted) {
+            connectionViewModel.startService(context, "ACTION_APP_FOREGROUND")
+        }
+    }
+
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
@@ -179,7 +190,21 @@ fun MainScreen(connectionViewModel: ConnectionViewModel = viewModel(), context: 
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(128, 128, 128)
                 ),
-                onClick = { connectionViewModel.startService(context, "ACTION_APP_FOREGROUND") },
+                onClick = {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        if (ContextCompat.checkSelfPermission(
+                                currContext,
+                                POST_NOTIFICATIONS
+                            ) != PackageManager.PERMISSION_GRANTED
+                        ) {
+                            requestPermissionLauncherDroneScreen.launch(POST_NOTIFICATIONS)
+                        } else {
+                            connectionViewModel.startService(context, "ACTION_APP_FOREGROUND")
+                        }
+                    } else {
+                        connectionViewModel.startService(context, "ACTION_APP_FOREGROUND")
+                    }
+                          },
                 modifier = buttonModifier
                     .align(Alignment.CenterHorizontally)
                     .alpha(buttonTransparency),
@@ -195,7 +220,19 @@ fun MainScreen(connectionViewModel: ConnectionViewModel = viewModel(), context: 
                     containerColor = Color(128, 128, 128)
                 ),
                 onClick = {
-                    connectionViewModel.updateScreenNumber(SCREEN.VideoListScreen)
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        if (ContextCompat.checkSelfPermission(
+                                currContext,
+                                POST_NOTIFICATIONS
+                            ) != PackageManager.PERMISSION_GRANTED
+                        ) {
+                            requestPermissionLauncherVideoListScreen.launch(POST_NOTIFICATIONS)
+                        } else {
+                            connectionViewModel.updateScreenNumber(SCREEN.VideoListScreen)
+                        }
+                    } else {
+                        connectionViewModel.updateScreenNumber(SCREEN.VideoListScreen)
+                    }
                 },
                 modifier = buttonModifier
                     .align(Alignment.CenterHorizontally)
