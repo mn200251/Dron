@@ -29,7 +29,8 @@ import androidx.compose.ui.window.Dialog
 @Composable
 fun InputDialog(
     onDismiss: () -> Unit,
-    onConfirm: (String) -> Unit
+    onConfirm: (String) -> Unit,
+    title: String
 ) {
     var inputText by remember { mutableStateOf("") }
 
@@ -42,7 +43,7 @@ fun InputDialog(
                 modifier = Modifier.padding(16.dp)
             ) {
                 Text(
-                    text = "Enter flight name",
+                    text = title,
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))

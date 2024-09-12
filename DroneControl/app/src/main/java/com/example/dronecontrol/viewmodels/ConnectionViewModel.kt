@@ -3,32 +3,21 @@ package com.example.dronecontrol.viewmodels
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.os.Bundle
 import android.os.Parcelable
 import android.util.Log
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.dronecontrol.collectAsState
 import com.example.dronecontrol.data_types.InstructionType
 import com.example.dronecontrol.services.ConnectionService
 import com.example.dronecontrol.sharedRepositories.SharedRepository
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlinx.parcelize.Parcelize
 import kotlinx.serialization.Serializable
-import java.io.DataInputStream
-import java.io.InputStream
-import java.net.Socket
 
 
 @Parcelize
@@ -117,25 +106,17 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
         Log.d("ViewModel", "Zavrsio u stopService")
     }
 
-    fun updateIsRecordingVideo(context:Context, newValue: Boolean)
+    fun updateIsRecordingVideo(context:Context, newValue: Boolean, videoName: String?)
     {
-//        savedStateHandle[UI_STATE_KEY] = _uiState2.value.copy(
-//            isRecordingVideo = newValue,
-//        )
-//        _uiState1.update { currentConnectionUiState ->
-//            currentConnectionUiState.copy(
-//                isRecordingVideo = newValue,
-//            )
-//        }
-
-        // SharedRepository.setRecordingVideo(newValue)
-
         // Send the appropriate action to the service
         val action = if (newValue) "ACTION_START_RECORDING" else "ACTION_STOP_RECORDING"
         // startService(context, action)
 
         val intent = Intent(context, ConnectionService::class.java).apply {
             this.action = action
+
+            if (videoName != null)
+                putExtra("name", videoName)
         }
 
         context.startService(intent)
@@ -143,8 +124,6 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
 
     fun updatePoweredOn(context: Context, newValue: Boolean)
     {
-        // SharedRepository.setPoweredOn(newValue)
-
         val action = if (newValue) "ACTION_TURN_ON" else "ACTION_TURN_OFF"
 
         val intent = Intent(context, ConnectionService::class.java).apply {
@@ -155,10 +134,10 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
 
         // stop recording flight if kill switch activated
         if (!newValue)
-            updateIsRecordingFlight(context, false)
+            updateIsRecordingMacro(context, false)
     }
 
-    fun updateIsRecordingFlight(context: Context, newValue: Boolean, flightName: String? = null)
+    fun updateIsRecordingMacro(context: Context, newValue: Boolean, macroName: String? = null)
     {
         // SharedRepository.setRecordingFlight(newValue)
 
@@ -167,8 +146,8 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
         val intent = Intent(context, ConnectionService::class.java).apply {
             this.action = action
 
-            if (flightName != null)
-                putExtra("name", flightName)
+            if (macroName != null)
+                putExtra("name", macroName)
         }
 
         context.startService(intent)

@@ -59,7 +59,7 @@ class VideoViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel
             if (INTERNAL) {
                 addressPair = Pair<String, String>("192.168.1.17", "6970")
             } else {
-                addressPair = getCurrentIP(GITHUB_TOKEN, REPO_NAME, SERVER_FILE_PATH, BRANCH_NAME)
+                addressPair = getCurrentIP(GITHUB_TOKEN, REPO_NAME, DOWNLOAD_FILE_PATH, BRANCH_NAME)
             }
             val socketAddress = addressPair?.second?.let {
                 InetSocketAddress(
@@ -154,7 +154,7 @@ class VideoViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel
             if(INTERNAL){
                 socketAddress = InetSocketAddress("192.168.1.17", 6969)
             }else {
-                val addressPair = getCurrentIP(GITHUB_TOKEN, REPO_NAME, SERVER_FILE_PATH, BRANCH_NAME)
+                val addressPair = getCurrentIP(GITHUB_TOKEN, REPO_NAME, DOWNLOAD_FILE_PATH, BRANCH_NAME)
                 socketAddress = InetSocketAddress(addressPair?.first, addressPair?.second!!.toInt())
             }
 

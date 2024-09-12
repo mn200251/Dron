@@ -1,14 +1,10 @@
 package com.example.dronecontrol.screens
 
 import android.content.Context
-import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Color.rgb
 import android.graphics.Paint
-import android.os.Build
 import android.util.Log
-import android.view.MotionEvent
-import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -20,10 +16,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -31,7 +25,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -42,11 +35,8 @@ import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.changedToDown
 import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.pointerInteropFilter
-import androidx.compose.ui.input.pointer.positionChangeConsumed
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
@@ -57,7 +47,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.dronecontrol.R
 import com.example.dronecontrol.collectAsState
 import com.example.dronecontrol.models.ModifiedJoyStick
-import com.example.dronecontrol.services.ConnectionService
 import com.example.dronecontrol.sharedRepositories.SharedRepository
 import com.example.dronecontrol.utils.InputDialog
 import com.example.dronecontrol.viewmodels.ConnectionViewModel
@@ -92,7 +81,7 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel(), context:
     val frame by SharedRepository.frame.collectAsState(null) // Use a default value
     
     val isPoweredOn by SharedRepository.isPoweredOn.collectAsState(initial = false)
-    val isRecordingFlight by SharedRepository.isRecordingFlight.collectAsState(initial = false)
+    val isRecordingMacro by SharedRepository.isRecordingMacro.collectAsState(initial = false)
     val isRecordingVideo by SharedRepository.isRecordingVideo.collectAsState(initial = false)
 
     val currLocalDensity = LocalDensity.current
@@ -102,7 +91,9 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel(), context:
 
     val joystickSize = 160
 
-    var showFlightDialog by remember { mutableStateOf(false) }
+    var showMacroDialog by remember { mutableStateOf(false) }
+    var showVideoDialog by remember { mutableStateOf(false) }
+
     var flightName by remember { mutableStateOf("") }
 
     val buttonSize = 70.dp
@@ -178,10 +169,10 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel(), context:
 
         IconButton(
             onClick = {
-                if (!isRecordingFlight)
-                    showFlightDialog = true
+                if (!isRecordingMacro)
+                    showMacroDialog = true
                 else
-                    connectionViewModel.updateIsRecordingFlight(
+                    connectionViewModel.updateIsRecordingMacro(
                         context,
                         false,
                     )
@@ -197,13 +188,13 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel(), context:
                 painter = painterResource(id = R.drawable.flight_button),
                 contentDescription = "Flight Button Icon",
                 tint =
-                    if (!isRecordingFlight) Color(0, 0, 0, 75)
+                    if (!isRecordingMacro) Color(0, 0, 0, 75)
                     else Color(255, 0, 0, 75),
             )
         }
 
         IconButton(
-            onClick = { /* TODO GET FLIGHTS AND ADD WINDOW TO SELECT FLIGHT (ADD flightActive boolean?) */},
+            onClick = { /* TODO GET FLIGHTS AND ADD WINDOW TO SELECT FLIGHT (ADD flightActive boolean?) */ },
             enabled = isPoweredOn,
             modifier = Modifier
                 .align(Alignment.TopEnd)
@@ -220,7 +211,16 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel(), context:
 
         IconButton(
             onClick = {
-                connectionViewModel.updateIsRecordingVideo(context,!isRecordingVideo)
+                if (!isRecordingVideo)
+                    showVideoDialog = true
+                else
+                    connectionViewModel.updateIsRecordingVideo(
+                        context,
+                        !isRecordingVideo,
+                        null
+                    )
+
+                // connectionViewModel.updateIsRecordingVideo(context,!isRecordingVideo)
             },
             modifier = Modifier
                 .align(Alignment.TopEnd)
@@ -362,22 +362,42 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel(), context:
             }
         }
 
-        if (showFlightDialog)
+        if (showMacroDialog)
         {
             InputDialog(
                 onConfirm = { name ->
 
-                        connectionViewModel.updateIsRecordingFlight(
+                        connectionViewModel.updateIsRecordingMacro(
                             context,
-                            !isRecordingFlight,
+                            !isRecordingMacro,
                             name
                         )
 
-                        showFlightDialog = false
+                        showMacroDialog = false
             },
                 onDismiss = {
-                    showFlightDialog = false
-                })
+                    showMacroDialog = false
+                },
+                title = "Enter macro name")
+        }
+
+        if (showVideoDialog)
+        {
+            InputDialog(
+                onConfirm = { name ->
+
+                    connectionViewModel.updateIsRecordingVideo(
+                        context,
+                        !isRecordingVideo,
+                        name
+                    )
+
+                    showVideoDialog = false
+                },
+                onDismiss = {
+                    showVideoDialog = false
+                },
+                title = "Enter video name")
         }
     }
 }

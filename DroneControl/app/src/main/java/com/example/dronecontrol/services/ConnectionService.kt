@@ -16,7 +16,6 @@ import com.example.dronecontrol.R
 import com.example.dronecontrol.data_types.InstructionType
 import com.example.dronecontrol.exceptions.SocketException
 import com.example.dronecontrol.private.BRANCH_NAME
-import com.example.dronecontrol.private.DOWNLOAD_FILE_PATH
 import com.example.dronecontrol.private.GITHUB_TOKEN
 import com.example.dronecontrol.private.INTERNAL
 import com.example.dronecontrol.private.REPO_NAME
@@ -167,10 +166,14 @@ class ConnectionService : Service() {
                     controls = myData
             }
             "ACTION_START_RECORDING" -> {
-                startRecording()
+                val videoName = intent.getStringExtra("name")
+
+                if (videoName != null) {
+                    startRecordingVideo(videoName)
+                }
             }
             "ACTION_STOP_RECORDING" -> {
-                stopRecording()
+                stopRecordingVideo()
             }
             "ACTION_START_INSTRUCTION_RECORDING" -> {
                 startInstructionRecording()
@@ -191,15 +194,15 @@ class ConnectionService : Service() {
             }
 
             "ACTION_START_FLIGHT" -> {
-                val videoName = intent.getStringExtra("name")
+                val macroName = intent.getStringExtra("name")
 
-                if (videoName != null) {
-                    startFlight(videoName)
+                if (macroName != null) {
+                    startRecordingMacro(macroName)
                 }
             }
 
             "ACTION_END_FLIGHT" -> {
-                endFlight()
+                endRecordingMacro()
             }
         }
 
@@ -333,7 +336,7 @@ class ConnectionService : Service() {
 
         receivedByte = reader.readLine()
         val isRecordingFlight = receivedByte == "1"
-        SharedRepository.setRecordingFlight(isRecordingFlight)
+        SharedRepository.setRecordingMacro(isRecordingFlight)
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -495,8 +498,8 @@ class ConnectionService : Service() {
 
     // Start recording method
     private fun startInstructionRecording() {
-        if (connectionActive && !SharedRepository.getRecordingFlight()) {
-            SharedRepository.setRecordingFlight(true)
+        if (connectionActive && !SharedRepository.getRecordingMacro()) {
+            SharedRepository.setRecordingMacro(true)
 
             sendJsonInstruction(InstructionType.RECORD_INST_START.value)
             Log.d("ConnectionService", "startInstructionRecording success")
@@ -504,14 +507,14 @@ class ConnectionService : Service() {
         else
         {
             Log.d("ConnectionService", "startInstructionRecording else branch conn = " + connectionActive.toString() +
-                    ", recording flight = " + SharedRepository.getRecordingFlight().toString())
+                    ", recording flight = " + SharedRepository.getRecordingMacro().toString())
         }
     }
 
     // Stop recording method
     private fun stopInstructionRecording() {
-        if (connectionActive && SharedRepository.getRecordingFlight()) {
-            SharedRepository.setRecordingFlight(false)
+        if (connectionActive && SharedRepository.getRecordingMacro()) {
+            SharedRepository.setRecordingMacro(false)
 
             sendJsonInstruction(InstructionType.RECORD_INST_STOP.value)
             Log.d("ConnectionService", "stopInstructionRecording success")
@@ -519,21 +522,41 @@ class ConnectionService : Service() {
         else
         {
             Log.d("ConnectionService", "stopInstructionRecording else branch conn = " + connectionActive.toString() +
-                    ", recording flight = " + SharedRepository.getRecordingFlight().toString())
+                    ", recording flight = " + SharedRepository.getRecordingMacro().toString())
         }
     }
 
-    private fun startRecording() {
-        if (connectionActive && !SharedRepository.getRecordingVideo()) {
-            SharedRepository.setRecordingVideo(true)
+    private fun startRecordingVideo(videoName: String) {
+        if (connectionActive) {
 
-            sendJsonInstruction(InstructionType.START_RECORDING.value)
+            serviceScope.launch {
+                try {
+                    val outputStream: OutputStream = socket!!.getOutputStream()
+
+                    // Create an instance of Instruction with the given type and extras
+                    val instruction = StartFlight(InstructionType.START_RECORDING.value, videoName)
+
+                    // Serialize the instruction to JSON string
+                    val jsonString = Json.encodeToString(instruction)
+
+                    // Send the JSON string over the socket
+                    outputStream.write(jsonString.toByteArray(Charsets.UTF_8))
+                    outputStream.flush()
+
+                    SharedRepository.setRecordingVideo(true)
+
+                    Log.d("ConnectionService", "Sent JSON instruction: $jsonString")
+                } catch (e: Exception) {
+                    Log.e("ConnectionService", "Error sending JSON instruction: ${e.message}")
+                }
+            }
         }
+
     }
 
     // Stop recording method
-    private fun stopRecording() {
-        if (connectionActive && SharedRepository.getRecordingVideo()) {
+    private fun stopRecordingVideo() {
+        if (connectionActive) {
             SharedRepository.setRecordingVideo(false)
 
             sendJsonInstruction(InstructionType.STOP_RECORDING.value)
@@ -561,7 +584,7 @@ class ConnectionService : Service() {
     @Serializable
     data class StartFlight(val type: Int, val name: String)
 
-    private fun startFlight(videoName: String) {
+    private fun startRecordingMacro(macroName: String) {
         if (connectionActive) {
 
             serviceScope.launch {
@@ -569,7 +592,7 @@ class ConnectionService : Service() {
                     val outputStream: OutputStream = socket!!.getOutputStream()
 
                     // Create an instance of Instruction with the given type and extras
-                    val instruction = StartFlight(InstructionType.START_FLIGHT.value, videoName)
+                    val instruction = StartFlight(InstructionType.START_FLIGHT.value, macroName)
 
                     // Serialize the instruction to JSON string
                     val jsonString = Json.encodeToString(instruction)
@@ -578,7 +601,7 @@ class ConnectionService : Service() {
                     outputStream.write(jsonString.toByteArray(Charsets.UTF_8))
                     outputStream.flush()
 
-                    SharedRepository.setRecordingFlight(true)
+                    SharedRepository.setRecordingMacro(true)
 
                     Log.d("ConnectionService", "Sent JSON instruction: $jsonString")
                 }
@@ -592,9 +615,9 @@ class ConnectionService : Service() {
         }
     }
 
-    private fun endFlight() {
+    private fun endRecordingMacro() {
         if (connectionActive ) {
-            SharedRepository.setRecordingFlight(true)
+            SharedRepository.setRecordingMacro(true)
 
             sendJsonInstruction(InstructionType.END_FLIGHT.value)
         }
