@@ -69,7 +69,7 @@ class VideoViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel
             }
             val socketAddress = addressPair?.second?.let {
                 InetSocketAddress(
-                    addressPair?.first,
+                    addressPair.first,
                     it.toInt()
                 )
             }
@@ -173,74 +173,5 @@ class VideoViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel
                 videos = newVideos,
             )
         }
-    }
-
-    @RequiresApi(Build.VERSION_CODES.O)
-    fun fetchVideosOld() {
-        viewModelScope.launch(Dispatchers.IO) {
-            var socket = Socket()
-            var socketAddress:InetSocketAddress
-
-            if(INTERNAL){
-                socketAddress = InetSocketAddress("192.168.1.17", 6969)
-            }else {
-                val addressPair = getCurrentIP(GITHUB_TOKEN, REPO_NAME, DOWNLOAD_FILE_PATH, BRANCH_NAME)
-                socketAddress = InetSocketAddress(addressPair?.first, addressPair?.second!!.toInt())
-            }
-
-
-            try {
-                socket.connect(socketAddress, 2000)
-                val outputStream = DataOutputStream(socket.getOutputStream())
-                val inputStream = DataInputStream(socket.getInputStream())
-
-                val auth: String = "phone"
-                outputStream.write(auth.toByteArray(Charsets.UTF_8))
-                outputStream.flush()
-
-                var response = BufferedReader(InputStreamReader(inputStream)).readLine()
-
-
-                // Send request to get videos
-                val request = JSONObject().apply {
-                    put("type", InstructionType.GET_VIDEOS.value)
-                }
-                outputStream.writeUTF(request.toString())
-
-                // Read the length of the response
-                val length = inputStream.readInt()
-                Log.d("VideoViewModel", "Response length: $length")
-                // Read the response data
-                val responseData = ByteArray(length)
-                inputStream.readFully(responseData)
-
-                // Parse the response JSON
-                val responseJsonString = String(responseData, Charsets.UTF_8)
-                val videoArray = JSONArray(responseJsonString)
-                val videos = mutableListOf<Video>()
-
-                for (i in 0 until videoArray.length()) {
-                    val videoJson = videoArray.getJSONObject(i)
-                    val filename = videoJson.getString("filename")
-                    val thumbnail = Base64.decode(videoJson.getString("thumbnail").toByteArray(), Base64.DEFAULT) // You may need to decode this if it's encoded in Base64 or another format
-                    val thumbnailBitmap = BitmapFactory.decodeByteArray(thumbnail, 0, thumbnail.size)
-                    videos.add(Video(filename, thumbnailBitmap ))
-                }
-
-                // Update the video list in the state
-                val newState = VideoState(videos)
-                savedStateHandle[VIDEO_STATE_KEY] = newState
-
-            } catch (e: Exception) {
-
-                e.printStackTrace()
-            } finally {
-                socket.close()
-            }
-        }
-    }
-
-    fun downloadVideo(video: Video) {
-        Log.d("Dialog","Yes")
     }
 }

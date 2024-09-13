@@ -207,7 +207,7 @@ class ConnectionService : Service() {
             }
 
             InstructionType.STOP_RECORDING_MACRO.value.toString() -> {
-                endRecordingMacro()
+                stopRecordingMacro()
             }
         }
 
@@ -645,9 +645,9 @@ class ConnectionService : Service() {
         }
     }
 
-    private fun endRecordingMacro() {
+    private fun stopRecordingMacro() {
         if (connectionActive ) {
-            SharedRepository.setRecordingMacro(true)
+            SharedRepository.setRecordingMacro(false)
 
             sendJsonInstruction(InstructionType.STOP_RECORDING_MACRO.value)
         }

@@ -4,8 +4,10 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Color.rgb
 import android.graphics.Paint
+import android.os.Build
 import android.util.Log
 import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -52,13 +54,18 @@ import com.example.dronecontrol.sharedRepositories.SharedRepository
 import com.example.dronecontrol.utils.InputDialog
 import com.example.dronecontrol.utils.MacroSelectionDialog
 import com.example.dronecontrol.viewmodels.ConnectionViewModel
+import com.example.dronecontrol.viewmodels.MacroViewModel
 import com.example.dronecontrol.viewmodels.SCREEN
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel(), context: Context)
+fun DroneScreen(
+    connectionViewModel: ConnectionViewModel = viewModel(),
+    macroViewModel: MacroViewModel = viewModel(),
+    context: Context)
 {
     // button for taking pictures?
     // battery percentage
@@ -67,6 +74,7 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel(), context:
     // stop button
 
     val uiState by connectionViewModel.uiState.collectAsState()
+    val macroUiState by macroViewModel.uiState.collectAsState()
 
     val width = LocalConfiguration.current.screenWidthDp.dp
     val height = LocalConfiguration.current.screenHeightDp.dp
@@ -173,14 +181,17 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel(), context:
         IconButton(
             onClick = {
                 if (!isRecordingMacro)
+                {
+                    macroViewModel.fetchMacros()
                     showMacroDialog = true
+                }
                 else
                     connectionViewModel.updateIsRecordingMacro(
                         context,
-                        false,
+                        !isRecordingMacro,
                     )
             },
-            enabled = true,
+            enabled = isPoweredOn,
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .padding(top = 14.dp, end = 14.dp + buttonSize + 14.dp)
@@ -189,7 +200,7 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel(), context:
         ) {
             Icon(
                 painter = painterResource(id = R.drawable.flight_button),
-                contentDescription = "Flight Button Icon",
+                contentDescription = "Macro Button Icon",
                 tint =
                     if (!isRecordingMacro) Color(0, 0, 0, 75)
                     else Color(255, 0, 0, 75),
@@ -405,7 +416,9 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel(), context:
 
         if (showMacroSelectionDialog) {
             MacroSelectionDialog(
-                strings = listOf("Item 1", "Item 2", "Item 3", "item 4", "item5", "item6", "item7"),
+                // strings = listOf("Item 1", "Item 2", "Item 3", "item 4", "item5", "item6", "item7"),
+                macros = macroUiState.macroList,
+                isLoading = macroUiState.isLoading,
                 onConfirm = { selectedMacroName ->
                     connectionViewModel.startMacro(context, selectedMacroName)
 

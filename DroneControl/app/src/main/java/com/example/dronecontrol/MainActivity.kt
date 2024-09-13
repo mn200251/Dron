@@ -65,6 +65,7 @@ import com.example.dronecontrol.screens.VideoListScreen
 import com.example.dronecontrol.services.ConnectionService
 import com.example.dronecontrol.ui.theme.DroneControlTheme
 import com.example.dronecontrol.viewmodels.ConnectionViewModel
+import com.example.dronecontrol.viewmodels.MacroViewModel
 import com.example.dronecontrol.viewmodels.SCREEN
 import com.example.dronecontrol.viewmodels.VideoViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -166,12 +167,13 @@ class MainActivity : ComponentActivity() {
 fun DroneApp(context: Context, lifeCyleOwner: LifecycleOwner, activity: MainActivity)
 {
     var connectionViewModel: ConnectionViewModel = viewModel()
+    var macroViewModel: MacroViewModel = viewModel()
 
     // Convert LiveData to StateFlow or use a MutableState directly in Compose
     val screen by SharedRepository.screenNumber.collectAsState(SCREEN.MainScreen) // Use a default value
 
     // Observe screenNumber and update the screen accordingly
-    UpdateScreen(screen, context, connectionViewModel, activity)
+    UpdateScreen(screen, context, connectionViewModel, macroViewModel, activity)
 
 }
 
@@ -191,13 +193,14 @@ fun <T> LiveData<T>.collectAsState(initial: T): State<T> {
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-private fun UpdateScreen(screen: SCREEN, context: Context, connectionViewModel: ConnectionViewModel = viewModel(), activity: MainActivity) {
+private fun UpdateScreen(screen: SCREEN, context: Context, connectionViewModel: ConnectionViewModel = viewModel(),
+                         macroViewModel: MacroViewModel = viewModel(), activity: MainActivity) {
     when (screen) {
         SCREEN.MainScreen -> {
             MainScreen(connectionViewModel, context, activity)
         }
         SCREEN.DroneScreen -> {
-            DroneScreen(connectionViewModel, context)
+            DroneScreen(connectionViewModel, macroViewModel, context)
         }
 
         SCREEN.VideoListScreen -> {
