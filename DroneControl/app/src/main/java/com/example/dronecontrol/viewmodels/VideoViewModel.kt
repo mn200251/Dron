@@ -22,8 +22,9 @@ import com.example.dronecontrol.private.DOWNLOAD_FILE_PATH
 import com.example.dronecontrol.private.GITHUB_TOKEN
 import com.example.dronecontrol.private.INTERNAL
 import com.example.dronecontrol.private.REPO_NAME
-import com.example.dronecontrol.private.SERVER_FILE_PATH
 import com.example.dronecontrol.utils.getCurrentIP
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.parcelize.Parcelize
 import org.json.JSONArray
 import java.io.BufferedReader
@@ -38,21 +39,26 @@ data class Video(
 
 @Parcelize
 data class VideoState(
-    val videos: List<Video> = emptyList()
+    val videos: List<Video> = emptyList(),
+    var isLoading: Boolean = false
 ) : Parcelable
 
 const val VIDEO_STATE_KEY = "videoState"
 
 class VideoViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel()  {
 
-    private val _videoState = savedStateHandle.getStateFlow(VIDEO_STATE_KEY, VideoState())
+    private val _videoState1 = MutableStateFlow(VideoState())
 
-    val videoState = _videoState
+    private val _videoState2 = savedStateHandle.getStateFlow(VIDEO_STATE_KEY, VideoState())
+
+    val videoState = _videoState2
 
 
     @RequiresApi(Build.VERSION_CODES.O)
     fun fetchVideos() {
         viewModelScope.launch(Dispatchers.IO) {
+            setIsLoading(true)
+
             var socket: Socket? = null
             var auth: String = "phone"
             var addressPair: Pair<String, String>?
@@ -98,8 +104,6 @@ class VideoViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel
                         cnt=0
                     }
 
-
-
                     // Request the next video
                     while(cnt < numberOfVideos) {
                         val videoRequest = JSONObject().apply {
@@ -130,7 +134,8 @@ class VideoViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel
                         // Add the video to the list
                         videos.add(Video(filename, thumbnailBitmap))
                         val updatedVideos = videos.toMutableList()
-                        savedStateHandle[VIDEO_STATE_KEY] = VideoState(updatedVideos)
+                        // savedStateHandle[VIDEO_STATE_KEY] = VideoState(videos = updatedVideos)
+                        setVideos(updatedVideos)
                         cnt++
                     }
                 } catch (e: Exception) {
@@ -138,10 +143,35 @@ class VideoViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel
                     Log.d("VideoViewModel", "Error receiving video ${cnt}: ${e.message}")
                 } finally {
                     socket?.close()
+
+                    setIsLoading(false)
                 }
             }
             Log.d("VideoViewModel", "Finished receiving video list")
+        }
+    }
 
+    private fun setIsLoading(newValue: Boolean)
+    {
+        savedStateHandle[VIDEO_STATE_KEY] = _videoState2.value.copy(
+            isLoading = newValue,
+        )
+        _videoState1.update { currentConnectionUiState ->
+            currentConnectionUiState.copy(
+                isLoading = newValue,
+            )
+        }
+    }
+
+    private fun setVideos(newVideos: MutableList<Video>)
+    {
+        savedStateHandle[VIDEO_STATE_KEY] = _videoState2.value.copy(
+            videos = newVideos,
+        )
+        _videoState1.update { currVideoState ->
+            currVideoState.copy(
+                videos = newVideos,
+            )
         }
     }
 
