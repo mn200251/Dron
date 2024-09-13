@@ -204,6 +204,14 @@ class ConnectionService : Service() {
             "ACTION_END_FLIGHT" -> {
                 endRecordingMacro()
             }
+
+            InstructionType.START_MACRO.value.toString() -> {
+                val macroName = intent.getStringExtra("name")
+
+                if (macroName != null) {
+                    startMacro(macroName)
+                }
+            }
         }
 
         return START_STICKY
@@ -528,7 +536,6 @@ class ConnectionService : Service() {
 
     private fun startRecordingVideo(videoName: String) {
         if (connectionActive) {
-
             serviceScope.launch {
                 try {
                     val outputStream: OutputStream = socket!!.getOutputStream()
@@ -551,7 +558,30 @@ class ConnectionService : Service() {
                 }
             }
         }
+    }
 
+    private fun startMacro(macroName: String) {
+        if (connectionActive) {
+            serviceScope.launch {
+                try {
+                    val outputStream: OutputStream = socket!!.getOutputStream()
+
+                    // Create an instance of Instruction with the given type and extras
+                    val instruction = StartFlight(InstructionType.START_MACRO.value, macroName)
+
+                    // Serialize the instruction to JSON string
+                    val jsonString = Json.encodeToString(instruction)
+
+                    // Send the JSON string over the socket
+                    outputStream.write(jsonString.toByteArray(Charsets.UTF_8))
+                    outputStream.flush()
+
+                    Log.d("ConnectionService", "Sent JSON instruction: $jsonString")
+                } catch (e: Exception) {
+                    Log.e("ConnectionService", "Error sending JSON instruction: ${e.message}")
+                }
+            }
+        }
     }
 
     // Stop recording method

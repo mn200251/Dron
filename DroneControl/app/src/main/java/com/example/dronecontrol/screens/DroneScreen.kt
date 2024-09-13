@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.Color.rgb
 import android.graphics.Paint
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -405,9 +406,12 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel(), context:
         if (showMacroSelectionDialog) {
             MacroSelectionDialog(
                 strings = listOf("Item 1", "Item 2", "Item 3", "item 4", "item5", "item6", "item7"),
-                onConfirm = { selectedItem ->
-                    // Handle confirm button click, do something with `selectedItem`
-                    println("Confirmed: $selectedItem")
+                onConfirm = { selectedMacroName ->
+                    connectionViewModel.startMacro(context, selectedMacroName)
+
+                    val toast = Toast(context)
+                    toast.setText("Macro started!")
+                    toast.show()
 
                     showMacroSelectionDialog = false
                 },

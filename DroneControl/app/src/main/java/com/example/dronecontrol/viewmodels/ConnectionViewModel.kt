@@ -153,6 +153,19 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
         context.startService(intent)
     }
 
+    fun startMacro(context: Context, macroName: String)
+    {
+        val action = InstructionType.START_MACRO.value.toString()
+
+        val intent = Intent(context, ConnectionService::class.java).apply {
+            this.action = action
+
+            putExtra("name", macroName)
+        }
+
+        context.startService(intent)
+    }
+
     private fun setMonitorMovementBoolean(newValue: Boolean)
     {
         savedStateHandle[UI_STATE_KEY] = _uiState2.value.copy(
