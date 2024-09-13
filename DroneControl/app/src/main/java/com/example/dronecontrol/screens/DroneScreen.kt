@@ -49,6 +49,7 @@ import com.example.dronecontrol.collectAsState
 import com.example.dronecontrol.models.ModifiedJoyStick
 import com.example.dronecontrol.sharedRepositories.SharedRepository
 import com.example.dronecontrol.utils.InputDialog
+import com.example.dronecontrol.utils.MacroSelectionDialog
 import com.example.dronecontrol.viewmodels.ConnectionViewModel
 import com.example.dronecontrol.viewmodels.SCREEN
 import kotlin.math.roundToInt
@@ -93,6 +94,7 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel(), context:
 
     var showMacroDialog by remember { mutableStateOf(false) }
     var showVideoDialog by remember { mutableStateOf(false) }
+    var showMacroSelectionDialog by remember { mutableStateOf(false) }
 
     var flightName by remember { mutableStateOf("") }
 
@@ -194,7 +196,7 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel(), context:
         }
 
         IconButton(
-            onClick = { /* TODO GET FLIGHTS AND ADD WINDOW TO SELECT FLIGHT (ADD flightActive boolean?) */ },
+            onClick = { showMacroSelectionDialog = true },
             enabled = isPoweredOn,
             modifier = Modifier
                 .align(Alignment.TopEnd)
@@ -398,6 +400,19 @@ fun DroneScreen(connectionViewModel: ConnectionViewModel = viewModel(), context:
                     showVideoDialog = false
                 },
                 title = "Enter video name")
+        }
+
+        if (showMacroSelectionDialog) {
+            MacroSelectionDialog(
+                strings = listOf("Item 1", "Item 2", "Item 3", "item 4", "item5", "item6", "item7"),
+                onConfirm = { selectedItem ->
+                    // Handle confirm button click, do something with `selectedItem`
+                    println("Confirmed: $selectedItem")
+
+                    showMacroSelectionDialog = false
+                },
+                onDismiss = { showMacroSelectionDialog = false } // Close the popup
+            )
         }
     }
 }
