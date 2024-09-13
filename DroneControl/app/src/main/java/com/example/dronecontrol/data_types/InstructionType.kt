@@ -2,10 +2,10 @@ package com.example.dronecontrol.data_types
 
 enum class InstructionType(val value: Int) {
     HEARTBEAT(1),
-    START_RECORDING(2),
-    STOP_RECORDING(3),
-    START_FLIGHT(4),
-    END_FLIGHT(5),
+    START_RECORDING_VIDEO(2),
+    STOP_RECORDING_VIDEO(3),
+    START_RECORDING_MACRO(4),
+    STOP_RECORDING_MACRO(5),
     GET_MACROS(6),
     START_MACRO(7),
     GET_VIDEOS(8),
@@ -16,6 +16,4 @@ enum class InstructionType(val value: Int) {
     TURN_OFF(13),
     GET_STATUS(14), // Check the status as some instructions might not have passed, e.g., start recording
     BACK(15), // Return from browsing videos/flights
-    RECORD_INST_START ( 16),
-    RECORD_INST_STOP ( 17 )
 }

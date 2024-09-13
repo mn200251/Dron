@@ -165,44 +165,29 @@ class ConnectionService : Service() {
                 if (myData != null)
                     controls = myData
             }
-            "ACTION_START_RECORDING" -> {
+
+            InstructionType.START_RECORDING_VIDEO.value.toString() -> {
                 val videoName = intent.getStringExtra("name")
 
                 if (videoName != null) {
                     startRecordingVideo(videoName)
                 }
             }
-            "ACTION_STOP_RECORDING" -> {
+
+            InstructionType.STOP_RECORDING_VIDEO.value.toString() -> {
                 stopRecordingVideo()
             }
-            "ACTION_START_INSTRUCTION_RECORDING" -> {
-                startInstructionRecording()
-            }
-            "ACTION_STOP_INSTRUCTION_RECORDING" -> {
-                stopInstructionRecording()
-            }
+
             "ACTION_CONNECTION_NOT_ACTIVE" -> {
                 connectionActive = false
             }
 
-            "ACTION_TURN_ON" -> {
+            InstructionType.TURN_ON.value.toString() -> {
                 turnOn()
             }
 
-            "ACTION_TURN_OFF" -> {
+            InstructionType.TURN_OFF.value.toString() -> {
                 turnOff()
-            }
-
-            "ACTION_START_FLIGHT" -> {
-                val macroName = intent.getStringExtra("name")
-
-                if (macroName != null) {
-                    startRecordingMacro(macroName)
-                }
-            }
-
-            "ACTION_END_FLIGHT" -> {
-                endRecordingMacro()
             }
 
             InstructionType.START_MACRO.value.toString() -> {
@@ -211,6 +196,18 @@ class ConnectionService : Service() {
                 if (macroName != null) {
                     startMacro(macroName)
                 }
+            }
+
+            InstructionType.START_RECORDING_MACRO.value.toString() -> {
+                val macroName = intent.getStringExtra("name")
+
+                if (macroName != null) {
+                    startRecordingMacro(macroName)
+                }
+            }
+
+            InstructionType.STOP_RECORDING_MACRO.value.toString() -> {
+                endRecordingMacro()
             }
         }
 
@@ -504,6 +501,7 @@ class ConnectionService : Service() {
         sendJsonInstruction(InstructionType.HEARTBEAT.value)
     }
 
+    /*
     // Start recording method
     private fun startInstructionRecording() {
         if (connectionActive && !SharedRepository.getRecordingMacro()) {
@@ -533,6 +531,8 @@ class ConnectionService : Service() {
                     ", recording flight = " + SharedRepository.getRecordingMacro().toString())
         }
     }
+    */
+
 
     private fun startRecordingVideo(videoName: String) {
         if (connectionActive) {
@@ -541,7 +541,7 @@ class ConnectionService : Service() {
                     val outputStream: OutputStream = socket!!.getOutputStream()
 
                     // Create an instance of Instruction with the given type and extras
-                    val instruction = StartFlight(InstructionType.START_RECORDING.value, videoName)
+                    val instruction = StartFlight(InstructionType.START_RECORDING_VIDEO.value, videoName)
 
                     // Serialize the instruction to JSON string
                     val jsonString = Json.encodeToString(instruction)
@@ -589,7 +589,7 @@ class ConnectionService : Service() {
         if (connectionActive) {
             SharedRepository.setRecordingVideo(false)
 
-            sendJsonInstruction(InstructionType.STOP_RECORDING.value)
+            sendJsonInstruction(InstructionType.STOP_RECORDING_VIDEO.value)
         }
     }
 
@@ -622,7 +622,7 @@ class ConnectionService : Service() {
                     val outputStream: OutputStream = socket!!.getOutputStream()
 
                     // Create an instance of Instruction with the given type and extras
-                    val instruction = StartFlight(InstructionType.START_FLIGHT.value, macroName)
+                    val instruction = StartFlight(InstructionType.START_RECORDING_MACRO.value, macroName)
 
                     // Serialize the instruction to JSON string
                     val jsonString = Json.encodeToString(instruction)
@@ -649,7 +649,7 @@ class ConnectionService : Service() {
         if (connectionActive ) {
             SharedRepository.setRecordingMacro(true)
 
-            sendJsonInstruction(InstructionType.END_FLIGHT.value)
+            sendJsonInstruction(InstructionType.STOP_RECORDING_MACRO.value)
         }
     }
 

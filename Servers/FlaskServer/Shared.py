@@ -31,8 +31,8 @@ class InstructionType(Enum):
     STOP_RECORDING = 3
     START_FLIGHT = 4
     END_FLIGHT = 5
-    GET_FLIGHTS = 6
-    START_PREVIOUS_FLIGHT = 7
+    GET_MACROS = 6
+    START_MACRO = 7
     GET_VIDEOS = 8  # start the video download and request video using inedex
     DOWNLOAD_VIDEO = 9
     TURN_ON = 10

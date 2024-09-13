@@ -109,7 +109,8 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
     fun updateIsRecordingVideo(context:Context, newValue: Boolean, videoName: String?)
     {
         // Send the appropriate action to the service
-        val action = if (newValue) "ACTION_START_RECORDING" else "ACTION_STOP_RECORDING"
+        val action = if (newValue) InstructionType.START_RECORDING_VIDEO.value.toString()
+            else InstructionType.STOP_RECORDING_VIDEO.value.toString()
         // startService(context, action)
 
         val intent = Intent(context, ConnectionService::class.java).apply {
@@ -124,7 +125,8 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
 
     fun updatePoweredOn(context: Context, newValue: Boolean)
     {
-        val action = if (newValue) "ACTION_TURN_ON" else "ACTION_TURN_OFF"
+        val action = if (newValue) InstructionType.TURN_ON.value.toString()
+            else InstructionType.TURN_OFF.value.toString()
 
         val intent = Intent(context, ConnectionService::class.java).apply {
             this.action = action
@@ -141,7 +143,8 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
     {
         // SharedRepository.setRecordingFlight(newValue)
 
-        val action = if (newValue) "ACTION_START_INSTRUCTION_RECORDING" else "ACTION_STOP_INSTRUCTION_RECORDING"
+        val action = if (newValue) InstructionType.START_RECORDING_MACRO.value.toString()
+            else InstructionType.STOP_RECORDING_MACRO.value.toString()
 
         val intent = Intent(context, ConnectionService::class.java).apply {
             this.action = action
