@@ -27,10 +27,10 @@ class PhoneState(Enum):
 
 class InstructionType(Enum):
     HEARTBEAT = 1
-    START_RECORDING = 2
-    STOP_RECORDING = 3
-    START_FLIGHT = 4
-    END_FLIGHT = 5
+    START_RECORDING_VIDEO = 2
+    STOP_RECORDING_VIDEO = 3
+    START_RECORDING_MACRO = 4
+    STOP_RECORDING_MACRO = 5
     GET_MACROS = 6
     START_MACRO = 7
     GET_VIDEOS = 8  # start the video download and request video using inedex
@@ -41,8 +41,6 @@ class InstructionType(Enum):
     TURN_OFF = 13
     GET_STATUS = 14  # da proveri stanje jer neke instrukcije mozda nisu prosle npr pocni snimanje
     BACK = 15  # povratak iz browsinga videa/letova?
-    RECORD_INST_START = 16
-    RECORD_INST_STOP = 17
 
 
 # Constants

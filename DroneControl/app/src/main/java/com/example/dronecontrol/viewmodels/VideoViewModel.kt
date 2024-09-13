@@ -63,7 +63,7 @@ class VideoViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel
             var auth: String = "phone"
             var addressPair: Pair<String, String>?
             if (INTERNAL) {
-                addressPair = Pair<String, String>("192.168.1.17", "6970")
+                addressPair = Pair<String, String>("192.168.1.17", "42069")
             } else {
                 addressPair = getCurrentIP(GITHUB_TOKEN, REPO_NAME, DOWNLOAD_FILE_PATH, BRANCH_NAME)
             }

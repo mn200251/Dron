@@ -18,7 +18,7 @@ def start_tcp_server(server_ip, server_port, handler_function):
 
     while not stop_event.is_set():
         client_socket, addr = server_socket.accept()
-        print(f"Accepted connection from {addr}")
+        print(f"Accepted connection from {addr} at port {server_port}")
         client_handler = threading.Thread(target=handler_function, args=(client_socket,))
         client_handler.start()
 
