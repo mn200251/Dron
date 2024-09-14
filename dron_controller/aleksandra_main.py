@@ -4,6 +4,8 @@ import gpiod
 import atexit
 import signal
 
+from pca9685 import PCA9685, PCA9685_I2C_ADDRESS
+
 # Customize here pulse lengths as needed
 MIN_PULSE_LENGTH = 1000  # Minimum pulse length in µs
 MAX_PULSE_LENGTH = 2000  # Maximum pulse length in µs
@@ -31,10 +33,18 @@ def pwm_thread():
         time.sleep((PERIOD - pulse_length) / 1000000.0)
     print("Nit gotova")
 
-def set_pulse_length(new_pulse_length:int):
+def set_pulse_length_old(new_pulse_length:int):
     global pulse_length
     pulse_length = new_pulse_length
+def set_pulse_length(new):
+    if softvare_pwm:
+        set_pulse_length_old(new)
+    else:
+        pca9685.set_ESC_PWM(channel,new)
 
+def set_pwm_a_bit_higher_then_max():
+    pca9685.set_channel_pwm(0,11)
+    print(pca9685.read_channel_pwm(0))
 def cleanup():
     global running
     running = False
@@ -98,15 +108,16 @@ def calibrate_esc(x):
 
     # now ready to power on ESC's
     print("We are now ready to power on the ESC's")
-    print("When you power on the ESC's, you will hear a sequence of 4 single beeps")
-    print("Press enter on your keyboard BEFORE the fourth beep. (during the 4 beep period).")
+    print("When you power on the ESC's, you will hear a sequence of 3 raising beeps series")
+    print("Press enter on your keyboard BEFORE the last beep. (during the 3 beep period).")
     print("I will then go from the max throttle to the min throttle.")
     print(
-        "After this, you will hear a confirmation beep(s) to confirm that the max and min throttle position have been saved.")
+        "After this, you will hear a confirmation descending beep(s) to confirm that the max and min throttle position "
+        "have been saved. Finally 2 single beeps to confirm the arming of the motors.")
     print("Ok, ready to continue?")
     print("1. Plug the power in")
-    print("2. Wait for the 4-beep sequence to start")
-    print("3. Before the 4th beep, press enter on your keyboard.")
+    print("2. Wait for the 3-beep sequence to start")
+    print("3. Before the 3th beep, press enter on your keyboard.")
 
     # min throttle
     print("")
@@ -126,8 +137,8 @@ def calibrate_esc(x):
 
 def arm_esc():
     time.sleep(0.2)
-    set_pulse_length((MIN_PULSE_LENGTH+MAX_PULSE_LENGTH)/2)
-    time.sleep(PERIOD/1000000.0)
+    set_pulse_length(1100)
+    time.sleep(2)
     set_pulse_length(MIN_PULSE_LENGTH)
 def test():
     MPL = MAX_PULSE_LENGTH
@@ -169,30 +180,41 @@ def loop():
             set_pulse_length(prev)
             print("Done")
         elif data == '6':
-            running = False
-            thread.join()  # Wait for the PWM thread to finish
+            if softvare_pwm:
+                running = False
+                thread.join()
+            else:
+                pca9685.set_channel_pwm(channel,0)
             break
         else:
             print("Invalid input")
 
-
+channel=-1
+softvare_pwm=False
 if __name__ == "__main__":
+    if softvare_pwm:
+        # Register the cleanup function to be called on program exit
+        atexit.register(cleanup)
 
+        # Register signal handlers for graceful exit on signals
+        signal.signal(signal.SIGINT, handle_exit)
+        signal.signal(signal.SIGTERM, handle_exit)
 
-    # Register the cleanup function to be called on program exit
-    atexit.register(cleanup)
+        # Start the PWM in a separate thread
+        thread = threading.Thread(target=pwm_thread)
+        thread.start()
+    else:
+        pca9685 = PCA9685(i2c_address=PCA9685_I2C_ADDRESS)
 
-    # Register signal handlers for graceful exit on signals
-    signal.signal(signal.SIGINT, handle_exit)
-    signal.signal(signal.SIGTERM, handle_exit)
+        pca9685.reset()
 
-    # Start the PWM in a separate thread
-    thread = threading.Thread(target=pwm_thread)
-    thread.start()
+        pca9685.init()
+
 
     setup()
 
     loop()
+
 
 
 
