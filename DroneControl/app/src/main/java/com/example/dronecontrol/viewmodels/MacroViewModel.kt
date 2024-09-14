@@ -1,9 +1,7 @@
 package com.example.dronecontrol.viewmodels
 
-import android.graphics.BitmapFactory
 import android.os.Build
 import android.os.Parcelable
-import android.util.Base64
 import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.lifecycle.SavedStateHandle
@@ -11,7 +9,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.dronecontrol.data_types.InstructionType
 import com.example.dronecontrol.private.BRANCH_NAME
-import com.example.dronecontrol.private.DOWNLOAD_FILE_PATH
 import com.example.dronecontrol.private.GITHUB_TOKEN
 import com.example.dronecontrol.private.INTERNAL
 import com.example.dronecontrol.private.REPO_NAME
@@ -22,6 +19,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.parcelize.Parcelize
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.DataInputStream
@@ -67,44 +65,39 @@ class MacroViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel
                     it.toInt()
                 )
             }
-            var numberOfMacros = 0
+            var size = 0
 
             val macroList = mutableListOf<String>()
             var cnt = -1
-            while (cnt < numberOfMacros) {
+            while (cnt<0) {
                 try {
                     socket = Socket()
                     socket.connect(socketAddress, 2000)
-                    val videoOutputStream = DataOutputStream(socket.getOutputStream())
+                    val macroOutputStream = DataOutputStream(socket.getOutputStream())
                     val reader = BufferedReader(InputStreamReader(socket.getInputStream()))
+                    val macroInputStream = DataInputStream(socket.getInputStream())
 
-                    videoOutputStream.write(auth.toByteArray(Charsets.UTF_8))
-                    videoOutputStream.flush()
+                    macroOutputStream.write(auth.toByteArray(Charsets.UTF_8))
+                    macroOutputStream.flush()
 
-                    if (cnt == -1) {
-
-                        val request = JSONObject().apply {
+                    val request = JSONObject().apply {
                             put("type", InstructionType.GET_MACROS.value)
                         }
 
-                        videoOutputStream.writeUTF(request.toString())
-                        videoOutputStream.flush()
+                        macroOutputStream.writeUTF(request.toString())
+                        macroOutputStream.flush()
 
-                        numberOfMacros = reader.readLine().toInt()
-                        Log.d("MacroViewModel", "Number of macros: $numberOfMacros")
-                        cnt = 0
+                        size = macroInputStream.readInt()
+                        Log.d("MacroViewModel", "Number of bytes: $size")
+
+                    val responseData = ByteArray(size)
+                    macroInputStream.readFully(responseData)
+                    val jsonData = String(responseData, Charsets.UTF_8)
+                    val jsonArray = JSONArray(jsonData)
+                    for (i in 0 until jsonArray.length()) {
+                        macroList.add(jsonArray.getString(i))
                     }
-
-                    while (cnt < numberOfMacros) {
-                        val newMacro = reader.readLine()
-
-                        macroList.add(newMacro)
-
-                        val updatedMacros = macroList.toMutableList()
-
-                        setMacroList(updatedMacros)
-                        cnt++
-                    }
+                    cnt=0
                 } catch (e: Exception) {
                     // Handle exceptions and retry logic if necessary
                     Log.d("MacroViewModel", "Error receiving macro ${cnt}: ${e.message}")
@@ -114,6 +107,7 @@ class MacroViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel
                     setIsLoading(false)
                 }
             }
+            setMacroList(macroList)
             Log.d("MacroViewModel", "Finished receiving macro list")
         }
     }

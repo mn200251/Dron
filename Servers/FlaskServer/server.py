@@ -1,5 +1,6 @@
 import base64
 import json
+import os
 import queue
 import struct
 import threading
@@ -35,12 +36,7 @@ record_video = RecordState.NOT_RECORDING
 # Events
 send_event = threading.Event()
 
-# For video download
-lock = threading.Lock()
-response = None
 
-# Video listing
-video_list = []
 
 # Instruction_recording
 macro_name = f"{script_dir}/script_{time.strftime('%Y%m%d_%H%M%S')}.json"
@@ -316,7 +312,7 @@ def handleControls(phoneSocket):
 
 
 def process_instruction(instruction_data):
-    global record_video, video_name, start_time, previous_time, macro_name, isRecordingMacro, instructions, response, phone_state, command_dict
+    global isPoweredOn,record_video, video_name, start_time, previous_time, macro_name, isRecordingMacro, instructions, response, phone_state, command_dict
     instruction_type = instruction_data.get("type")
     flag_pass_commands = False
     if instruction_type is None:
@@ -353,7 +349,11 @@ def process_instruction(instruction_data):
         isPoweredOn=False
         command_dict["type"] = instruction_type
         flag_pass_commands = True
-
+    elif instruction_type == InstructionType.START_MACRO.value:
+        autopilot_thread = threading.Thread(target=fly_autopilot, args=(instruction_data['name'],))
+        autopilot_thread.start()
+    else:
+        print("Unkown instruction in handle controls")
     return flag_pass_commands
 
 def handleAutopilotSetup(client_socket):
@@ -384,27 +384,21 @@ def handleAutopilotSetup(client_socket):
                     instruction_data = json.loads(json_str)
                     instruction_type = instruction_data.get("type")
                     print(instruction_data)
-                    if instruction_type == InstructionType.START_MACRO.value:
-                        autopilot_thread = threading.Thread(target=fly_autopilot, args=(instruction_data['file'],))
-                        autopilot_thread.start()
-                    elif instruction_type == InstructionType.GET_MACROS.value:
-                        macro = instruction_data.get("name", "idk")
-                        with open(macro, 'r') as f:
-                            data = json.load(f)
-                        json_data = json.dumps(data)
+
+                    if instruction_type == InstructionType.GET_MACROS.value:
+                        file_list = os.listdir(script_dir)
+                        json_data = json.dumps(file_list).encode('utf-8')
                         data_length = len(json_data)
                         client_socket.sendall(struct.pack('>I', data_length))
 
                         # Send the actual JSON data
                         client_socket.sendall(json_data)
-                        print(f"Sent {data_length} bytes of JSON data from {macro}.")
+                        print(f"Sent {data_length} bytes of JSON data AutopilotSetup.")
                     else:
                         print("Unknown instruction in AutopilotSetup")
 
                 except json.JSONDecodeError:
                     print("Received invalid JSON data")
-            if flag_pass_commands:
-                send_event.set()
         except Exception as e:
             flag = False
             print(f"Phone connection lost in handleControls: {e}")
@@ -421,21 +415,21 @@ def fly_autopilot(instruction_file):
     :return:
     """
     global isAutopilotAcive, previous_time, send_event
-
+    print("Autopilot started")
     isAutopilotAcive = True
-    with open(instruction_file, 'r') as f:
-        data = json.load(f)
-        instructions_list = data['instructions']
+    with open(f"{script_dir}/{instruction_file}", 'r') as f:
+        instructions_list = json.load(f)
 
     for instruction in instructions_list:
         if not isAutopilotAcive:
             break
 
-        flag, flag_pass_command = process_instruction(instruction)
-        if flag_pass_command:
-            send_event.set()
+        flag_pass_command = process_instruction(instruction)
+        # always sends to drone so if is checking the flag is unneeded
+        send_event.set()
         time.sleep(instruction["delta_time"])
     isAutopilotAcive = False
+    print("Autopilot finished")
 
 
 # Function to handle client connections
@@ -459,7 +453,7 @@ def handle_client_connection_general(client_socket):
                     handleControls(client_socket)
                 case "macro":
                     connections["macro"] = client_socket
-                    handleControls(client_socket)
+                    handleAutopilotSetup(client_socket)
                 case _:
                     print(f"Received message: {message}")
                     client_socket.sendall("-1\n".encode())

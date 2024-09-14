@@ -8,6 +8,12 @@ import requests
 
 from FlaskServer.Shared import *
 
+# For video download
+lock = threading.Lock()
+response = None
+
+# Video listing
+VIDEO_DIR = 'videos'
 
 def generate_thumbnail(video_path):
     cap = cv2.VideoCapture(video_path)
@@ -21,11 +27,11 @@ def generate_thumbnail(video_path):
 
 
 def get_video_list():
-    video_dir = 'videos'
+
     video_list = []
-    for filename in os.listdir(video_dir):
+    for filename in os.listdir(VIDEO_DIR):
         if filename.endswith(".mp4"):  # Check if the file is a video
-            video_path = os.path.join(video_dir, filename)
+            video_path = os.path.join(VIDEO_DIR, filename)
             thumbnail = generate_thumbnail(video_path)
             video_list.append({
                 'filename': filename,
@@ -38,9 +44,8 @@ def get_video_names():
     """
     Get the list of video filenames without generating thumbnails.
     """
-    video_dir = 'videos'
     video_list = []
-    for filename in os.listdir(video_dir):
+    for filename in os.listdir(VIDEO_DIR):
         if filename.endswith(".mp4"):  # Check if the file is a video
             video_list.append(filename)
     return video_list
@@ -100,7 +105,7 @@ def handle_video_listing(phoneSocket):
                         phoneSocket.sendall(video_json)
                         print(f"Sent video metadata for index {index}")
                 else:
-                    print(f"Unknown instruction type: {instruction_type}")
+                    print(f"Unknown instruction type in video listing: {instruction_type}")
 
             except json.JSONDecodeError as e:
                 print(f"JSON decode error: {e}")

@@ -180,11 +180,9 @@ fun DroneScreen(
 
         IconButton(
             onClick = {
+
                 if (!isRecordingMacro)
-                {
-                    macroViewModel.fetchMacros()
                     showMacroDialog = true
-                }
                 else
                     connectionViewModel.updateIsRecordingMacro(
                         context,
@@ -208,7 +206,10 @@ fun DroneScreen(
         }
 
         IconButton(
-            onClick = { showMacroSelectionDialog = true },
+            onClick = {
+                macroViewModel.fetchMacros()
+                showMacroSelectionDialog = true
+            },
             enabled = isPoweredOn,
             modifier = Modifier
                 .align(Alignment.TopEnd)
