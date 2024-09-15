@@ -54,7 +54,7 @@ script_dir = "flight_scripts"
 
 
 # Flag to determine if the server is internal or external
-internal = True
+internal = False
 
 # Interval to update the IP address on GitHub (in seconds)
 ip_update_interval = 60 * 10

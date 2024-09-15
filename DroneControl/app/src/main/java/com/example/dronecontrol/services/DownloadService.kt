@@ -111,7 +111,7 @@ class DownloadService : Service()
             if (INTERNAL) {
                 addressPair = Pair<String, String>("192.168.1.17", "42069")
             } else {
-                addressPair = getCurrentIP(GITHUB_TOKEN, REPO_NAME, SERVER_FILE_PATH, BRANCH_NAME)
+                addressPair = getCurrentIP(GITHUB_TOKEN, REPO_NAME, DOWNLOAD_FILE_PATH, BRANCH_NAME)
             }
 
             if (addressPair == null) {
