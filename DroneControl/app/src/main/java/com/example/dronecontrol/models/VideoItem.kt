@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
@@ -72,8 +73,46 @@ fun VideoItem(video: Video, onDownloadConfirm: (Video) -> Unit) {
             }
 
             // Download Button
-            Button(onClick = { showDialog = true }) {
-                Text("Download")
+//            Button(onClick = { showDialog = true }) {
+//                Text("Download")
+//            }
+
+            // Download Button (Green)
+            Button(
+                onClick = { showDialog = true },
+                colors = ButtonDefaults.buttonColors(
+                    // containerColor = Color.Green
+                    containerColor = Color(0, 102, 0)
+                ),
+                shape = RoundedCornerShape(8.dp), // Rounded corners for a better look
+                modifier = Modifier.padding(4.dp) // Padding around the button
+            ) {
+                Text("Download", color = Color.White)
+            }
+
+            // Rename Button (Blue)
+            Button(
+                onClick = { /* Handle rename action */ },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.Blue
+                ),
+                shape = RoundedCornerShape(8.dp), // Rounded corners for a better look
+                modifier = Modifier.padding(4.dp) // Padding around the button
+            ) {
+                Text("Rename", color = Color.White)
+            }
+
+            // Delete Button (Red)
+            Button(
+                onClick = { /* Handle delete action */ },
+                colors = ButtonDefaults.buttonColors(
+                    // containerColor = Color.Red
+                    containerColor = Color(128, 0, 0)
+                ),
+                shape = RoundedCornerShape(8.dp), // Rounded corners for a better look
+                modifier = Modifier.padding(4.dp) // Padding around the button
+            ) {
+                Text("Delete", color = Color.White)
             }
 
             if (showDialog) {
