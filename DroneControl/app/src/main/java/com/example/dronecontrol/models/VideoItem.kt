@@ -116,7 +116,7 @@ fun VideoItem(video: Video,
                     containerColor = Color.Blue
                 ),
                 shape = RoundedCornerShape(8.dp),
-                enabled = video.filename.length >= 3,
+                enabled = video.filename.isNotEmpty(),
                 modifier = Modifier.padding(4.dp)
             ) {
                 if (isRenaming)
