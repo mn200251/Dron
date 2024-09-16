@@ -1,8 +1,6 @@
 package com.example.dronecontrol.models
 
-import android.graphics.Bitmap
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
@@ -11,6 +9,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -27,10 +26,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.DialogProperties
 import com.example.dronecontrol.viewmodels.Video
+import kotlin.math.sin
 
 @Composable
-fun VideoItem(video: Video, onDownloadConfirm: (Video) -> Unit) {
-    var showDialog by remember { mutableStateOf(false) }
+fun VideoItem(video: Video,
+              onDownloadConfirm: (Video) -> Unit,
+              onRenameConfirm: (String, String) -> Unit,
+              onDeleteConfirm: (Video) -> Unit
+)
+{
+    var showDownloadDialog by remember { mutableStateOf(false) }
+    var isRenaming by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    var newName: String by remember { mutableStateOf(video.filename) }
 
     Card(
         modifier = Modifier
@@ -63,12 +72,12 @@ fun VideoItem(video: Video, onDownloadConfirm: (Video) -> Unit) {
 
                 Spacer(modifier = Modifier.width(16.dp))
 
-                // Video Filename
-                Text(
-                    text = video.filename,
-                    fontSize = 18.sp,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold
+                OutlinedTextField(value = newName,
+                    onValueChange = { it ->
+                        newName = it
+                    },
+                    readOnly = !isRenaming,
+                    singleLine = true
                 )
             }
 
@@ -77,59 +86,96 @@ fun VideoItem(video: Video, onDownloadConfirm: (Video) -> Unit) {
 //                Text("Download")
 //            }
 
-            // Download Button (Green)
+
             Button(
-                onClick = { showDialog = true },
+                onClick = { showDownloadDialog = true },
                 colors = ButtonDefaults.buttonColors(
-                    // containerColor = Color.Green
                     containerColor = Color(0, 102, 0)
                 ),
-                shape = RoundedCornerShape(8.dp), // Rounded corners for a better look
-                modifier = Modifier.padding(4.dp) // Padding around the button
+                enabled = !isRenaming,
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.padding(4.dp)
             ) {
                 Text("Download", color = Color.White)
             }
 
-            // Rename Button (Blue)
             Button(
-                onClick = { /* Handle rename action */ },
+                onClick = {
+                    if (isRenaming)
+                    {
+                        onRenameConfirm(video.filename, newName)
+                    }
+                    else
+                    {
+
+                    }
+
+                    isRenaming = isRenaming.not()
+                },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color.Blue
                 ),
-                shape = RoundedCornerShape(8.dp), // Rounded corners for a better look
-                modifier = Modifier.padding(4.dp) // Padding around the button
+                shape = RoundedCornerShape(8.dp),
+                enabled = video.filename.length >= 3,
+                modifier = Modifier.padding(4.dp)
             ) {
-                Text("Rename", color = Color.White)
+                if (isRenaming)
+                    Text("Save", color = Color.White)
+                else
+                    Text("Rename", color = Color.White)
             }
 
-            // Delete Button (Red)
             Button(
-                onClick = { /* Handle delete action */ },
+                onClick = { showDeleteDialog = true },
                 colors = ButtonDefaults.buttonColors(
-                    // containerColor = Color.Red
                     containerColor = Color(128, 0, 0)
                 ),
-                shape = RoundedCornerShape(8.dp), // Rounded corners for a better look
-                modifier = Modifier.padding(4.dp) // Padding around the button
+                enabled = !isRenaming,
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.padding(4.dp)
             ) {
                 Text("Delete", color = Color.White)
             }
 
-            if (showDialog) {
+            if (showDownloadDialog) {
                 AlertDialog(
-                    onDismissRequest = { showDialog = false },
+                    onDismissRequest = { showDownloadDialog = false },
                     title = { Text(text = "Download Video", color = Color.White) },
                     text = { Text(text = "Do you wish to download video ${video.filename}?", color = Color.White) },
                     confirmButton = {
                         Button(onClick = {
-                            showDialog = false
+                            showDownloadDialog = false
                             onDownloadConfirm(video)
                         }) {
                             Text("Yes")
                         }
                     },
                     dismissButton = {
-                        Button(onClick = { showDialog = false }) {
+                        Button(onClick = { showDownloadDialog = false }) {
+                            Text("No")
+                        }
+                    },
+                    containerColor = Color.DarkGray,
+                    properties = DialogProperties()
+                )
+            }
+
+            if (showDeleteDialog) {
+                AlertDialog(
+                    onDismissRequest = { showDeleteDialog = false },
+                    title = { Text(text = "Delete Video", color = Color.White) },
+                    text = { Text(text = "Do you wish to delete this video ${video.filename}?", color = Color.White) },
+                    confirmButton = {
+                        Button(onClick = {
+                            showDeleteDialog = false
+
+                            onDeleteConfirm(video)
+                        }) {
+                            Text("Yes")
+                        }
+                    },
+                    dismissButton = {
+                        Button(onClick = { showDeleteDialog = false }) {
                             Text("No")
                         }
                     },

@@ -15,6 +15,7 @@ response = None
 # Video listing
 VIDEO_DIR = 'videos'
 
+
 def generate_thumbnail(video_path):
     cap = cv2.VideoCapture(video_path)
     success, frame = cap.read()
@@ -27,7 +28,6 @@ def generate_thumbnail(video_path):
 
 
 def get_video_list():
-
     video_list = []
     for filename in os.listdir(VIDEO_DIR):
         if filename.endswith(".mp4"):  # Check if the file is a video
@@ -207,6 +207,46 @@ def handle_video_download(phoneSocket):
         print(f"An error occurred in video download handler: {e}")
 
 
+def handle_video_rename(client_socket):
+    try:
+        # Receiving old and new video names
+        oldVideoName = client_socket.recv(1024).decode('utf-8').strip()
+        newVideoName = client_socket.recv(1024).decode('utf-8').strip()
+
+        oldFilePath = os.path.join("videos", oldVideoName)
+        newFilePath = os.path.join("videos", newVideoName)
+
+        if os.path.exists(oldFilePath):
+
+            if not os.path.exists(newFilePath):
+                os.rename(oldFilePath, newFilePath)
+                print(f"Video {oldVideoName} renamed to {newVideoName}!")
+            else:
+                print(f"Error: Video {newVideoName} already exists!")
+        else:
+            print(f"Error: Video {oldVideoName} does not exist!")
+
+    except Exception as e:
+        print(f"An error occurred in video rename handler: {e}")
+
+
+def handle_video_delete(client_socket):
+    try:
+        videoName = client_socket.recv(1024).decode('utf-8')
+
+        file_path = os.path.join("videos", videoName)
+
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            print(f"Video {videoName} deleted!")
+        else:
+            print(f"Video {videoName} does not exist!")
+
+
+    except Exception as e:
+        print(f"An error occurred in video delete handler: {e}")
+
+
 def handle_client_connection_video(client_socket):
     """
         Handles incoming client connections for video-related cases.
@@ -223,6 +263,12 @@ def handle_client_connection_video(client_socket):
                 case "video_listing":
                     client_socket.sendall("0\n".encode())  # everything ok
                     handle_video_listing(client_socket)
+                case "video_rename":
+                    client_socket.sendall("0\n".encode())  # everything ok
+                    handle_video_rename(client_socket)
+                case "video_delete":
+                    client_socket.sendall("0\n".encode())  # everything ok
+                    handle_video_delete(client_socket)
                 case _:
                     print(f"Received invalid message for video handler: {message}")
                     client_socket.sendall("-1\n".encode())

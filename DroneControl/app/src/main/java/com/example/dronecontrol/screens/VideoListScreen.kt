@@ -2,6 +2,7 @@ package com.example.dronecontrol.screens
 
 import android.content.Intent
 import android.os.Build
+import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -40,6 +41,9 @@ import com.example.dronecontrol.services.DownloadService
 import com.example.dronecontrol.sharedRepositories.SharedRepository
 import com.example.dronecontrol.viewmodels.SCREEN
 import com.example.dronecontrol.viewmodels.VideoViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -108,7 +112,38 @@ fun VideoListScreen(viewModel: VideoViewModel ) {
                         } else {
                             context.startService(intent)
                         }
-                    })
+                    },
+                        onDeleteConfirm = { deletedVideo ->
+
+                            viewModel.deleteVideo(deletedVideo.filename)
+
+                            viewModel.setIsLoading(true)
+
+                            val toast = Toast(context)
+                            toast.setText("Deleted video")
+                            toast.show()
+
+                            SharedRepository.setScreen(SCREEN.MainScreen)
+//
+//                            viewModel.setVideos(videoState.videos.filter { currVideo ->
+//                                currVideo.filename != deletedVideo.filename
+//                            }.toMutableList())
+//
+//                            SharedRepository.setScreen(SCREEN.VideoListScreen)
+//
+//                            viewModel.setIsLoading(false)
+                            // viewModel.fetchVideos()
+                                          },
+                        onRenameConfirm = { oldName, newName ->
+                            viewModel.renameVideo(oldName = oldName, newName = newName)
+
+                            val toast = Toast(context)
+                            toast.setText("Renamed video")
+                            toast.show()
+
+                            SharedRepository.setScreen(SCREEN.MainScreen)
+                        }
+                    )
                 }
             }
         }

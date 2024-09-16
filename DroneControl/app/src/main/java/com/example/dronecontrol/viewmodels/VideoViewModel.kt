@@ -33,13 +33,13 @@ import java.net.InetSocketAddress
 
 @Parcelize
 data class Video(
-    val filename: String,
+    var filename: String,
     val thumbnail: Bitmap? // You can change this to a Bitmap if preferred
 ): Parcelable
 
 @Parcelize
 data class VideoState(
-    val videos: List<Video> = emptyList(),
+    var videos: List<Video> = emptyList(),
     var isLoading: Boolean = false
 ) : Parcelable
 
@@ -151,7 +151,91 @@ class VideoViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel
         }
     }
 
-    private fun setIsLoading(newValue: Boolean)
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun renameVideo(oldName: String, newName: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            var socket: Socket? = null
+            var auth: String = "video_rename"
+            var addressPair: Pair<String, String>?
+            if (INTERNAL) {
+                addressPair = Pair<String, String>("192.168.1.17", "42069")
+            } else {
+                addressPair = getCurrentIP(GITHUB_TOKEN, REPO_NAME, DOWNLOAD_FILE_PATH, BRANCH_NAME)
+            }
+            val socketAddress = addressPair?.second?.let {
+                InetSocketAddress(
+                    addressPair.first,
+                    it.toInt()
+                )
+            }
+
+            try {
+                socket = Socket()
+                socket.connect(socketAddress, 2000)
+                val videoOutputStream = DataOutputStream(socket.getOutputStream())
+                val videoInputStream = DataInputStream(socket.getInputStream())
+
+                videoOutputStream.write(auth.toByteArray(Charsets.UTF_8))
+                videoOutputStream.flush()
+
+                val videoResponse = BufferedReader(InputStreamReader(videoInputStream)).readLine()
+
+                videoOutputStream.write(oldName.toByteArray(Charsets.UTF_8))
+                videoOutputStream.flush()
+
+                videoOutputStream.write(newName.toByteArray(Charsets.UTF_8))
+                videoOutputStream.flush()
+            } catch (e: Exception) {
+                Log.d("VideoViewModel", "Error renaming video: ${e.message}")
+            } finally {
+                socket?.close()
+            }
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.O)
+    fun deleteVideo(videoName: String)
+    {
+        viewModelScope.launch(Dispatchers.IO) {
+            var socket: Socket? = null
+            var auth: String = "video_delete"
+            var addressPair: Pair<String, String>?
+            if (INTERNAL) {
+                addressPair = Pair<String, String>("192.168.1.17", "42069")
+            } else {
+                addressPair = getCurrentIP(GITHUB_TOKEN, REPO_NAME, DOWNLOAD_FILE_PATH, BRANCH_NAME)
+            }
+            val socketAddress = addressPair?.second?.let {
+                InetSocketAddress(
+                    addressPair.first,
+                    it.toInt()
+                )
+            }
+
+            try {
+                socket = Socket()
+                socket.connect(socketAddress, 2000)
+                val videoOutputStream = DataOutputStream(socket.getOutputStream())
+                val videoInputStream = DataInputStream(socket.getInputStream())
+
+                videoOutputStream.write(auth.toByteArray(Charsets.UTF_8))
+                videoOutputStream.flush()
+
+                val videoResponse = BufferedReader(InputStreamReader(videoInputStream)).readLine()
+
+                videoOutputStream.write(videoName.toByteArray(Charsets.UTF_8))
+                videoOutputStream.flush()
+            }
+            catch (e: Exception) {
+                Log.d("VideoViewModel", "Error deleting video: ${e.message}")
+            } finally {
+                socket?.close()
+            }
+        }
+    }
+
+    fun setIsLoading(newValue: Boolean)
     {
         savedStateHandle[VIDEO_STATE_KEY] = _videoState2.value.copy(
             isLoading = newValue,
@@ -163,7 +247,7 @@ class VideoViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel
         }
     }
 
-    private fun setVideos(newVideos: MutableList<Video>)
+    fun setVideos(newVideos: MutableList<Video>)
     {
         savedStateHandle[VIDEO_STATE_KEY] = _videoState2.value.copy(
             videos = newVideos,
