@@ -53,8 +53,10 @@ fun VideoListScreen(viewModel: VideoViewModel ) {
 
     val buttonSize = 60.dp
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(videoState.refresh) {
         viewModel.fetchVideos()
+
+        viewModel.setRefresh(false)
     }
 
     Column(
@@ -114,25 +116,13 @@ fun VideoListScreen(viewModel: VideoViewModel ) {
                         }
                     },
                         onDeleteConfirm = { deletedVideo ->
-
                             viewModel.deleteVideo(deletedVideo.filename)
-
-                            viewModel.setIsLoading(true)
 
                             val toast = Toast(context)
                             toast.setText("Deleted video")
                             toast.show()
 
-                            SharedRepository.setScreen(SCREEN.MainScreen)
-//
-//                            viewModel.setVideos(videoState.videos.filter { currVideo ->
-//                                currVideo.filename != deletedVideo.filename
-//                            }.toMutableList())
-//
-//                            SharedRepository.setScreen(SCREEN.VideoListScreen)
-//
-//                            viewModel.setIsLoading(false)
-                            // viewModel.fetchVideos()
+                            viewModel.setRefresh(true)
                                           },
                         onRenameConfirm = { oldName, newName ->
                             viewModel.renameVideo(oldName = oldName, newName = newName)
@@ -141,7 +131,7 @@ fun VideoListScreen(viewModel: VideoViewModel ) {
                             toast.setText("Renamed video")
                             toast.show()
 
-                            SharedRepository.setScreen(SCREEN.MainScreen)
+                            viewModel.setRefresh(true)
                         }
                     )
                 }

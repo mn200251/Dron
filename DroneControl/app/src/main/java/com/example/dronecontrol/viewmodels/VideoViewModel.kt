@@ -40,7 +40,8 @@ data class Video(
 @Parcelize
 data class VideoState(
     var videos: List<Video> = emptyList(),
-    var isLoading: Boolean = false
+    var isLoading: Boolean = false,
+    var refresh: Boolean = true
 ) : Parcelable
 
 const val VIDEO_STATE_KEY = "videoState"
@@ -255,6 +256,18 @@ class VideoViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel
         _videoState1.update { currVideoState ->
             currVideoState.copy(
                 videos = newVideos,
+            )
+        }
+    }
+
+    fun setRefresh(newValue: Boolean)
+    {
+        savedStateHandle[VIDEO_STATE_KEY] = _videoState2.value.copy(
+            refresh = newValue,
+        )
+        _videoState1.update { currVideoState ->
+            currVideoState.copy(
+                refresh = newValue,
             )
         }
     }
