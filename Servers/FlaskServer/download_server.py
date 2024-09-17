@@ -8,6 +8,13 @@ import requests
 
 from FlaskServer.Shared import *
 
+# For video download
+lock = threading.Lock()
+response = None
+
+# Video listing
+VIDEO_DIR = 'videos'
+
 
 def generate_thumbnail(video_path):
     cap = cv2.VideoCapture(video_path)
@@ -21,11 +28,10 @@ def generate_thumbnail(video_path):
 
 
 def get_video_list():
-    video_dir = 'videos'
     video_list = []
-    for filename in os.listdir(video_dir):
+    for filename in os.listdir(VIDEO_DIR):
         if filename.endswith(".mp4"):  # Check if the file is a video
-            video_path = os.path.join(video_dir, filename)
+            video_path = os.path.join(VIDEO_DIR, filename)
             thumbnail = generate_thumbnail(video_path)
             video_list.append({
                 'filename': filename,
@@ -38,9 +44,8 @@ def get_video_names():
     """
     Get the list of video filenames without generating thumbnails.
     """
-    video_dir = 'videos'
     video_list = []
-    for filename in os.listdir(video_dir):
+    for filename in os.listdir(VIDEO_DIR):
         if filename.endswith(".mp4"):  # Check if the file is a video
             video_list.append(filename)
     return video_list
@@ -54,57 +59,56 @@ def handle_video_listing(phoneSocket):
     buffer = ""
     print("in")
     try:
-        while True:
-            # Receive data from the socket
-            data = phoneSocket.recv(1024).decode('utf-8')
-            if not data:
-                continue
+        # Receive data from the socket
+        data = phoneSocket.recv(1024).decode('utf-8')
+        if not data:
+            return
 
-            buffer += data
-            # Extract the last complete JSON object
-            start = buffer.rfind("{")
-            end = buffer.rfind("}")
+        buffer += data
+        # Extract the last complete JSON object
+        start = buffer.rfind("{")
+        end = buffer.rfind("}")
 
-            if start == -1 or end == -1:
-                continue
+        if start == -1 or end == -1:
+            return
 
-            json_str = buffer[start:end + 1]
+        json_str = buffer[start:end + 1]
 
-            try:
-                instruction_data = json.loads(json_str)
-                instruction_type = instruction_data.get("type")
-                print("Received instruction:", instruction_data)
+        try:
+            instruction_data = json.loads(json_str)
+            instruction_type = instruction_data.get("type")
+            print("Received instruction:", instruction_data)
 
-                if instruction_type is None:
-                    print("Invalid instruction")
-                elif instruction_type == InstructionType.GET_VIDEOS.value:
-                    index = instruction_data.get("index")
-                    if index is None:
-                        video_list = get_video_names()
-                        phoneSocket.sendall(str(len(video_list)).encode('utf-8'))
-                        print("Number of videos is " + str(len(video_list)))
-                    elif index is not None and 0 <= index < len(video_list):
-                        video_name = video_list[index]
-                        thumbnail = generate_thumbnail(os.path.join('videos', video_name))
-                        video_data = {
-                            'filename': video_name,
-                            'thumbnail': thumbnail
-                        }
-                        video_json = json.dumps(video_data).encode('utf-8')
-                        json_length = len(video_json)
+            if instruction_type is None:
+                print("Invalid instruction")
+            elif instruction_type == InstructionType.GET_VIDEOS.value:
+                index = instruction_data.get("index")
+                if index is None:
+                    video_list = get_video_names()
+                    phoneSocket.sendall(str(len(video_list)).encode('utf-8'))
+                    print("Number of videos is " + str(len(video_list)))
+                elif index is not None and 0 <= index < len(video_list):
+                    video_name = video_list[index]
+                    thumbnail = generate_thumbnail(os.path.join('videos', video_name))
+                    video_data = {
+                        'filename': video_name[:-4],
+                        'thumbnail': thumbnail
+                    }
+                    video_json = json.dumps(video_data).encode('utf-8')
+                    json_length = len(video_json)
 
-                        # Send the length of the JSON
-                        phoneSocket.sendall(struct.pack('>I', json_length))
+                    # Send the length of the JSON
+                    phoneSocket.sendall(struct.pack('>I', json_length))
 
-                        # Send the actual JSON data
-                        phoneSocket.sendall(video_json)
-                        print(f"Sent video metadata for index {index}")
-                else:
-                    print(f"Unknown instruction type: {instruction_type}")
+                    # Send the actual JSON data
+                    phoneSocket.sendall(video_json)
+                    print(f"Sent video metadata for index {index}")
+            else:
+                print(f"Unknown instruction type in video listing: {instruction_type}")
 
-            except json.JSONDecodeError as e:
-                print(f"JSON decode error: {e}")
-                continue
+        except json.JSONDecodeError as e:
+            print(f"JSON decode error: {e}")
+            return
 
     except Exception as e:
         print(f"An error occurred in video requests handler: {e}")
@@ -202,6 +206,46 @@ def handle_video_download(phoneSocket):
         print(f"An error occurred in video download handler: {e}")
 
 
+def handle_video_rename(client_socket):
+    try:
+        # Receiving old and new video names
+        oldVideoName = client_socket.recv(1024).decode('utf-8').strip() + ".mp4"
+        newVideoName = client_socket.recv(1024).decode('utf-8').strip() + ".mp4"
+
+        oldFilePath = os.path.join("videos", oldVideoName)
+        newFilePath = os.path.join("videos", newVideoName)
+
+        if os.path.exists(oldFilePath):
+
+            if not os.path.exists(newFilePath):
+                os.rename(oldFilePath, newFilePath)
+                print(f"Video {oldVideoName} renamed to {newVideoName}!")
+            else:
+                print(f"Error: Video {newVideoName} already exists!")
+        else:
+            print(f"Error: Video {oldVideoName} does not exist!")
+
+    except Exception as e:
+        print(f"An error occurred in video rename handler: {e}")
+
+
+def handle_video_delete(client_socket):
+    try:
+        videoName = client_socket.recv(1024).decode('utf-8') + ".mp4"
+
+        file_path = os.path.join("videos", videoName)
+
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            print(f"Video {videoName} deleted!")
+        else:
+            print(f"Video {videoName} does not exist!")
+
+
+    except Exception as e:
+        print(f"An error occurred in video delete handler: {e}")
+
+
 def handle_client_connection_video(client_socket):
     """
         Handles incoming client connections for video-related cases.
@@ -218,6 +262,12 @@ def handle_client_connection_video(client_socket):
                 case "video_listing":
                     client_socket.sendall("0\n".encode())  # everything ok
                     handle_video_listing(client_socket)
+                case "video_rename":
+                    client_socket.sendall("0\n".encode())  # everything ok
+                    handle_video_rename(client_socket)
+                case "video_delete":
+                    client_socket.sendall("0\n".encode())  # everything ok
+                    handle_video_delete(client_socket)
                 case _:
                     print(f"Received invalid message for video handler: {message}")
                     client_socket.sendall("-1\n".encode())

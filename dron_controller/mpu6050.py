@@ -66,8 +66,6 @@ class mpu6050:
     GYRO_CONFIG = 0x1B
     MPU_CONFIG = 0x1A
 
-
-
     def __init__(self, address, bus=1):
         self.address = address
         self.bus = smbus.SMBus(bus)
@@ -262,14 +260,15 @@ class mpu6050:
         gyro = self.get_gyro_data(gyro_range)
 
         return [accel, gyro, temp]
-#Aleksandra dodaci
+
+    # Aleksandra dodaci
     def check_connection(self):
         who_am_i = self.bus.read_byte_data(self.address, self.WHO_AM_I)
         return who_am_i == 0x68
 
     def disable_accelerometer(self):
         current_value = self.bus.read_byte_data(self.address, self.PWR_MGMT_2)
-        new_value = current_value | 0x38 #Set STBY_XA,STBY_YA,STBY_YA
+        new_value = current_value | 0x38  # Set STBY_XA,STBY_YA,STBY_YA
         # Disable X, Y, and Z axes of the accelerometer
         self.bus.write_byte_data(self.address, self.PWR_MGMT_2, new_value)
 
@@ -286,7 +285,7 @@ class mpu6050:
         time.sleep(0.15)
         # Wake up the MPU-6050 by writing 0 to the PWR_MGMT_1 register
         self.bus.write_byte_data(self.address, self.PWR_MGMT_1, 0x00)
-        
+
     def disable_temp_sensor(self):
         """Disables the temperature sensor by setting the TEMP_DIS bit in the PWR_MGMT_1 register."""
         current_value = self.bus.read_byte_data(self.address, self.PWR_MGMT_1)
@@ -354,19 +353,33 @@ class mpu6050:
 
         return gyro_bias
 
+    def init(self):
+        self.set_filter_range(self.FILTER_BW_42)
+        self.disable_temp_sensor()
 
+
+    
 if __name__ == "__main__":
     mpu = mpu6050(0x68)
     mpu.reset_mpu6050()
+    mpu.init()
+
     gyro_range = mpu.read_gyro_range(True)
     accel_range = mpu.read_accel_range(True)
+
+    bg=mpu.calibrate_gyroscope(1)
+    ba=mpu.calibrate_accelerometer(1)
+
     print(mpu.get_temp())
-    accel_data = mpu.get_accel_data(gyro_range)
-    print(accel_data['x'])
-    print(accel_data['y'])
-    print(accel_data['z'])
-    gyro_data = mpu.get_gyro_data(accel_range)
-    print(gyro_data['x'])
-    print(gyro_data['y'])
-    print(gyro_data['z'])
+    accel_data = mpu.get_accel_data(accel_range)
+    print(accel_data['x']-ba['x'])
+    print(accel_data['y']-ba['y'])
+    print(accel_data['z']-ba['z'])
+    t1 = time.time()
+    gyro_data = mpu.get_gyro_data(gyro_range)
+    t2 = time.time()
+    print(str((t2-t1)*1000)+"ms")
+    print(gyro_data['x']-bg['x'])
+    print(gyro_data['y']-bg['y'])
+    print(gyro_data['z']-bg['z'])
     mpu.bus.write_byte_data(mpu.address, mpu.PWR_MGMT_1, 0x40)

@@ -22,8 +22,11 @@ object SharedRepository {
     private val _isPoweredOn = MutableLiveData<Boolean>(false)
     val isPoweredOn: LiveData<Boolean> get() = _isPoweredOn
 
-    private val _isRecordingFlight = MutableLiveData<Boolean>(false)
-    val isRecordingFlight: LiveData<Boolean> get() = _isRecordingFlight
+    private val _isRecordingMacro = MutableLiveData<Boolean>(false)
+    val isRecordingMacro: LiveData<Boolean> get() = _isRecordingMacro
+
+    private val _isRecordingVideo = MutableLiveData<Boolean>(false)
+    val isRecordingVideo: LiveData<Boolean> get() = _isRecordingVideo
 
     // Thread-safe setter for frame
     fun setFrame(newFrame: Bitmap?) {
@@ -45,9 +48,14 @@ object SharedRepository {
         _isPoweredOn.postValue(newValue)
     }
 
-    fun setRecordingFlight(newValue: Boolean)
+    fun setRecordingMacro(newValue: Boolean)
     {
-        _isRecordingFlight.postValue(newValue)
+        _isRecordingMacro.postValue(newValue)
+    }
+
+    fun setRecordingVideo(newValue: Boolean)
+    {
+        _isRecordingVideo.postValue(newValue)
     }
 
     // Thread-safe getters (in case you need them outside LiveData observation)
@@ -59,5 +67,7 @@ object SharedRepository {
 
     fun getPoweredOn(): Boolean = _isPoweredOn.value ?: false
 
-    fun getRecordingFlight(): Boolean = _isRecordingFlight.value ?: false
+    fun getRecordingMacro(): Boolean = _isRecordingMacro.value ?: false
+
+    fun getRecordingVideo(): Boolean = _isRecordingVideo.value ?: false
 }

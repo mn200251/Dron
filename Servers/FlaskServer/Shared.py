@@ -27,22 +27,20 @@ class PhoneState(Enum):
 
 class InstructionType(Enum):
     HEARTBEAT = 1
-    START_RECORDING = 2
-    STOP_RECORDING = 3
-    START_FLIGHT = 4
-    END_FLIGHT = 5
-    GET_FLIGHTS = 6
-    START_PREVIOUS_FLIGHT = 7
+    START_RECORDING_VIDEO = 2
+    STOP_RECORDING_VIDEO = 3
+    START_RECORDING_MACRO = 4
+    STOP_RECORDING_MACRO = 5
+    GET_MACROS = 6
+    START_MACRO = 7
     GET_VIDEOS = 8  # start the video download and request video using inedex
     DOWNLOAD_VIDEO = 9
-    KILL_SWITCH = 10
+    TURN_ON = 10
     JOYSTICK = 11
     GET_LINK = 12
     TURN_OFF = 13
     GET_STATUS = 14  # da proveri stanje jer neke instrukcije mozda nisu prosle npr pocni snimanje
     BACK = 15  # povratak iz browsinga videa/letova?
-    RECORD_INST_START = 16
-    RECORD_INST_STOP = 17
 
 
 # Constants
@@ -54,12 +52,9 @@ QUEUE_TIMEOUT = 5
 video_dir = "videos"
 script_dir = "flight_scripts"
 
-# Server port
-server_port = 6969
-download_port = 6970
 
 # Flag to determine if the server is internal or external
-internal = True
+internal = False
 
 # Interval to update the IP address on GitHub (in seconds)
 ip_update_interval = 60 * 10
@@ -67,7 +62,7 @@ ip_update_interval = 60 * 10
 stop_event = threading.Event()
 
 
-def changeServerIP(newIP):
+def changeServerIP(newIP, path):
     """
         Updates the server IP address stored in a GitHub repository.
     """
@@ -79,10 +74,10 @@ def changeServerIP(newIP):
 
     # Get the file contents
     try:
-        file = repo.get_contents(FILE_PATH, ref=BRANCH_NAME)
+        file = repo.get_contents(path, ref=BRANCH_NAME)
     except Exception as e:
         if "404" in str(e):
-            repo.create_file(FILE_PATH, f'Created server_ip.txt with current IP: {newIP}', newIP,
+            repo.create_file(FILE_PATH, f'Created file with current IP: {newIP}', newIP,
                              branch=BRANCH_NAME)
             return
         else:
@@ -99,6 +94,7 @@ def changeServerIP(newIP):
     # Commit and push the changes
     repo.update_file(file.path, f'Updated server_ip.txt with new IP: {newIP}', newIP, file.sha,
                      branch=BRANCH_NAME)
+    print(f"Updated {path} ip")
 
 
 def getInternalIp():
@@ -125,7 +121,11 @@ def monitorIP():
         Periodically updates the server's external IP address on GitHub.
     """
     while True:
-        newIP = getExternalIp() + ":" + str(server_port)
-        changeServerIP(newIP)
+        ipAddr = getExternalIp()
+        newIP = ipAddr + ":" + str(server_port)
+        newDownloadIp = ipAddr + ":" + str(download_server_port)
+
+        changeServerIP(newIP, FILE_PATH)
+        changeServerIP(newDownloadIp, DOWNLOAD_FILE_PATH)
 
         time.sleep(ip_update_interval)

@@ -18,7 +18,7 @@ def start_tcp_server(server_ip, server_port, handler_function):
 
     while not stop_event.is_set():
         client_socket, addr = server_socket.accept()
-        print(f"Accepted connection from {addr}")
+        print(f"Accepted connection from {addr} at port {server_port}")
         client_handler = threading.Thread(target=handler_function, args=(client_socket,))
         client_handler.start()
 
@@ -38,7 +38,7 @@ if __name__ == "__main__":
     tcp_server_thread.start()
 
     tcp_download_process = multiprocessing.Process(target=start_tcp_server,
-                                                   args=(server_ip, download_port, handle_client_connection_video))
+                                                   args=(server_ip, download_server_port, handle_client_connection_video))
     tcp_download_process.start()
 
     send_frames_thread = threading.Thread(target=send_frames, args=())
