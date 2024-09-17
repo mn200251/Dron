@@ -94,6 +94,7 @@ def changeServerIP(newIP, path):
     # Commit and push the changes
     repo.update_file(file.path, f'Updated server_ip.txt with new IP: {newIP}', newIP, file.sha,
                      branch=BRANCH_NAME)
+    print(f"Updated {path} ip")
 
 
 def getInternalIp():
