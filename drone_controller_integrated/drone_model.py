@@ -221,7 +221,7 @@ class Drone():
         #powers *= np.sqrt(pe.magnitude(pe.get_grav_vector()))
         #powers *= thrust_needed
 
-        print(powers)
+        #print(powers)
         for i in range(4):
             self.motor_set_power_percent(i, ((-1) ** (i + 1)) * powers[i])
 

@@ -1,15 +1,16 @@
 import requests
 import socket
 import threading
-import socket
 import cv2
 import struct
 import pickle
 import base64
+import json
 
 from github import Github
-from picamera2 import Picamera2
+#from picamera2 import Picamera2
 import time
+import multiprocessing
 
 from dronePrivateData import *
 
@@ -74,19 +75,34 @@ def send_camera_stream2(client_socket: socket):
     picam2.stop()
     cv2.destroyAllWindows()
 
+normal_data = None
 
 # Function to handle receiving data
 def receiveControls(sock):
+    global normal_data
     
     while True:
         data = sock.recv(1024).decode("utf-8")
-        if not data:
-            continue
-        print("Received controls:", data)
+
+        if not data: continue
+
+        start = data.find("{")
+        end = data.find("}")
+
+        json_str = data[start:end + 1]
+
+        data2 = json.loads(json_str)
+        normal_data = {
+            "y_left": -float(data2["rotation"]),
+            "x_left": float(data2["z"]),
+            "y_right": -float(data2["y"]),
+            "x_right": float(data2["x"])
+        }
+        print(normal_data)
 
 
 # Main function to create socket and start threads
-def main():
+def start_server_connection():
     while True:
         server_address = getServerIP()
 
@@ -110,16 +126,15 @@ def main():
         print("Authenticated as drone!")
 
         # Create and start threads for sending and receiving data
-        send_thread = threading.Thread(target=send_camera_stream2, args=(s,))
-        receive_thread = threading.Thread(target=receiveControls, args=(s,))
+        #send_thread = multiprocessing.Process(target=send_camera_stream2, args=(s,))
+        receive_thread = multiprocessing.Process(target=receiveControls, args=(s,))
 
-        send_thread.start()
+        #send_thread.start()
         receive_thread.start()
 
         # Wait for threads to complete
-        send_thread.join()
+        #send_thread.join()
         receive_thread.join()
 
-
 if __name__ == "__main__":
-    main()
+    start_server_connection()
