@@ -53,10 +53,10 @@ fun VideoListScreen(viewModel: VideoViewModel ) {
 
     val buttonSize = 60.dp
 
-    LaunchedEffect(videoState.refresh) {
+    LaunchedEffect(Unit) {
         viewModel.fetchVideos()
 
-        viewModel.setRefresh(false)
+        // viewModel.setRefresh(false)
     }
 
     Column(
@@ -122,7 +122,7 @@ fun VideoListScreen(viewModel: VideoViewModel ) {
                             toast.setText("Deleted video")
                             toast.show()
 
-                            viewModel.setRefresh(true)
+                            viewModel.fetchVideos(1200)
                                           },
                         onRenameConfirm = { oldName, newName ->
                             viewModel.renameVideo(oldName = oldName, newName = newName)
@@ -131,7 +131,7 @@ fun VideoListScreen(viewModel: VideoViewModel ) {
                             toast.setText("Renamed video")
                             toast.show()
 
-                            viewModel.setRefresh(true)
+                            viewModel.fetchVideos(1200)
                         }
                     )
                 }

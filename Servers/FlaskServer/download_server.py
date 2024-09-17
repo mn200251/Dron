@@ -59,57 +59,56 @@ def handle_video_listing(phoneSocket):
     buffer = ""
     print("in")
     try:
-        while True:
-            # Receive data from the socket
-            data = phoneSocket.recv(1024).decode('utf-8')
-            if not data:
-                continue
+        # Receive data from the socket
+        data = phoneSocket.recv(1024).decode('utf-8')
+        if not data:
+            return
 
-            buffer += data
-            # Extract the last complete JSON object
-            start = buffer.rfind("{")
-            end = buffer.rfind("}")
+        buffer += data
+        # Extract the last complete JSON object
+        start = buffer.rfind("{")
+        end = buffer.rfind("}")
 
-            if start == -1 or end == -1:
-                continue
+        if start == -1 or end == -1:
+            return
 
-            json_str = buffer[start:end + 1]
+        json_str = buffer[start:end + 1]
 
-            try:
-                instruction_data = json.loads(json_str)
-                instruction_type = instruction_data.get("type")
-                print("Received instruction:", instruction_data)
+        try:
+            instruction_data = json.loads(json_str)
+            instruction_type = instruction_data.get("type")
+            print("Received instruction:", instruction_data)
 
-                if instruction_type is None:
-                    print("Invalid instruction")
-                elif instruction_type == InstructionType.GET_VIDEOS.value:
-                    index = instruction_data.get("index")
-                    if index is None:
-                        video_list = get_video_names()
-                        phoneSocket.sendall(str(len(video_list)).encode('utf-8'))
-                        print("Number of videos is " + str(len(video_list)))
-                    elif index is not None and 0 <= index < len(video_list):
-                        video_name = video_list[index]
-                        thumbnail = generate_thumbnail(os.path.join('videos', video_name))
-                        video_data = {
-                            'filename': video_name[:-4],
-                            'thumbnail': thumbnail
-                        }
-                        video_json = json.dumps(video_data).encode('utf-8')
-                        json_length = len(video_json)
+            if instruction_type is None:
+                print("Invalid instruction")
+            elif instruction_type == InstructionType.GET_VIDEOS.value:
+                index = instruction_data.get("index")
+                if index is None:
+                    video_list = get_video_names()
+                    phoneSocket.sendall(str(len(video_list)).encode('utf-8'))
+                    print("Number of videos is " + str(len(video_list)))
+                elif index is not None and 0 <= index < len(video_list):
+                    video_name = video_list[index]
+                    thumbnail = generate_thumbnail(os.path.join('videos', video_name))
+                    video_data = {
+                        'filename': video_name[:-4],
+                        'thumbnail': thumbnail
+                    }
+                    video_json = json.dumps(video_data).encode('utf-8')
+                    json_length = len(video_json)
 
-                        # Send the length of the JSON
-                        phoneSocket.sendall(struct.pack('>I', json_length))
+                    # Send the length of the JSON
+                    phoneSocket.sendall(struct.pack('>I', json_length))
 
-                        # Send the actual JSON data
-                        phoneSocket.sendall(video_json)
-                        print(f"Sent video metadata for index {index}")
-                else:
-                    print(f"Unknown instruction type in video listing: {instruction_type}")
+                    # Send the actual JSON data
+                    phoneSocket.sendall(video_json)
+                    print(f"Sent video metadata for index {index}")
+            else:
+                print(f"Unknown instruction type in video listing: {instruction_type}")
 
-            except json.JSONDecodeError as e:
-                print(f"JSON decode error: {e}")
-                continue
+        except json.JSONDecodeError as e:
+            print(f"JSON decode error: {e}")
+            return
 
     except Exception as e:
         print(f"An error occurred in video requests handler: {e}")

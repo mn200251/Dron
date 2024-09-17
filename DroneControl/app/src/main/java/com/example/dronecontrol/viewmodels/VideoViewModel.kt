@@ -23,6 +23,7 @@ import com.example.dronecontrol.private.GITHUB_TOKEN
 import com.example.dronecontrol.private.INTERNAL
 import com.example.dronecontrol.private.REPO_NAME
 import com.example.dronecontrol.utils.getCurrentIP
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.parcelize.Parcelize
@@ -56,9 +57,14 @@ class VideoViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel
 
 
     @RequiresApi(Build.VERSION_CODES.O)
-    fun fetchVideos() {
+    fun fetchVideos(wait: Long? = null) {
         viewModelScope.launch(Dispatchers.IO) {
             setIsLoading(true)
+
+            // wait is used to sleep the thread so that
+            // the server can rename/delete the video in time
+            if (wait != null)
+                delay(wait)
 
             var socket: Socket? = null
             var auth: String = "phone"
