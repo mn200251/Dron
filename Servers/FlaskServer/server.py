@@ -387,6 +387,11 @@ def handleAutopilotSetup(client_socket):
 
                     if instruction_type == InstructionType.GET_MACROS.value:
                         file_list = os.listdir(script_dir)
+
+                        # remove ".json" from the end of the names
+                        for i in range(0, len(file_list)):
+                            file_list[i] = file_list[i][:-5]
+
                         json_data = json.dumps(file_list).encode('utf-8')
                         data_length = len(json_data)
                         client_socket.sendall(struct.pack('>I', data_length))
@@ -417,7 +422,7 @@ def fly_autopilot(instruction_file):
     global isAutopilotAcive, previous_time, send_event
     print("Autopilot started")
     isAutopilotAcive = True
-    with open(f"{script_dir}/{instruction_file}", 'r') as f:
+    with open(f"{script_dir}/{instruction_file}.json", 'r') as f:
         instructions_list = json.load(f)
 
     for instruction in instructions_list:
