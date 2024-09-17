@@ -6,6 +6,8 @@ import socket
 import base64
 import struct
 
+from FlaskServer.Shared import *
+
 
 def stream_video_to_server(video_path, client_socket):
     # Open the video file
@@ -30,12 +32,13 @@ def stream_video_to_server(video_path, client_socket):
         client_socket.sendall(struct.pack('>I', frame_size))
         if i % 10 == 0:
             print("Frame size: " + str(frame_size))
+            i = 0
         # Send the actual frame data
         client_socket.sendall(encoded_base64)
 
         # Add some delay to simulate real-time streaming
-        time.sleep(0.2)
-        i+=1
+        # time.sleep(1 / 60)
+        i += 1
 
     # Release resources
     cap.release()
@@ -79,10 +82,14 @@ def start_dummy(video_path, server_ip, server_port):
 
 if __name__ == "__main__":
     # Example usage
-    VIDEO_PATH = 'videos/VID_20230416_123915.mp4'  # Replace with the path to your video file
-    SERVER_IP = '192.168.1.17'  # Replace with your server's IP address
-    SERVER_PORT = 6969  # Replace with your server's port
+    VIDEO_PATH = 'FlaskServer/stock-footage_1280x720.mp4'
+
+    if internal:
+        SERVER_IP = '192.168.1.17'
+    else:
+        SERVER_IP = getExternalIp()
+
     try:
-        start_dummy(VIDEO_PATH, SERVER_IP, SERVER_PORT)
+        start_dummy(VIDEO_PATH, SERVER_IP, server_port)
     except Exception as e:
         print("Streamer died " + str(e))
