@@ -92,7 +92,7 @@ def handle_video_listing(phoneSocket):
                         video_name = video_list[index]
                         thumbnail = generate_thumbnail(os.path.join('videos', video_name))
                         video_data = {
-                            'filename': video_name,
+                            'filename': video_name[:-4],
                             'thumbnail': thumbnail
                         }
                         video_json = json.dumps(video_data).encode('utf-8')
@@ -210,8 +210,8 @@ def handle_video_download(phoneSocket):
 def handle_video_rename(client_socket):
     try:
         # Receiving old and new video names
-        oldVideoName = client_socket.recv(1024).decode('utf-8').strip()
-        newVideoName = client_socket.recv(1024).decode('utf-8').strip()
+        oldVideoName = client_socket.recv(1024).decode('utf-8').strip() + ".mp4"
+        newVideoName = client_socket.recv(1024).decode('utf-8').strip() + ".mp4"
 
         oldFilePath = os.path.join("videos", oldVideoName)
         newFilePath = os.path.join("videos", newVideoName)
@@ -232,7 +232,7 @@ def handle_video_rename(client_socket):
 
 def handle_video_delete(client_socket):
     try:
-        videoName = client_socket.recv(1024).decode('utf-8')
+        videoName = client_socket.recv(1024).decode('utf-8') + ".mp4"
 
         file_path = os.path.join("videos", videoName)
 
