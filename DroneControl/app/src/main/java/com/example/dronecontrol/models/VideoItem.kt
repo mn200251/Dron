@@ -65,7 +65,7 @@ fun VideoItem(video: Video,
                         bitmap = it.asImageBitmap(),
                         contentDescription = "Video Thumbnail",
                         modifier = Modifier
-                            .size(64.dp)
+                            .size(96.dp)
                             .clip(MaterialTheme.shapes.small)
                     )
                 }
@@ -80,12 +80,6 @@ fun VideoItem(video: Video,
                     singleLine = true
                 )
             }
-
-            // Download Button
-//            Button(onClick = { showDialog = true }) {
-//                Text("Download")
-//            }
-
 
             Button(
                 onClick = { showDownloadDialog = true },
