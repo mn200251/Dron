@@ -353,20 +353,26 @@ class mpu6050:
 
         return gyro_bias
 
+    def init(self):
+        self.set_filter_range(self.FILTER_BW_42)
+        self.disable_temp_sensor()
+        # ovo mozda promeniti kasnije
+        mpu.set_gyro_range(mpu.GYRO_RANGE_500DEG)
+        mpu.set_accel_range(mpu.ACCEL_RANGE_4G)
 
 
-    
 if __name__ == "__main__":
     mpu = mpu6050(0x68)
+    mpu.init()
     mpu.reset_mpu6050()
     gyro_range = mpu.read_gyro_range(True)
     accel_range = mpu.read_accel_range(True)
     print(mpu.get_temp())
-    accel_data = mpu.get_accel_data(gyro_range)
+    accel_data = mpu.get_accel_data(accel_range)
     print(accel_data['x'])
     print(accel_data['y'])
     print(accel_data['z'])
-    gyro_data = mpu.get_gyro_data(accel_range)
+    gyro_data = mpu.get_gyro_data(gyro_range)
     print(gyro_data['x'])
     print(gyro_data['y'])
     print(gyro_data['z'])

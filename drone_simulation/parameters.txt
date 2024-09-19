@@ -1,12 +1,12 @@
 k 1        // thrust to square of angular velocity proportionality constant
 rho 1.204  // air density in kg/m^3
-AP 0.012468981242097889       // area swept by the rotor in m^2
+AP 2       // area swept by the rotor in m^2
 kd 0.01    // transpositional air friction proportionality constant
 // parameters for b - coeficient of air friction
-R 0.126        // radius of the propeller in m
-A 0.002646        // area of the propeller cross-section (area of a stationary propeller) in m^2 == to be done yet
-m 0.547      // mass of the drone in kg
-L 0.105     // distance from the center of quadcopter to the propellers in m
+R 2        // radius of the propeller in m
+A 5        // area of the propeller cross-section (area of a stationary propeller) in m^2
+m 0.5      // mass of the drone in kg
+L 0.15     // distance from the center of quadcopter to the propellers in m
 I          // inertia matrix in kg*m^2
 10 0 0
 0 10 0
