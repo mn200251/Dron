@@ -4,6 +4,16 @@ import drone_model as dm
 import physics_engine as pe
 import ground_model as gm
 import state_controller as sc
+import socket
+import threading
+import time
+import multiprocessing
+from connect_to_server import start_server_connection
+from connect_to_server import normal_data
+
+
+
+
 
 near_plane_center = np.array([0, 0, 50, 1], dtype=float)
 orthographic_volume_size = np.array([50, 50, 50], dtype=float)
@@ -20,10 +30,14 @@ pe.init_gravity_vector(ground)
 running = True
 pid_on = True
 def user_input_handling():
+    global normal_data
     # must set drone.motor_set_power_percent
     # not just return values, because of calculations
     # self.drone.motor_set_power_percent
     # for user input
+    if (normal_data):
+        print("user_input_here")
+        print(normal_data)
     pass
     return None
 
@@ -44,7 +58,7 @@ def read_sensor_data(curr_state):
         self.euler_angles += curr_euler_angles
         """
         # get sensor data here
-        drone.euler_angles = 7
+        drone.euler_angles = np.array([7, 7, 7])
 
 def pid_action(curr_state):
     if not pid_on: return
@@ -65,14 +79,20 @@ def update(curr_state):
         curr_state.loop_cycle = 0
     return pid_updated_values
 
+def init():
+    camera_stream_process = multiprocessing.Process(target=start_server_connection)
+
+
+#init()
+camera_stream_process = multiprocessing.Process(target=start_server_connection)
 while running:
     new_motor_values = user_input_handling()
     if not running: break
     pid_updated_values = update(curr_state)
     # use strategy here to update actual values
-    if pid_updated_values:
+    #if pid_updated_values:
         # set pwm here to pid_updated_values
-        pass
-    else:
+        #pass
+    #else:
         # set pwm here to new_motor_values
-        pass
+        #pass
