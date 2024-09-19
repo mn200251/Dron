@@ -60,6 +60,8 @@ class ConnectionService : Service() {
     private val channelId = "ConnectionService"
     private val notificationId = 1
 
+    private val sendMovementDelay: Long = 50
+
     // private var isRecordingVideo = false
     // private var isRecordingInstructions = false
 
@@ -693,16 +695,14 @@ class ConnectionService : Service() {
                 {
                     sendControls(outputStream)
 
-                    delay(100)
+                    delay(sendMovementDelay)
                 }
                 else
                 {
-                    delay(100)
-
                     while (controls == null)
                     {
                         heartbeat()
-                        delay(TIMEOUT_THIRD)
+                        delay(sendMovementDelay)
                     }
                 }
             }
