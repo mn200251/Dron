@@ -153,7 +153,7 @@ def handle_video_download(phoneSocket):
                             response = None
                             print('Handle video download.')
                             video_name = instruction_data.get("video_name")
-                            file_path = f"videos/{video_name}"
+                            file_path = f"videos/{video_name}.mp4"
 
                             # Upload the file
                             with open(file_path, 'rb') as file:

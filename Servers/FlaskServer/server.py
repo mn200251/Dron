@@ -234,6 +234,7 @@ def send_controls():
         try:
             data_to_send = json.dumps(command_dict).encode('utf-8')
             drone_socket = connections["drone"]
+            print(connections)
             drone_socket.sendall(data_to_send)
             if isRecordingMacro:
                 # Calculate delta time
@@ -261,6 +262,7 @@ def send_controls():
 
             continue
 
+    print("ZATVORIO")
 
 # drone
 def handleControls(phoneSocket):
@@ -467,7 +469,7 @@ def handle_client_connection_general(client_socket):
         except Exception as e:
             print(f"Connection failed to establish: {e}")
             break
-    client_socket.close()
+    # client_socket.close()
 
 
 def sendDroneStatus(socket):
