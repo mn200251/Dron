@@ -1,0 +1,24 @@
+<!-- bootstrap cdn links -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@3.3.7/dist/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+
+<form method="POST">
+<div class="form-group">
+    <label for="motor1">Motor1 power percentage (if < 0 not affected):</label>
+    <input type="number" step="0.01" min="-0.01" max="1" class="form-control" name="motor1_pp" placeholder="-0.01">
+</div>
+<div class="form-group">
+    <label for="motor2">Motor2 power percentage (if < 0 not affected):</label>
+    <input type="number" step="0.01" min="-0.01" max="1" class="form-control" name="motor2_pp" placeholder="-0.01">
+</div>
+<div class="form-group">
+    <label for="motor3">Motor3 power percentage (if < 0 not affected):</label>
+    <input type="number" step="0.01" min="-0.01" max="1" class="form-control" name="motor3_pp" placeholder="-0.01">
+</div>
+<div class="form-group">
+    <label for="motor4">Motor4 power percentage (if < 0 not affected):</label>
+    <input type="number" step="0.01" min="-0.01" max="1" class="form-control" name="motor4_pp" placeholder="-0.01">
+</div>
+<button type="submit" class="btn btn-primary">Submit</button>
+</form>

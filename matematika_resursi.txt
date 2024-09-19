@@ -1,0 +1,6 @@
+0) https://andrew.gibiansky.com/blog/physics/quadcopter-dynamics/ -- Quadcopter Dynamics and Simulation
+1) https://www.youtube.com/watch?v=nMNWu4ZX340  -- Rigid System of Particles | Going to Continuous Limit
+2) https://www.youtube.com/watch?v=-yB52SMUqKw&t=1s -- Moment of Inertia Matrix & Principal Axis Frame | MATLAB Example Calculation
+3) https://www.youtube.com/watch?v=FBe7OaJDp0g -- Center of Mass & Moment of Inertia Matrix | Example Calculations
+4) https://pressbooks.library.upei.ca/statics/chapter/centre-of-mass-composite-shapes/ -- Center of Mass: Composite Shapes
+5) <TODO> https://www.youtube.com/watch?v=z4-vL6lxR8U -- Euler's Equations of Rigid Body Dynamics Derived | Qualitative Analysis | Build Rigid Body Intuition

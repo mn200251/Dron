@@ -81,6 +81,13 @@ normal_data = None
 def receiveControls(sock):
     global normal_data
     
+    # type:
+    """
+        10 -- upali se
+        13 -- ugasi se
+        11 -- radi djojstik
+    """
+
     while True:
         data = sock.recv(1024).decode("utf-8")
 
@@ -90,8 +97,9 @@ def receiveControls(sock):
         end = data.find("}")
 
         json_str = data[start:end + 1]
-
         data2 = json.loads(json_str)
+        #print(f"data: {data}")
+        #print(f"data2: {data2}")
         normal_data = {
             "y_left": -float(data2["rotation"]),
             "x_left": float(data2["z"]),
