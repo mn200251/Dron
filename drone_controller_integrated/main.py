@@ -9,9 +9,9 @@ import threading
 import time
 import multiprocessing
 from connect_to_server import start_server_connection
-from connect_to_server import normal_data
-from pca9685 import PCA9685, PCA9685_I2C_ADDRESS
-from mpu6050 import mpu6050
+from connect_to_server import user_input
+#from pca9685 import PCA9685, PCA9685_I2C_ADDRESS
+#from mpu6050 import mpu6050
 
 
 
@@ -31,14 +31,13 @@ pe.init_gravity_vector(ground)
 running = True
 pid_on = True
 def user_input_handling():
-    global normal_data
+    global user_input
     # must set drone.motor_set_power_percent
     # not just return values, because of calculations
     # self.drone.motor_set_power_percent
     # for user input
-    if (normal_data):
-        print("user_input_here")
-        print(normal_data)
+    #print("user_input_here")
+    print(user_input.data)
     pass
     return None
 
@@ -102,12 +101,17 @@ try:
 
     # CAMERA STREAMING INITIALIZATION
 
-    camera_stream_process = multiprocessing.Process(target=start_server_connection)
+    #multiprocessing.freeze_support()
+
+    #drone_client_process = multiprocessing.Process(target=start_server_connection)
+    start_server_connection()
+    #drone_client_process.start()
+
 
     # PWM INITIALIZATION
-    pca9685 = PCA9685(i2c_address=PCA9685_I2C_ADDRESS)
-    pca9685.reset()
-    pca9685.init()
+    #pca9685 = PCA9685(i2c_address=PCA9685_I2C_ADDRESS)
+    #pca9685.reset()
+    #pca9685.init()
     # channel=-1 -- all channel override
     
     # arm all motors, should be done when user enters 10 on type from app fix later??
@@ -120,28 +124,29 @@ try:
     channels=[4,5,10,11]
 
     # if user calls arm command: --- armovanje traje NEKOLIKO SEKUNDI
-    for ch in channels:
-        pca9685.arm_esc(ch)
+    #for ch in channels:
+        #pca9685.arm_esc(ch)
     
     # SENSOR INITIALIZATION
 
-    mpu = mpu6050(0x68)
-    mpu.init()
+    #mpu = mpu6050(0x68)
+    #mpu.init()
 
     # provera da li se mpu lepo povezao
-    if not mpu.check_connection():
-        raise Exception("ERROR: sensor not connected")
+    #if not mpu.check_connection():
+        #raise Exception("ERROR: sensor not connected")
 
-    mpu.reset_mpu6050()
-    bias_accelometer = mpu.calibrate_accelerometer()
-    bias_gyroscope = mpu.calibrate_gyroscope()
+    #mpu.reset_mpu6050()
+    #bias_accelometer = mpu.calibrate_accelerometer()
+    #bias_gyroscope = mpu.calibrate_gyroscope()
     
     # citanje opsega
-    accel_range = mpu.read_accel_range(True)
-    gyro_range = mpu.read_gyro_range(True)
+    #accel_range = mpu.read_accel_range(True)
+    #gyro_range = mpu.read_gyro_range(True)
 
 
     # citanje podataka sa senzora ovo staviti na odgovarajuce mesto kasnije: 
+    """
     accel_data = mpu.get_accel_data(accel_range)
     print(accel_data['x'] - bias_accelometer['x'])
     print(accel_data['y'] - bias_accelometer['y'])
@@ -150,6 +155,7 @@ try:
     print(gyro_data['x'] - bias_gyroscope['x'])
     print(gyro_data['y'] - bias_gyroscope['y'])
     print(gyro_data['z'] - bias_gyroscope['z'])
+    """
 
 
     while running:
@@ -157,6 +163,7 @@ try:
         if not running: break
         pid_updated_values = update(curr_state)
         # use strategy here to update actual values
+        print(pid_updated_values)
         #if pid_updated_values:
             # set pwm here to pid_updated_values
             #pass
@@ -168,6 +175,7 @@ try:
         # ovako se gase motori na komandu korisnika
 
         # ovo nema za sad
+        """
         if User wants to disarm: # something here -- disarm [turn off dugme]
             for ch in channels:     ## ovo je ako budemo imali blago ubijanje
                 pca9685.set_channel_off(ch)     # OVO JE BRZO ? 750 us
@@ -179,12 +187,16 @@ try:
                 pca9685.arm_esc(ch)
         else if User in djojstik mode and sve radi kako treba: # nesto drugo, ako sve radi
             pca9685.set_ESC_PWM(channel[id_kanala], vrednost iz opsega [1000, 2000])
+        """
 
 
 finally:
+    print("ERROR")
     # ugasi mpu (uspava ga, ode u low power mode)
-    mpu.bus.write_byte_data(mpu.address, mpu.PWR_MGMT_1, 0x40)
-    pca9685.reset() ### INSTANT ODMAH
+    #mpu.bus.write_byte_data(mpu.address, mpu.PWR_MGMT_1, 0x40)
+
+    #pca9685.reset() ### INSTANT ODMAH
+
     # posle reseta popravljanje: 
     # opet mora inicijalizacija
     # moralo bi ovo
@@ -203,5 +215,3 @@ finally:
         for ch in channels:
             pca9685.arm_esc(ch)
     """
-
-

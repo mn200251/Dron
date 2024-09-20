@@ -75,11 +75,15 @@ def send_camera_stream2(client_socket: socket):
     picam2.stop()
     cv2.destroyAllWindows()
 
-normal_data = None
+class UserInputDataClass:
+
+    def __init__(self):
+        self.data = dict()
+
+user_input = UserInputDataClass()
 
 # Function to handle receiving data
 def receiveControls(sock):
-    global normal_data
     
     # type:
     """
@@ -100,13 +104,14 @@ def receiveControls(sock):
         data2 = json.loads(json_str)
         #print(f"data: {data}")
         #print(f"data2: {data2}")
-        normal_data = {
+        user_input.data = {
             "y_left": -float(data2["rotation"]),
             "x_left": float(data2["z"]),
             "y_right": -float(data2["y"]),
-            "x_right": float(data2["x"])
+            "x_right": float(data2["x"]),
+            "state:": int(data2["type"])
         }
-        print(normal_data)
+        #print(user_input.data)
 
 
 # Main function to create socket and start threads
@@ -135,14 +140,16 @@ def start_server_connection():
 
         # Create and start threads for sending and receiving data
         #send_thread = multiprocessing.Process(target=send_camera_stream2, args=(s,))
-        receive_thread = multiprocessing.Process(target=receiveControls, args=(s,))
+        #receive_thread = multiprocessing.Process(target=receiveControls, args=(s,))
+        receive_thread = threading.Thread(target=receiveControls, args=(s,))
 
         #send_thread.start()
         receive_thread.start()
 
         # Wait for threads to complete
         #send_thread.join()
-        receive_thread.join()
+        #receive_thread.join()
+        return
 
 if __name__ == "__main__":
     start_server_connection()
