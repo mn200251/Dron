@@ -59,7 +59,7 @@ allowed_instructions = [InstructionType.HEARTBEAT.value, InstructionType.START_R
 def save_instructions_to_file():
     global instructions, start_time
     # Create a unique filename with the datetime
-    filename = f"{script_dir}/{macro_name}.json"
+    filename = f"{script_dir}/{macro_name}"
 
     # Save instructions to the file
     with open(filename, 'w') as f:
@@ -323,7 +323,7 @@ def process_instruction(instruction_data):
         pass
     elif instruction_type == InstructionType.START_RECORDING_VIDEO.value:
         record_video = RecordState.START_RECORDING
-        video_name = instruction_data.get("name", f'recording_{int(time.time() * 1000)}')
+        video_name = instruction_data.get("name", f'recording_{int(time.time() * 1000)}') + ".mp4"
     elif instruction_type == InstructionType.STOP_RECORDING_VIDEO.value:
         record_video = RecordState.STOP_RECORDING
     elif instruction_type == InstructionType.JOYSTICK.value:
@@ -334,7 +334,7 @@ def process_instruction(instruction_data):
     elif instruction_type == InstructionType.START_RECORDING_MACRO.value:
         start_time = time.time()
         previous_time = start_time
-        macro_name = instruction_data.get("name", f"script_{time.strftime('%Y%m%d_%H%M%S')}")
+        macro_name = instruction_data.get("name", f"script_{time.strftime('%Y%m%d_%H%M%S')}") + ".json"
         isRecordingMacro = True
     elif instruction_type == InstructionType.STOP_RECORDING_MACRO.value:
         isRecordingMacro = False
