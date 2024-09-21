@@ -1,3 +1,4 @@
+import json
 import threading
 import time
 
@@ -30,8 +31,8 @@ def stream_video_to_server(video_path, client_socket):
         # Send the size of the frame first
         frame_size = len(encoded_base64)
         client_socket.sendall(struct.pack('>I', frame_size))
-        if i % 10 == 0:
-            print("Frame size: " + str(frame_size))
+        if i % 30 == 0:
+            print("Frame size: " + str(frame_size) + " current.time:"+ str(time.time()))
             i = 0
         # Send the actual frame data
         client_socket.sendall(encoded_base64)
@@ -71,6 +72,19 @@ def start_dummy(video_path, server_ip, server_port):
     client_socket.connect((server_ip, server_port))
     client_socket.sendall("drone".encode('utf-8'))
     print(f"Connected to server at {server_ip}:{server_port}")
+    length_bytes = client_socket.recv(4)
+    if not length_bytes:
+        return None
+
+    # Convert the 4-byte length into an integer
+    json_length = struct.unpack('>I', length_bytes)[0]
+    json_data = client_socket.recv(json_length).decode('utf-8')
+    status = json.loads(json_data)
+    print(f"Received drone status: {status}")
+    if status['isPoweredOn']==False:
+        print("Power off")
+    else:
+        print("on")
 
     receiver_thread = threading.Thread(target=receive_json_data, args=(client_socket,))
     receiver_thread.daemon = True
@@ -82,7 +96,7 @@ def start_dummy(video_path, server_ip, server_port):
 
 if __name__ == "__main__":
     # Example usage
-    VIDEO_PATH = 'FlaskServer/stock-footage_1280x720.mp4'
+    VIDEO_PATH = 'videos/VID_LEA.mp4'
 
     if internal:
         SERVER_IP = '192.168.1.17'

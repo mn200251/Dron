@@ -102,7 +102,7 @@ def handle_video_listing(phoneSocket):
 
                     # Send the actual JSON data
                     phoneSocket.sendall(video_json)
-                    print(f"Sent video metadata for index {index}")
+                    print(f"Sent video metadata for index {index} with length {json_length}")
             else:
                 print(f"Unknown instruction type in video listing: {instruction_type}")
 
