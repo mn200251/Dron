@@ -116,8 +116,6 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
-        super.onDestroy()
-
         // distinguish between activity finishing and pausing
         if (isFinishing)
         {
@@ -137,6 +135,8 @@ class MainActivity : ComponentActivity() {
 
             // notificationManager.cancel()
         }
+
+        super.onDestroy()
     }
 
     @RequiresApi(Build.VERSION_CODES.R)

@@ -176,7 +176,7 @@ def handleDroneMessages(droneSocket):
                         video_frame_queue = mp.Queue(maxsize=10)
                         frame_width, frame_height = source.shape[1], source.shape[0]
                         fps = 30  # Frames per second
-                        output_file = f'videos/{video_name}.mp4'
+                        output_file = f'videos/{video_name}'
                         video_writer_proc = mp.Process(target=video_writer_process, args=(
                             video_frame_queue, (frame_width, frame_height), fps, output_file))
                         video_writer_proc.start()

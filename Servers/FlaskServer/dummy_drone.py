@@ -30,9 +30,11 @@ def stream_video_to_server(video_path, client_socket):
         # Send the size of the frame first
         frame_size = len(encoded_base64)
         client_socket.sendall(struct.pack('>I', frame_size))
-        if i % 10 == 0:
-            print("Frame size: " + str(frame_size))
+
+        if i % 60 == 0:
+            print("Sent 60 frames")
             i = 0
+
         # Send the actual frame data
         client_socket.sendall(encoded_base64)
 
