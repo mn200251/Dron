@@ -75,6 +75,7 @@ pca9685 = PCA9685(i2c_address=PCA9685_I2C_ADDRESS)
 pca9685.reset()
 pca9685.init()
 # channel=-1 -- all channel override
+pca9685.arm_esc(-1)
 
 # arm all motors, should be done when user enters 10 on type from app fix later??
 
