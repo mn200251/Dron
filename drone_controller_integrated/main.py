@@ -10,7 +10,7 @@ import time
 import multiprocessing
 from connect_to_server import start_server_connection
 from connect_to_server import user_input
-#from pca9685 import PCA9685, PCA9685_I2C_ADDRESS
+from pca9685 import PCA9685, PCA9685_I2C_ADDRESS
 #from mpu6050 import mpu6050
 
 
@@ -34,8 +34,8 @@ def normalize_user_motor_input(x, y):
     float_zero = 0.000000001
     # when 10 should round [35, 55] to 45 for example
     # TO DO ???
-    aim_help_45_angle_deg = 30
-    aim_help_0_and_90_angle_deg = 30
+    aim_help_45_angle_deg = 45
+    aim_help_0_and_90_angle_deg = 45
     if  np.abs(x) > float_zero and  np.abs(y) > float_zero:
         abs_angle_deg = np.abs(180 * np.arctan(y / x) / np.pi)
         
@@ -64,6 +64,34 @@ def normalize_user_motor_input(x, y):
         return (0, y)
     return (0, 0)
 
+
+
+
+
+
+
+# PWM INITIALIZATION
+pca9685 = PCA9685(i2c_address=PCA9685_I2C_ADDRESS)
+pca9685.reset()
+pca9685.init()
+# channel=-1 -- all channel override
+
+# arm all motors, should be done when user enters 10 on type from app fix later??
+
+# motor idjevi su:
+#   4 prednji desni
+#   5 zadnji desni
+#   10 prednji levi
+#   11 zadnji levi
+PREDNJI_DESNI_MOTOR_CHID = 4
+ZADNJI_DESNI_MOTOR_CHID = 5
+PREDNJI_LEVI_MOTOR_CHID = 10
+ZADNJI_LEVI_MOTOR_CHID = 11
+
+channels=[4,5,10,11]
+
+
+
 prev_user_data = dict()
 running = True
 pid_on = False
@@ -85,6 +113,15 @@ def user_input_handling():
         drone.motor_change_power_percent(1, x_left, 0.08)
         drone.motor_change_power_percent(2, y_right, 0.08)
         drone.motor_change_power_percent(3, x_right, 0.08)
+
+
+
+        #if user calls arm command: # --- armovanje traje NEKOLIKO SEKUNDI
+        if user_input.data["state"] == 10:
+            for ch in channels:
+                pca9685.arm_esc(ch)
+        if user_input.data["state"] == 13: # something here -- disarm [turn off dugme]
+            pca9685.reset() ### posle ovoga mora da se opet inicijalizuje i svakako mora da se armuje
 
 
 # pid stuff
@@ -165,14 +202,14 @@ try:
     #   5 zadnji desni
     #   10 prednji levi
     #   11 zadnji levi
-    PREDNJI_DESNI_MOTOR_CHID = 4
-    ZADNJI_DESNI_MOTOR_CHID = 5
-    PREDNJI_LEVI_MOTOR_CHID = 10
-    ZADNJI_LEVI_MOTOR_CHID = 11
+    #PREDNJI_DESNI_MOTOR_CHID = 4
+    #ZADNJI_DESNI_MOTOR_CHID = 5
+    #PREDNJI_LEVI_MOTOR_CHID = 10
+    #ZADNJI_LEVI_MOTOR_CHID = 11
 
-    channels=[4,5,10,11]
+    #channels=[4,5,10,11]
 
-    # if user calls arm command: --- armovanje traje NEKOLIKO SEKUNDI
+    #if user calls arm command: # --- armovanje traje NEKOLIKO SEKUNDI
     #for ch in channels:
         #pca9685.arm_esc(ch)
     
@@ -211,25 +248,17 @@ try:
         user_input_handling()
         if not running: break
         update(curr_state)
-        
-        print(f"""
+       
+        # print(f"""
+        #     y_left: {drone.get_motor_pwm(0)}, y_right: {drone.get_motor_pwm(2)}
+        #     x_left: {drone.get_motor_pwm(1)}, y_right: {drone.get_motor_pwm(3)}
+        # """)
+       
+        pca9685.set_ESC_PWM(PREDNJI_LEVI_MOTOR_CHID, drone.get_motor_pwm(0))
+        pca9685.set_ESC_PWM(ZADNJI_LEVI_MOTOR_CHID, drone.get_motor_pwm(1))
+        pca9685.set_ESC_PWM(PREDNJI_DESNI_MOTOR_CHID, drone.get_motor_pwm(2))
+        pca9685.set_ESC_PWM(ZADNJI_DESNI_MOTOR_CHID, drone.get_motor_pwm(3))
 
-              
-
-
-
-
-
-
-
-
-
-
-
-
-            y_left: {drone.get_motor_pwm(0)}, y_right: {drone.get_motor_pwm(2)}
-            x_left: {drone.get_motor_pwm(1)}, y_right: {drone.get_motor_pwm(3)}
-        """)
         # use strategy here to update actual values
         #print(pid_updated_values)
         #if pid_updated_values:
