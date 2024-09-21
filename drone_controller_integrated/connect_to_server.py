@@ -6,6 +6,7 @@ import struct
 import pickle
 import base64
 import json
+import time
 
 from github import Github
 #from picamera2 import Picamera2
@@ -86,11 +87,9 @@ user_input = UserInputDataClass()
 def receiveControls(sock):
     
     # type:
-    """
-        10 -- upali se
-        13 -- ugasi se
-        11 -- radi djojstik
-    """
+    # 10 -- upali se
+    # 13 -- ugasi se
+    # 11 -- radi djojstik
 
     while True:
         data = sock.recv(1024).decode("utf-8")

@@ -1,5 +1,4 @@
 import numpy as np
-import pygame
 import physics_engine as pe
 
 class Ground():
