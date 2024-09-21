@@ -462,7 +462,7 @@ def handle_client_connection_general(client_socket):
             match message:
                 case "drone":
                     connections["drone"] = client_socket
-                    #sendDroneStatusToDrone(client_socket)
+                    sendDroneStatusToDrone(client_socket)
                     handleDroneMessages(client_socket)
                 case "phone":
                     connections["phone"] = client_socket
@@ -483,11 +483,20 @@ def handle_client_connection_general(client_socket):
     # client_socket.close()
 
 def sendDroneStatusToDrone(socket):
-    """Ovo nije zgodno za primanje u pythonu mozda bolje kao json?"""
-    isPoweredOnByte = "1\n" if isPoweredOn else "0\n"
-    socket.sendall(isPoweredOnByte.encode())
-    isPIDOnByte = "1\n" if isPIDOn else "0\n"
-    socket.sendall(isPIDOnByte.encode())
+    status = {
+        "type": InstructionType.GET_STATUS.value,
+        "isPoweredOn": isPoweredOn,
+        "isPIDOn": isPIDOn
+    }
+    status_json = json.dumps(status)
+
+    # Send the length of the JSON (as a 4-byte integer)
+    json_length = len(status_json)
+    socket.sendall(json_length.to_bytes(4, byteorder='big'))
+
+    # Send the actual JSON data
+    socket.sendall(status_json.encode('utf-8'))
+    print(f"Sent drone status: {status_json}")
 
 def sendDroneStatus(socket):
     """
