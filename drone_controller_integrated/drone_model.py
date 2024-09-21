@@ -109,13 +109,14 @@ class Drone():
         force_percent = max(-1, force_percent)
         self.motor_power_per[motor_index] = force_percent
     
-    def motor_change_power_percent(self, motor_index, force_diff, max_force_diff):
+    def motor_change_power_percent(self, motor_index, force_diff, max_abs_force_diff):
         """
-        force_diff is between -1 and 1
+        force_diff is between -1 and 1,
+        max_abs_force_diff is between 0 and 1
         """
-        delta_f = force_diff
-        if np.abs(force_diff) > np.abs(max_force_diff):
-            delta_f = np.sign(force_diff) * np.abs(max_force_diff)
+        delta_f = force_diff * max_abs_force_diff
+        if np.abs(force_diff) > np.abs(max_abs_force_diff):
+            delta_f = np.sign(force_diff) * np.abs(max_abs_force_diff)
         self.motor_set_power_percent(motor_index, self.motor_power_per[motor_index] + delta_f)
     
     def get_motor_pwm(self, motor_index):

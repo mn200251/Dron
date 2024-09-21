@@ -34,14 +34,25 @@ def normalize_user_motor_input(x, y):
     float_zero = 0.000000001
     # when 10 should round [35, 55] to 45 for example
     # TO DO ???
-    aim_help_angle_deg = 10
+    aim_help_45_angle_deg = 30
+    aim_help_0_and_90_angle_deg = 30
     if  np.abs(x) > float_zero and  np.abs(y) > float_zero:
         abs_angle_deg = np.abs(180 * np.arctan(y / x) / np.pi)
-        if (45 - aim_help_angle_deg / 2 <= abs_angle_deg) \
-            and (abs_angle_deg <= 45 + aim_help_angle_deg / 2):
+        
+        if (0 - aim_help_0_and_90_angle_deg / 2 <= abs_angle_deg) \
+            and (abs_angle_deg <= 0 + aim_help_0_and_90_angle_deg / 2):
+            #print("angle = 0")
+            return(x, 0)
+        if (90 - aim_help_0_and_90_angle_deg / 2 <= abs_angle_deg) \
+            and (abs_angle_deg <= 90 + aim_help_0_and_90_angle_deg / 2):
+            #print("angle = 90")
+            return(0, y)
+        if (45 - aim_help_45_angle_deg / 2 <= abs_angle_deg) \
+            and (abs_angle_deg <= 45 + aim_help_45_angle_deg / 2):
             t = (np.abs(x) + np.abs(y)) / 2
             x = np.sign(x) * t; y = np.sign(y) * t
-        print(f"angle = {180 * np.arctan(y / x) / np.pi}")
+
+        #print(f"angle = {180 * np.arctan(y / x) / np.pi}")
         vector_magnitude = np.sqrt(x ** 2 + y ** 2)
         max_projection_magnitude = max(np.abs(x), np.abs(y))
         normalized_x_delta_input = x * vector_magnitude / max_projection_magnitude
@@ -66,13 +77,15 @@ def user_input_handling():
     #print("user_input_here")
     if user_input.data and (user_input.data is not prev_user_data):
         prev_user_data = user_input.data
-        print()
-        print(user_input.data)
-        print(normalize_user_motor_input(user_input.data["x_left"], user_input.data["y_left"]))
-        print(normalize_user_motor_input(user_input.data["x_right"], user_input.data["y_right"]))
+        x_left, y_left = normalize_user_motor_input(user_input.data["x_left"], user_input.data["y_left"])
+        x_left = -x_left # mirror x left
+        x_right, y_right = normalize_user_motor_input(user_input.data["x_right"], user_input.data["y_right"])
+        #print(f"left: ({x_left}, {y_left}), right: ({x_right}, {y_right})")
+        drone.motor_change_power_percent(0, y_left, 0.08)
+        drone.motor_change_power_percent(1, x_left, 0.08)
+        drone.motor_change_power_percent(2, y_right, 0.08)
+        drone.motor_change_power_percent(3, x_right, 0.08)
 
-    pass
-    return None
 
 # pid stuff
 curr_state = sc.StateController()
@@ -152,6 +165,11 @@ try:
     #   5 zadnji desni
     #   10 prednji levi
     #   11 zadnji levi
+    PREDNJI_DESNI_MOTOR_CHID = 4
+    ZADNJI_DESNI_MOTOR_CHID = 5
+    PREDNJI_LEVI_MOTOR_CHID = 10
+    ZADNJI_LEVI_MOTOR_CHID = 11
+
     channels=[4,5,10,11]
 
     # if user calls arm command: --- armovanje traje NEKOLIKO SEKUNDI
@@ -190,16 +208,28 @@ try:
 
 
     while running:
-        new_motor_values = user_input_handling()
+        user_input_handling()
         if not running: break
         update(curr_state)
         
-        # print(f"""
-        # motor1: {drone.get_motor_pwm(0)}
-        # motor2: {drone.get_motor_pwm(1)}
-        # motor3: {drone.get_motor_pwm(2)}
-        # motor4: {drone.get_motor_pwm(3)}
-        # """)
+        print(f"""
+
+              
+
+
+
+
+
+
+
+
+
+
+
+
+            y_left: {drone.get_motor_pwm(0)}, y_right: {drone.get_motor_pwm(2)}
+            x_left: {drone.get_motor_pwm(1)}, y_right: {drone.get_motor_pwm(3)}
+        """)
         # use strategy here to update actual values
         #print(pid_updated_values)
         #if pid_updated_values:
