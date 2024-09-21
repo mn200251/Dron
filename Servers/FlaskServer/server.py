@@ -29,6 +29,7 @@ control_queue = queue.Queue(maxsize=MAX_QUEUE_SIZE)
 connections = {'drone': None, 'phone': None}
 
 # To remember the states
+isPIDOn = True
 isPoweredOn = False
 phone_state = PhoneState.PILOTING
 record_video = RecordState.NOT_RECORDING
@@ -39,7 +40,7 @@ send_event = threading.Event()
 
 
 # Instruction_recording
-macro_name = f"{script_dir}/script_{time.strftime('%Y%m%d_%H%M%S')}.json"
+macro_name = None
 isRecordingMacro = False
 start_time = None
 previous_time = None
@@ -314,7 +315,7 @@ def handleControls(phoneSocket):
 
 
 def process_instruction(instruction_data):
-    global isPoweredOn,record_video, video_name, start_time, previous_time, macro_name, isRecordingMacro, instructions, response, phone_state, command_dict
+    global isPoweredOn, isPIDOn, record_video, video_name, start_time, previous_time, macro_name, isRecordingMacro, instructions, response, phone_state, command_dict
     instruction_type = instruction_data.get("type")
     flag_pass_commands = False
     if instruction_type is None:
@@ -337,13 +338,14 @@ def process_instruction(instruction_data):
         macro_name = instruction_data.get("name", f"script_{time.strftime('%Y%m%d_%H%M%S')}") + ".json"
         isRecordingMacro = True
     elif instruction_type == InstructionType.STOP_RECORDING_MACRO.value:
-        isRecordingMacro = False
-        save_instructions_to_file()
-        previous_time = None
-        start_time = None
-        instructions = []
+        if not macro_name is None:
+            isRecordingMacro = False
+            save_instructions_to_file()
+            previous_time = None
+            start_time = None
+            instructions = []
+            macro_name = None
     elif instruction_type == InstructionType.TURN_ON.value:
-        print("Marko sa ovim treba da radis nesto na dronu")
         isPoweredOn=True
         command_dict["type"] = instruction_type
         flag_pass_commands = True
@@ -354,6 +356,14 @@ def process_instruction(instruction_data):
     elif instruction_type == InstructionType.START_MACRO.value:
         autopilot_thread = threading.Thread(target=fly_autopilot, args=(instruction_data['name'],))
         autopilot_thread.start()
+    elif instruction_type == InstructionType.PID_ON.value:
+        isPIDOn=True
+        command_dict["type"] = instruction_type
+        flag_pass_commands = True
+    elif instruction_type == InstructionType.PID_OFF.value:
+        isPIDOn=False
+        command_dict["type"] = instruction_type
+        flag_pass_commands = True
     else:
         print("Unkown instruction in handle controls")
     return flag_pass_commands
@@ -452,6 +462,7 @@ def handle_client_connection_general(client_socket):
             match message:
                 case "drone":
                     connections["drone"] = client_socket
+                    sendDroneStatusToDrone(client_socket)
                     handleDroneMessages(client_socket)
                 case "phone":
                     connections["phone"] = client_socket
@@ -471,6 +482,21 @@ def handle_client_connection_general(client_socket):
             break
     # client_socket.close()
 
+def sendDroneStatusToDrone(socket):
+    status = {
+        "type": InstructionType.GET_STATUS.value,
+        "isPoweredOn": isPoweredOn,
+        "isPIDOn": isPIDOn
+    }
+    status_json = json.dumps(status)
+
+    # Send the length of the JSON (as a 4-byte integer)
+    json_length = len(status_json)
+    socket.sendall(json_length.to_bytes(4, byteorder='big'))
+
+    # Send the actual JSON data
+    socket.sendall(status_json.encode('utf-8'))
+    print(f"Sent drone status: {status_json}")
 
 def sendDroneStatus(socket):
     """

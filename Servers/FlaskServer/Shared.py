@@ -41,6 +41,8 @@ class InstructionType(Enum):
     TURN_OFF = 13
     GET_STATUS = 14  # da proveri stanje jer neke instrukcije mozda nisu prosle npr pocni snimanje
     BACK = 15  # povratak iz browsinga videa/letova?
+    PID_ON=16
+    PID_OFF=17
 
 
 # Constants
@@ -54,7 +56,7 @@ script_dir = "flight_scripts"
 
 
 # Flag to determine if the server is internal or external
-internal = False
+internal = True
 
 # Interval to update the IP address on GitHub (in seconds)
 ip_update_interval = 60 * 10
