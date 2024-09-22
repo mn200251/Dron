@@ -12,7 +12,8 @@ from Shared import *
 
 # video streaming
 video_queue = queue.Queue(maxsize=MAX_QUEUE_SIZE)
-
+current_frame = None
+FRAME_RATE = 1.0 / 30
 
 # video download
 video_writer_proc = None
@@ -48,7 +49,7 @@ previous_time = None
 instructions = []
 
 # video recording
-video_name = f'videos/recording_{int(time.time() * 1000)}.mp4'
+video_name = None
 
 # Autopilot
 isAutopilotAcive = False
@@ -71,43 +72,49 @@ def save_instructions_to_file():
 # THREADS AND THEIR CREATION
 def send_frames():
     """
-    Funkcija send_frames preuzima frejmove iz video_queue i šalje ih na telefon.
-    Ako dođe do greške tokom slanja, red se prazni kako bi se izbegli zastare frejmovi.
-    Funkcija koristi timeout kako bi se izbeglo blokiranje i osigurava da se zaustavi kada je signalizovano putem stop_event.
-
-    :return:
+    Timer-based function that sends the current frame every 1/30th of a second.
+    If an error occurs during sending, it retries until the stop_event is set.
+    The function ensures that the process is stopped gracefully when the stop_event is triggered.
     """
-    global stop_event, connections
-    cnt=0
+    global stop_event, current_frame, connections
+    cnt = 0
+
     while not stop_event.is_set():
         try:
-            jpeg_bytes = video_queue.get(timeout=QUEUE_TIMEOUT)
+            # Wait for the next frame interval (1/30 seconds for 30 FPS)
+            time.sleep(FRAME_RATE)
+
+            # Check if there is a valid current frame to send
+            if current_frame is None:
+                continue
+
             phone_socket = connections["phone"]
-            # print(len(jpeg_bytes))
+            jpeg_bytes = current_frame
+
+            # Send the frame size followed by the actual frame data
             phone_socket.sendall(struct.pack('>I', len(jpeg_bytes)))
             phone_socket.sendall(jpeg_bytes)
 
-            if cnt%30==0:
-                print(str(cnt) + " send_frames sent batch"+ str(time.time()))
-            cnt += 1
-            if video_queue.qsize()>30:
-                with video_queue.mutex:
-                    video_queue.queue.clear()
-        except queue.Empty:
-            # Queue is empty, no frames to send
-            continue
+            if record_video == RecordState.RECORDING:
+                video_frame_queue.put(jpeg_bytes)
+
+            # Print status every 30 frames
+            # if cnt % 30 == 0:
+            #     print(str(cnt) + " send_frames sent batch" + str(time.time()))
+            #
+            # cnt += 1
+
         except socket.error:
-            # Error occurred during sending
-            # Clear the queue on error
-            with video_queue.mutex:
-                video_queue.queue.clear()
+            # Handle errors related to sending data over the socket
+            print("Socket error occurred in send_frames, retrying...")
             continue
-        except AttributeError as e:
+        except AttributeError:
+            # Handle case where phone connection is not established
             print(f"Phone not connected")
         except Exception as e:
-            print(f"Unexpected error in send_frames: {e}")
+            # Catch any unexpected errors and log them
+            print(f"Unexpected error in send_frames_timer: {e}")
             continue
-
 
 def video_writer_process(video_frame_queue, frame_size, fps, output_file):
     """Process that handles writing video frames to a file."""
@@ -122,7 +129,13 @@ def video_writer_process(video_frame_queue, frame_size, fps, output_file):
                 fourcc = cv2.VideoWriter_fourcc(*'mp4v')
                 video_writer = cv2.VideoWriter(output_file, fourcc, fps, frame_size)
 
-            video_writer.write(frame)
+            npimg = np.frombuffer(frame, np.uint8)
+
+            if npimg is None:
+                print('npimg is none')
+
+            source = cv2.imdecode(npimg, 1)
+            video_writer.write(source)
 
         if video_writer is not None:
             video_writer.release()
@@ -140,7 +153,7 @@ def handleDroneMessages(droneSocket):
     :param droneSocket:
     :return:
     """
-    global record_video, phone_state, video_writer_proc, video_frame_queue, video_name
+    global record_video, phone_state, video_writer_proc, video_frame_queue, video_name,current_frame
     video_writer = None
     # stream alive
     flag = True
@@ -162,42 +175,23 @@ def handleDroneMessages(droneSocket):
                         break
                     frame_data += packet
                 jpeg_bytes=frame_data
-                # img = base64.b64decode(frame_data)
-                #
-                # if img is None:
-                #     print('img is none')
-                #
-                # npimg = np.frombuffer(img, np.uint8)
-                #
-                # if npimg is None:
-                #     print('npimg is none')
-                #
-                # source = cv2.imdecode(npimg, 1)
-                #
-                # _, jpeg = cv2.imencode('.jpg', source)
-                # jpeg_bytes = jpeg.tobytes()
+                current_frame=jpeg_bytes
 
-                video_queue.put(jpeg_bytes)
-
-                if cnt % 30 == 0:
-                    print(str(cnt)+" receive_frames got batch" + str(time.time()))
-                cnt += 1
+                # if cnt % 30 == 0:
+                #     print(str(cnt)+" receive_frames got batch" + str(time.time()))
+                # cnt += 1
                 # Check if recording needs to be started or restarted in new thread because of a disconnected
                 if record_video == RecordState.START_RECORDING:
-
                     print("Start recording")
                     if video_writer_proc is None or not video_writer_proc.is_alive():
                         video_frame_queue = mp.Queue(maxsize=10)
-                        frame_width, frame_height = source.shape[1], source.shape[0]
+                        frame_width, frame_height = 1280, 720
                         fps = 30  # Frames per second
-                        output_file = f'videos/{video_name}.mp4'
+                        output_file = f'videos/{video_name}'
                         video_writer_proc = mp.Process(target=video_writer_process, args=(
                             video_frame_queue, (frame_width, frame_height), fps, output_file))
                         video_writer_proc.start()
                         record_video = RecordState.RECORDING
-
-                if record_video == RecordState.RECORDING:
-                    video_frame_queue.put(source)
 
                 if record_video == RecordState.STOP_RECORDING:
                     print("End recording")
