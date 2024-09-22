@@ -60,7 +60,8 @@ def send_camera_stream2(client_socket: socket):
 
             encoded, buffer = cv2.imencode('.jpg', frame)
 
-            jpg_as_text = base64.b64encode(buffer)
+            #jpg_as_text = base64.b64encode(buffer)
+            jpg_as_text=buffer
 
             # size = int(len(jpg_as_text) / 1024) + 1
             size = len(jpg_as_text).to_bytes(4, byteorder='big', signed=False)
