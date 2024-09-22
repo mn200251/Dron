@@ -97,7 +97,6 @@ class ConnectionService : Service() {
         notificationManager.notify(notificationId, notification)
     }
 
-    // Example of changing the isInForeground value and updating the notification
     private fun changeServiceState(toForeground: Boolean) {
         isInForeground = toForeground
         updateNotification(isInForeground)
@@ -107,7 +106,6 @@ class ConnectionService : Service() {
         val channelId = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             createNotificationChannel(channelId, "ConnectionService")
         } else {
-            // If earlier version then do nothing and use a channel id from a predefined string
             "default"
         }
 
@@ -115,14 +113,13 @@ class ConnectionService : Service() {
             .setContentTitle("Connected to Server")
             .setContentText("The service is running in the foreground")
             .setSmallIcon(R.drawable.connected_icon)
-            .setPriority(NotificationCompat.BADGE_ICON_SMALL) // older versions use this to set priority
+            .setPriority(NotificationCompat.BADGE_ICON_SMALL)
             .build()
 
         try {
             startForeground(notificationId, notification)
         }
-        catch (e: SecurityException)
-        {
+        catch (e: SecurityException) {
             Log.d("SERVICE", e.toString())
         }
 

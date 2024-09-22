@@ -68,13 +68,10 @@ def changeServerIP(newIP, path):
     """
         Updates the server IP address stored in a GitHub repository.
     """
-    # Authenticate to GitHub
-    g = Github(GITHUB_TOKEN)
 
-    # Get the repository
+    g = Github(GITHUB_TOKEN)
     repo = g.get_repo(REPO_NAME)
 
-    # Get the file contents
     try:
         file = repo.get_contents(path, ref=BRANCH_NAME)
     except Exception as e:
@@ -83,20 +80,17 @@ def changeServerIP(newIP, path):
                              branch=BRANCH_NAME)
             return
         else:
-            # Other errors
             print(f"An error occurred: {e}")
             return
 
     currentIP = file.decoded_content.decode()
-
     if currentIP == newIP:
         print("changeServerIP - Server IP didn't change")
         return
 
-    # Commit and push the changes
     repo.update_file(file.path, f'Updated server_ip.txt with new IP: {newIP}', newIP, file.sha,
                      branch=BRANCH_NAME)
-    print(f"Updated {path} ip")
+    print(f"Updated {path} IP")
 
 
 def getInternalIp():

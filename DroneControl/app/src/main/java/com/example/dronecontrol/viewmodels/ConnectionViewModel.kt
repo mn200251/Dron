@@ -135,8 +135,8 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
         context.startService(intent)
 
         // stop recording flight if kill switch activated
-        if (!newValue)
-            updateIsRecordingMacro(context, false)
+//        if (!newValue)
+//            updateIsRecordingMacro(context, false)
     }
 
     fun updateIsRecordingMacro(context: Context, newValue: Boolean, macroName: String? = null)
@@ -276,8 +276,6 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
             putExtra("ControlData", controls)
         }
         context.startService(intent)
-
-        // ContextCompat.startForegroundService(context, intent)
     }
 
     // ako se ugasi konekcija i startuje nova STVORICE MEMORY LEAK!\

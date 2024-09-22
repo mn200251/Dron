@@ -1,5 +1,4 @@
 import numpy as np
-import pygame
 import physics_engine as pe
 
 
@@ -8,7 +7,7 @@ class Drone():
     GYRO_NOISE = True
     GYRO_NOISE_PERCENT = 0.01
 
-    def __init__(self, drone_center, radius):
+    def __init__(self, drone_center, radius, min_motor_force, max_motor_force):
         # drone frame offset, motor0_coordinates, motor1_coordinates, motor2_coordinates, motor3_coordinates
         # motor0 is on +x axis, motor1 is on +y axis, motor2 is on -x axis, motor3 is on -y axis
         self.drone_center = np.array([drone_center[0], drone_center[1], drone_center[2], 1], dtype=float)
@@ -18,9 +17,11 @@ class Drone():
             np.array([drone_center[0] - radius, drone_center[1], drone_center[2], 1], dtype=float),
             np.array([drone_center[0], drone_center[0], drone_center[2] - radius, 1], dtype=float),
         ])
+        self.min_motor_force = min_motor_force
+        self.max_motor_force = max_motor_force
         
         self.parameter_loaded = False
-        self.motor_power_per = np.array([0, 0, 0, 0], dtype=float)
+        self.motor_power_per = np.array([-1, -1, -1, -1], dtype=float)
         # max angle that it can rotate in one iteration
         self.max_motor_rotation_speed = 30
         self.translational_speed = np.array([0, 0, 0], dtype=float)
@@ -107,6 +108,32 @@ class Drone():
         force_percent = min(1, force_percent)
         force_percent = max(-1, force_percent)
         self.motor_power_per[motor_index] = force_percent
+    
+    def motor_change_power_percent(self, motor_index, force_diff, max_abs_force_diff):
+        """
+        force_diff is between -1 and 1,
+        max_abs_force_diff is between 0 and 1
+        """
+        delta_f = force_diff * max_abs_force_diff
+        if np.abs(force_diff) > np.abs(max_abs_force_diff):
+            delta_f = np.sign(force_diff) * np.abs(max_abs_force_diff)
+        self.motor_set_power_percent(motor_index, self.motor_power_per[motor_index] + delta_f)
+    
+    def get_motor_pwm(self, motor_index):
+        """
+        returns values for motor[motor_index] that should be
+        forwarded to hardware pwm
+        does mapping:
+        f: [a, b] -> [c, d]
+        where [-1, 1] -> [min_motor_force, max_motor_force]
+        returns f(x)
+        """
+        a = -1
+        b = 1
+        c = self.min_motor_force
+        d = self.max_motor_force
+        x = self.motor_power_per[motor_index]
+        return c + (d - c) * (x - a) / (b - a)
     
     def calculate_forces(self):
         motor_thrust_magnitudes = np.cbrt((2 * pe.DroneParameters.rho * pe.DroneParameters.A) * np.square(self.motor_power_per))

@@ -11,17 +11,13 @@ import java.io.InputStream
 import kotlin.io.encoding.ExperimentalEncodingApi
 
 @RequiresApi(Build.VERSION_CODES.O)
-@OptIn(ExperimentalEncodingApi::class)
 suspend fun getCurrentIP(githubToken: String, repoName: String, filePath: String, branchName: String): Pair<String, String>? {
     return withContext(Dispatchers.IO) {
         try {
-            // Authenticate to GitHub
             val github = GitHubBuilder().withOAuthToken(githubToken).build()
 
-            // Get the repository
             val repo: GHRepository = github.getRepository(repoName)
 
-            // Get the file contents
             val file = repo.getFileContent(filePath, branchName)
             val inputStream: InputStream = file.read()
             val decodedContent = inputStream.readBytes().toString(Charsets.UTF_8).trim()
@@ -42,7 +38,6 @@ suspend fun getCurrentIP(githubToken: String, repoName: String, filePath: String
                     println("Port is not type int!")
                     return@withContext null
                 }
-
                 return@withContext Pair(ip, port)
             } else {
                 println("The content format is incorrect.")

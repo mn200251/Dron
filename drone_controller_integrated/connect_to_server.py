@@ -6,6 +6,7 @@ import struct
 import pickle
 import base64
 import json
+import time
 
 from github import Github
 #from picamera2 import Picamera2
@@ -86,11 +87,9 @@ user_input = UserInputDataClass()
 def receiveControls(sock):
     
     # type:
-    """
-        10 -- upali se
-        13 -- ugasi se
-        11 -- radi djojstik
-    """
+    # 10 -- upali se
+    # 13 -- ugasi se
+    # 11 -- radi djojstik
 
     while True:
         data = sock.recv(1024).decode("utf-8")
@@ -109,7 +108,7 @@ def receiveControls(sock):
             "x_left": float(data2["z"]),
             "y_right": -float(data2["y"]),
             "x_right": float(data2["x"]),
-            "state:": int(data2["type"])
+            "state": int(data2["type"])
         }
         #print(user_input.data)
 
@@ -140,10 +139,11 @@ def start_server_connection():
 
         # Create and start threads for sending and receiving data
         #send_thread = multiprocessing.Process(target=send_camera_stream2, args=(s,))
+        send_thread = threading.Thread(target=send_camera_stream2, args=(s,))
         #receive_thread = multiprocessing.Process(target=receiveControls, args=(s,))
         receive_thread = threading.Thread(target=receiveControls, args=(s,))
 
-        #send_thread.start()
+        send_thread.start()
         receive_thread.start()
 
         # Wait for threads to complete
