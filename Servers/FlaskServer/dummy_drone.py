@@ -26,16 +26,14 @@ def stream_video_to_server(video_path, client_socket):
 
         # Convert the encoded image to bytes and then to base64
         encoded_bytes = encoded_image.tobytes()
-        encoded_base64 = base64.b64encode(encoded_bytes)
 
         # Send the size of the frame first
-        frame_size = len(encoded_base64)
+        frame_size = len(encoded_bytes)
         client_socket.sendall(struct.pack('>I', frame_size))
         if i % 30 == 0:
-            print("Frame size: " + str(frame_size) + " current.time:"+ str(time.time()))
-            i = 0
+            print("Frame size: " + str(frame_size) +" batch "+str(i) +" current.time:"+ str(time.time()))
         # Send the actual frame data
-        client_socket.sendall(encoded_base64)
+        client_socket.sendall(encoded_bytes)
 
         # Add some delay to simulate real-time streaming
         # time.sleep(1 / 60)
@@ -96,7 +94,7 @@ def start_dummy(video_path, server_ip, server_port):
 
 if __name__ == "__main__":
     # Example usage
-    VIDEO_PATH = 'videos/VID_LEA.mp4'
+    VIDEO_PATH = 'stock-footage_1280x720.mp4'
 
     if internal:
         SERVER_IP = '192.168.1.17'

@@ -13,6 +13,7 @@ from Shared import *
 # video streaming
 video_queue = queue.Queue(maxsize=MAX_QUEUE_SIZE)
 
+
 # video download
 video_writer_proc = None
 video_frame_queue = None
@@ -77,6 +78,7 @@ def send_frames():
     :return:
     """
     global stop_event, connections
+    cnt=0
     while not stop_event.is_set():
         try:
             jpeg_bytes = video_queue.get(timeout=QUEUE_TIMEOUT)
@@ -84,6 +86,13 @@ def send_frames():
             # print(len(jpeg_bytes))
             phone_socket.sendall(struct.pack('>I', len(jpeg_bytes)))
             phone_socket.sendall(jpeg_bytes)
+
+            if cnt%30==0:
+                print(str(cnt) + " send_frames sent batch"+ str(time.time()))
+            cnt += 1
+            if video_queue.qsize()>30:
+                with video_queue.mutex:
+                    video_queue.queue.clear()
         except queue.Empty:
             # Queue is empty, no frames to send
             continue
@@ -135,6 +144,7 @@ def handleDroneMessages(droneSocket):
     video_writer = None
     # stream alive
     flag = True
+    cnt=0
     while flag and not stop_event.is_set():
         i = 0
         # receiving the stream
@@ -151,24 +161,27 @@ def handleDroneMessages(droneSocket):
                     if not packet:
                         break
                     frame_data += packet
-
-                img = base64.b64decode(frame_data)
-
-                if img is None:
-                    print('img is none')
-
-                npimg = np.frombuffer(img, np.uint8)
-
-                if npimg is None:
-                    print('npimg is none')
-
-                source = cv2.imdecode(npimg, 1)
-
-                _, jpeg = cv2.imencode('.jpg', source)
-                jpeg_bytes = jpeg.tobytes()
+                jpeg_bytes=frame_data
+                # img = base64.b64decode(frame_data)
+                #
+                # if img is None:
+                #     print('img is none')
+                #
+                # npimg = np.frombuffer(img, np.uint8)
+                #
+                # if npimg is None:
+                #     print('npimg is none')
+                #
+                # source = cv2.imdecode(npimg, 1)
+                #
+                # _, jpeg = cv2.imencode('.jpg', source)
+                # jpeg_bytes = jpeg.tobytes()
 
                 video_queue.put(jpeg_bytes)
 
+                if cnt % 30 == 0:
+                    print(str(cnt)+" receive_frames got batch" + str(time.time()))
+                cnt += 1
                 # Check if recording needs to be started or restarted in new thread because of a disconnected
                 if record_video == RecordState.START_RECORDING:
 
@@ -296,7 +309,8 @@ def handleControls(phoneSocket):
                 try:
                     instruction_data = json.loads(json_str)
                     instruction_type = instruction_data.get("type")
-                    print(instruction_data)
+                    if instruction_type != InstructionType.HEARTBEAT.value:
+                        print(instruction_data)
                     # cancel autopilot and switch back to manual mode
                     if isAutopilotAcive and instruction_type not in allowed_instructions:
                         isAutopilotAcive = False
