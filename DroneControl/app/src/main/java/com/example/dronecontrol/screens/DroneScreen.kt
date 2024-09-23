@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
@@ -145,6 +146,8 @@ fun DroneScreen(
                     tint = Color(64, 64, 64, 75),
                 )
             }
+            
+            Spacer(modifier = Modifier.padding(10.dp))
 
             Box(
                 modifier = Modifier
