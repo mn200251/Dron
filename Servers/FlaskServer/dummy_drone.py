@@ -96,7 +96,7 @@ def start_dummy(video_path, server_ip, server_port):
 
 if __name__ == "__main__":
     # Example usage
-    VIDEO_PATH = 'stock-footage_1280x720.mp4'
+    VIDEO_PATH = 'FlaskServer/stock-footage_1280x720.mp4'
 
     if internal:
         SERVER_IP = '192.168.1.17'

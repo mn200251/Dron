@@ -67,13 +67,6 @@ fun DroneScreen(
     macroViewModel: MacroViewModel = viewModel(),
     context: Context)
 {
-    // button for taking pictures?
-    // battery percentage
-    // forward back left right
-    // up down
-    // stop button
-
-    val uiState by connectionViewModel.uiState.collectAsState()
     val macroUiState by macroViewModel.uiState.collectAsState()
 
     val width = LocalConfiguration.current.screenWidthDp.dp
@@ -94,8 +87,6 @@ fun DroneScreen(
     val isRecordingMacro by SharedRepository.isRecordingMacro.collectAsState(initial = false)
     val isRecordingVideo by SharedRepository.isRecordingVideo.collectAsState(initial = false)
 
-    val currLocalDensity = LocalDensity.current
-
     val joystickAreaWidth = 0.45f
     val joystickAreaHeight = 0.65f
 
@@ -104,8 +95,6 @@ fun DroneScreen(
     var showMacroDialog by remember { mutableStateOf(false) }
     var showVideoDialog by remember { mutableStateOf(false) }
     var showMacroSelectionDialog by remember { mutableStateOf(false) }
-
-    var flightName by remember { mutableStateOf("") }
 
     val buttonSize = 70.dp
 
@@ -492,21 +481,19 @@ suspend fun PointerInputScope.detectMultitouchGestures(
     }
 }
 
-// Function to create a dummy bitmap (replace with actual video frame creation logic)
 fun createDummyBitmap(width: Dp, height: Dp, i: Int): ImageBitmap {
     // val width = LocalConfiguration.current.screenWidthDp.dp
     // val height = LocalConfiguration.current.screenHeightDp.dp
     val width2 = 3150
     val height2 = 1450
-    // val bitmap = Bitmap.createBitmap(width.value.toInt(), height.value.toInt(), Bitmap.Config.ARGB_8888)
+
     val bitmap = Bitmap.createBitmap(width2, height2, Bitmap.Config.ARGB_8888)
     val canvas = android.graphics.Canvas(bitmap)
 
     // Draw dummy content on the canvas
     canvas.drawColor(rgb(i - 70, i - 140, i))
-    // canvas.drawColor(Color.White) // Background color
-    canvas.drawRect(0f + 10 * i, 0f, 200f + 10f * i, 150f, Paint().apply { color = rgb(255 - i * 4, i, 0) }) // Example rectangle
-    // canvas.drawText("Hello, World!", 100f, 200f, Paint().apply { color = rgb(0, 0, 0) }) // Example text
+    // rectangle
+    canvas.drawRect(0f + 10 * i, 0f, 200f + 10f * i, 150f, Paint().apply { color = rgb(255 - i * 4, i, 0) })
 
     return bitmap.asImageBitmap()
 }

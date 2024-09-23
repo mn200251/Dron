@@ -96,13 +96,7 @@ fun VideoItem(video: Video,
             Button(
                 onClick = {
                     if (isRenaming)
-                    {
                         onRenameConfirm(video.filename, newName)
-                    }
-                    else
-                    {
-
-                    }
 
                     isRenaming = isRenaming.not()
                 },

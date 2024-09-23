@@ -120,7 +120,6 @@ fun ModifiedJoyStick(
 */
 
 
-@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun ModifiedJoyStick(
     modifier: Modifier = Modifier,
@@ -135,8 +134,6 @@ fun ModifiedJoyStick(
 ) {
     val backgroundPainter: Painter = painterResource(id = backgroundImage)
     val dotPainter: Painter = painterResource(id = dotImage)
-
-    val currLocalDensity = LocalDensity.current
 
     Box(
         modifier = modifier,

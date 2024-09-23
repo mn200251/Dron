@@ -13,7 +13,9 @@ from Shared import *
 # video streaming
 video_queue = queue.Queue(maxsize=MAX_QUEUE_SIZE)
 current_frame = None
-FRAME_RATE = 1.0 / 30
+FRAME_RATE = 30
+# FRAME_WIDTH, FRAME_HEIGHT = 1280, 720
+FRAME_WIDTH, FRAME_HEIGHT = 1920, 1080
 
 # video download
 video_writer_proc = None
@@ -82,13 +84,14 @@ def send_frames():
     while not stop_event.is_set():
         try:
             # Wait for the next frame interval (1/30 seconds for 30 FPS)
-            time.sleep(FRAME_RATE)
+            time.sleep(1.0 / FRAME_RATE)
 
             # Check if there is a valid current frame to send
             if current_frame is None:
                 continue
 
             phone_socket = connections["phone"]
+
             jpeg_bytes = current_frame
 
             # Send the frame size followed by the actual frame data
@@ -174,8 +177,16 @@ def handleDroneMessages(droneSocket):
                     if not packet:
                         break
                     frame_data += packet
-                jpeg_bytes=frame_data
-                current_frame=jpeg_bytes
+                jpeg_bytes = frame_data
+                current_frame = jpeg_bytes
+
+                # npimg = np.frombuffer(frame_data, np.uint8)
+                #
+                # if npimg is None:
+                #     print('npimg is none')
+                #
+                # source = cv2.imdecode(npimg, 1)
+                # cv2.imshow("Stream", source)
 
                 # if cnt % 30 == 0:
                 #     print(str(cnt)+" receive_frames got batch" + str(time.time()))
@@ -185,11 +196,10 @@ def handleDroneMessages(droneSocket):
                     print("Start recording")
                     if video_writer_proc is None or not video_writer_proc.is_alive():
                         video_frame_queue = mp.Queue(maxsize=10)
-                        frame_width, frame_height = 1280, 720
-                        fps = 30  # Frames per second
+
                         output_file = f'videos/{video_name}'
                         video_writer_proc = mp.Process(target=video_writer_process, args=(
-                            video_frame_queue, (frame_width, frame_height), fps, output_file))
+                            video_frame_queue, (FRAME_WIDTH, FRAME_HEIGHT), FRAME_RATE, output_file))
                         video_writer_proc.start()
                         record_video = RecordState.RECORDING
 

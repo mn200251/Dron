@@ -52,6 +52,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat.getSystemService
 import androidx.core.view.ViewCompat.onApplyWindowInsets
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LiveData
@@ -171,6 +172,13 @@ fun DroneApp(context: Context, lifeCyleOwner: LifecycleOwner, activity: MainActi
 
     // Convert LiveData to StateFlow or use a MutableState directly in Compose
     val screen by SharedRepository.screenNumber.collectAsState(SCREEN.MainScreen) // Use a default value
+
+//    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+//        val renderer = getSystemService(Context.RENDER_THREAD) as android.os.Handler
+//        renderer.looper.queue.addIdleHandler {
+//            true // Force software rendering
+//        }
+//    }
 
     // Observe screenNumber and update the screen accordingly
     UpdateScreen(screen, context, connectionViewModel, macroViewModel, activity)

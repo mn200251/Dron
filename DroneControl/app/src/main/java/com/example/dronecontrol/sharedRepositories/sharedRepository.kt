@@ -26,7 +26,11 @@ object SharedRepository {
 
     // Thread-safe setter for frame
     fun setFrame(newFrame: Bitmap?) {
+        // var oldFrame = _frame.value
+
         _frame.postValue(newFrame)
+
+        // oldFrame?.recycle()
     }
 
     // Thread-safe setter for mainScreenErrorText

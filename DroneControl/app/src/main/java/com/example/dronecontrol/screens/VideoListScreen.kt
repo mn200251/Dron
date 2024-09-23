@@ -103,11 +103,11 @@ fun VideoListScreen(viewModel: VideoViewModel ) {
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 items(videoState.videos) { video ->
-                    VideoItem(video = video, onDownloadConfirm = { video ->
+                    VideoItem(video = video, onDownloadConfirm = { selectedVideo ->
                         // Trigger download action
                         val intent = Intent(context, DownloadService::class.java).apply {
                             action = "ACTION_APP_FOREGROUND"
-                            putExtra("videoName", video.filename)
+                            putExtra("videoName", selectedVideo.filename)
                         }
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                             context.startForegroundService(intent)

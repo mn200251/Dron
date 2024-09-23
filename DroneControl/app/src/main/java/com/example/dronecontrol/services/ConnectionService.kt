@@ -5,6 +5,7 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.os.Build
@@ -437,7 +438,13 @@ class ConnectionService : Service() {
     private suspend fun receiveVideoStream()
     {
         var inputStream: InputStream = socket!!.getInputStream()
-        var dataInputStream: DataInputStream = DataInputStream(inputStream)
+        var dataInputStream = DataInputStream(inputStream)
+
+//        var previousBitmap: Bitmap? = null
+
+        val options = BitmapFactory.Options().apply {
+            inPreferredConfig = Bitmap.Config.RGB_565 // Lower memory usage than ARGB_8888
+        }
 
         while (connectionActive)
         {
@@ -452,19 +459,35 @@ class ConnectionService : Service() {
 
                 val size: Int = dataInputStream.readInt()
 
-                // Read the JPEG data
                 val jpegData = ByteArray(size)
+
                 dataInputStream.readFully(jpegData)
 
-                // Convert JPEG data to Bitmap
-                val bitmap = BitmapFactory.decodeByteArray(jpegData, 0, size)
+                if (jpegData.size == size) {
+                    val bitmap = BitmapFactory.decodeByteArray(jpegData, 0, size, options)
 
-                SharedRepository.setFrame(bitmap)
+                    SharedRepository.setFrame(bitmap)
+//
+//                    previousBitmap?.recycle()
+//                    previousBitmap = bitmap
+                } else {
+                    Log.e("DroneControl", "Incomplete frame received")
+                }
+
+//                val bitmap = BitmapFactory.decodeByteArray(jpegData, 0, size, options)
+//
+//                SharedRepository.setFrame(bitmap)
+
+
             }
             catch (e: CancellationException)
             {
                 Log.e("ConnectionService VideoStream receiveVideoStream Exception", "CancellationException")
                 return
+            }
+            catch (e: OutOfMemoryError)
+            {
+                Log.e("ConnectionService VideoStream receiveVideoStream Exception", "Out of memory error")
             }
             catch (e: Exception)
             {
@@ -698,6 +721,9 @@ class ConnectionService : Service() {
                 {
                     while (controls == null)
                     {
+                        if (socket == null)
+                            throw SocketException("Socket is null!")
+
                         heartbeat()
                         delay(sendMovementDelay)
                     }
@@ -711,7 +737,7 @@ class ConnectionService : Service() {
             catch (e: Exception)
             {
                 socket = null
-                Log.e("ConnectionService sendControls Exception", e.message.toString())
+                Log.e("ConnectionService sendControls Exception", "Connection to server has been lost!")
 
                 SharedRepository.setMainScreenErrorText("Connection to server has been lost!")
                 SharedRepository.setScreen(SCREEN.MainScreen)
