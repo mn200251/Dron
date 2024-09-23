@@ -139,6 +139,18 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
 //            updateIsRecordingMacro(context, false)
     }
 
+    fun updateIsPidOn(context: Context, newValue: Boolean)
+    {
+        val action = if (newValue) InstructionType.PID_ON.value.toString()
+        else InstructionType.PID_OFF.value.toString()
+
+        val intent = Intent(context, ConnectionService::class.java).apply {
+            this.action = action
+        }
+
+        context.startService(intent)
+    }
+
     fun updateIsRecordingMacro(context: Context, newValue: Boolean, macroName: String? = null)
     {
         // SharedRepository.setRecordingFlight(newValue)

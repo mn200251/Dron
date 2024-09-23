@@ -18,6 +18,9 @@ object SharedRepository {
     private val _isPoweredOn = MutableLiveData<Boolean>(false)
     val isPoweredOn: LiveData<Boolean> get() = _isPoweredOn
 
+    private val _isPidOn = MutableLiveData<Boolean>(false)
+    val isPidOn: LiveData<Boolean> get() = _isPidOn
+
     private val _isRecordingMacro = MutableLiveData<Boolean>(false)
     val isRecordingMacro: LiveData<Boolean> get() = _isRecordingMacro
 
@@ -48,6 +51,11 @@ object SharedRepository {
         _isPoweredOn.postValue(newValue)
     }
 
+    fun setPidOn(newValue: Boolean)
+    {
+        _isPidOn.postValue(newValue)
+    }
+
     fun setRecordingMacro(newValue: Boolean)
     {
         _isRecordingMacro.postValue(newValue)
@@ -66,6 +74,8 @@ object SharedRepository {
     fun getScreen(): SCREEN = _screenNumber.value ?: SCREEN.MainScreen
 
     fun getPoweredOn(): Boolean = _isPoweredOn.value ?: false
+
+    fun getPidOn(): Boolean = _isPidOn.value ?: false
 
     fun getRecordingMacro(): Boolean = _isRecordingMacro.value ?: false
 

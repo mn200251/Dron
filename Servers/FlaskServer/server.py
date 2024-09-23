@@ -535,3 +535,6 @@ def sendDroneStatus(socket):
 
     isRecordingMacroByte = "1\n" if isRecordingMacro else "0\n"
     socket.sendall(isRecordingMacroByte.encode())
+
+    isPIDOnByte = "1\n" if isPIDOn else "0\n"
+    socket.sendall(isPIDOnByte.encode())

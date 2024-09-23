@@ -190,6 +190,14 @@ class ConnectionService : Service() {
                 turnOff()
             }
 
+            InstructionType.PID_ON.value.toString() -> {
+                pidOn()
+            }
+
+            InstructionType.PID_OFF.value.toString() -> {
+                pidOff()
+            }
+
             InstructionType.START_MACRO.value.toString() -> {
                 val macroName = intent.getStringExtra("name")
 
@@ -342,6 +350,10 @@ class ConnectionService : Service() {
         receivedByte = reader.readLine()
         val isRecordingFlight = receivedByte == "1"
         SharedRepository.setRecordingMacro(isRecordingFlight)
+
+        receivedByte = reader.readLine()
+        val isPidOn = receivedByte == "1"
+        SharedRepository.setPidOn(isPidOn)
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -630,6 +642,24 @@ class ConnectionService : Service() {
             SharedRepository.setPoweredOn(false)
 
             sendJsonInstruction(InstructionType.TURN_OFF.value)
+        }
+    }
+
+    private fun pidOn()
+    {
+        if (connectionActive ) {
+            SharedRepository.setPidOn(true)
+
+            sendJsonInstruction(InstructionType.PID_ON.value)
+        }
+    }
+
+    private fun pidOff()
+    {
+        if (connectionActive ) {
+            SharedRepository.setPidOn(false)
+
+            sendJsonInstruction(InstructionType.PID_OFF.value)
         }
     }
 

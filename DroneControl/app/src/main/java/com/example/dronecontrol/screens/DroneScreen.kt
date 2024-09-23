@@ -85,6 +85,7 @@ fun DroneScreen(
     val frame by SharedRepository.frame.collectAsState(null) // Use a default value
     
     val isPoweredOn by SharedRepository.isPoweredOn.collectAsState(initial = false)
+    val isPidOn by SharedRepository.isPidOn.collectAsState(initial = false)
     val isRecordingMacro by SharedRepository.isRecordingMacro.collectAsState(initial = false)
     val isRecordingVideo by SharedRepository.isRecordingVideo.collectAsState(initial = false)
 
@@ -147,7 +148,7 @@ fun DroneScreen(
                 )
             }
             
-            Spacer(modifier = Modifier.padding(10.dp))
+            Spacer(modifier = Modifier.padding(15.dp))
 
             Box(
                 modifier = Modifier
@@ -168,6 +169,27 @@ fun DroneScreen(
                     else Color(255, 0, 0, 75),
                 )
             }
+        }
+
+        IconButton(
+            onClick = {
+                connectionViewModel.updateIsPidOn(
+                    context,
+                    !isPidOn,
+                )
+            },
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 12.dp, end = 14.dp + 2 * buttonSize + 30.dp)
+                .padding(start = 10.dp)
+                .size(buttonSize)
+        ) {
+            Icon(
+                painter = painterResource(id = R.drawable.pid_button),
+                contentDescription = "PID Button Icon",
+                tint = if (isPidOn) Color(0, 255, 0, 75)
+                else Color(255, 0, 0, 75),
+            )
         }
 
         IconButton(
