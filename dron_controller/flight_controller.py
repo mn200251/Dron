@@ -1,10 +1,32 @@
 import time
 import threading
+from enum import Enum
+
 import gpiod
 import atexit
 import signal
 from mpu6050 import mpu6050
 from keyboard_client import variables, key_listener, read_variables
+from pca9685 import PCA9685, PCA9685_I2C_ADDRESS
+
+class InstructionType(Enum):
+    HEARTBEAT = 1
+    START_RECORDING_VIDEO = 2
+    STOP_RECORDING_VIDEO = 3
+    START_RECORDING_MACRO = 4
+    STOP_RECORDING_MACRO = 5
+    GET_MACROS = 6
+    START_MACRO = 7
+    GET_VIDEOS = 8  # start the video download and request video using inedex
+    DOWNLOAD_VIDEO = 9
+    TURN_ON = 10
+    JOYSTICK = 11
+    GET_LINK = 12
+    TURN_OFF = 13
+    GET_STATUS = 14  # da proveri stanje jer neke instrukcije mozda nisu prosle npr pocni snimanje
+    BACK = 15  # povratak iz browsinga videa/letova?
+    PID_ON=16
+    PID_OFF=17
 
 # Customize here pulse lengths as needed
 MIN_PULSE_LENGTH = 1000  # Minimum pulse length in µs
@@ -15,25 +37,20 @@ NUM_MOTORS = 4
 
 MILLI_TO_SEC = 1000000.0
 
-MOTOR_PINS = [17, 27, 22, 23]
+# 4 prednji desni
+# 5 zadnji desni
+# 10 prednji levi
+# 11 zadnji levi
+MOTOR_PINS = [10,4,11,5]
 
-# Set up GPIO chip and line
-chip = gpiod.Chip('gpiochip4')
-lines = [chip.get_line(MOTOR_PINS[i]) for i in range(NUM_MOTORS)]
 
-# Request output direction for the GPIO line
-for line in lines:
-    line.request(consumer="servo", type=gpiod.LINE_REQ_DIR_OUT)
-
-# Initialize pulse_length with a default value
-pulse_lengths = [MIN_PULSE_LENGTH] * NUM_MOTORS
 running = True
 
 lock = threading.Lock()
 
 # RAD - throttle settings -trenutno nemam pojma sta zapravo rade
-throttle_idle: float = 0.017  # the minumum throttle needed to apply to the four motors for them all to spin up, but not provide lift (idling on the ground)
-throttle_governor: float = 0.8  # the maximum throttle that can be applied. So, if the pilot is inputting 100% on the controller, it will max out at this. And every value below the pilot's 100% will be scaled linearly within the range of the idle throttle seen above and this governor throttle. If you do not wish to apply a governor (not recommended), set this to None.
+throttle_idle: float = 0.08  # the minumum throttle needed to apply to the four motors for them all to spin up, but not provide lift (idling on the ground)
+throttle_governor: float = 0.75  # the maximum throttle that can be applied. So, if the pilot is inputting 100% on the controller, it will max out at this. And every value below the pilot's 100% will be scaled linearly within the range of the idle throttle seen above and this governor throttle. If you do not wish to apply a governor (not recommended), set this to None.
 
 # Max attitude rate of change rates (degrees per second)
 max_rate_roll: float = 30.0  # roll
@@ -56,75 +73,16 @@ pid_yaw_kp: float = 0.001714287
 pid_yaw_ki: float = 0.003428571
 pid_yaw_kd: float = 0.0
 
-
-def cleanup():
-    global running
-    running = False
-    time.sleep(0.05)  # Give some time for the thread to exit its loop
-    for line in lines:
-        line.set_value(0)  # Ensure the pin is set to 0
-
-
-def handle_exit(signum, frame):
-    cleanup()
-    exit(0)
-
-
-def set_pulse_length(new_pulse_length, index):
-    global pulse_lengths
-    with lock:
-        pulse_lengths[index] = new_pulse_length
-
-
-def pwm_thread_all_motors_sleep():
-    global running
-    while running:
-        # Set GPIO high for all motors
-        for line in lines:
-            line.set_value(1)
-
-        # Lock the pulse lengths to avoid concurrent modification
-        with lock:
-            sorted_pulses = sorted((pulse_lengths[i], i) for i in range(NUM_MOTORS))
-
-        # Busy-wait for the first motor's pulse length
-        first_pulse_length, first_index = sorted_pulses[0]
-        time.sleep(first_pulse_length / MICRO_TO_SEC)
-
-        # Set GPIO low for the first motor
-        lines[first_index].set_value(0)
-
-        # Busy-wait for the subsequent motors' pulse lengths
-        previous_pulse_length = first_pulse_length
-        for i in range(1, NUM_MOTORS):
-            pulse_length, index = sorted_pulses[i]
-            next_wait_time = pulse_length - previous_pulse_length
-
-            time.sleep(next_wait_time / MICRO_TO_SEC)
-
-            # Set GPIO low for the current motor
-            lines[index].set_value(0)
-
-            previous_pulse_length = pulse_length
-
-        # Wait for the rest of the period
-        remaining_time = PERIOD - previous_pulse_length
-        time.sleep(remaining_time / MICRO_TO_SEC)
-    print("PWM control thread finished")
-
-
 def normalize(value: float, original_min: float, original_max: float, new_min: float, new_max: float) -> float:
     """Normalizes (scales) a value to within a specific range."""
     return new_min + ((new_max - new_min) * ((value - original_min) / (original_max - original_min)))
 
 
-def run() -> None:
+def run(sharedDict) -> None:
     print("Starting the flight controller")
     time.sleep(3)
 
     # RAD - SET-up communication
-    # RAD -....
-    client = key_listener()
 
     # Print settings that are important
     print("Roll PID: " + str(pid_roll_kp) + ", " + str(pid_roll_ki) + ", " + str(pid_roll_kd))
@@ -140,9 +98,10 @@ def run() -> None:
 
     # Set ranges to default values
     mpu.set_gyro_range(mpu.GYRO_RANGE_500DEG)
-    mpu.set_filter_range(mpu.FILTER_BW_20)  # Set the low pass filter to 4 - mozda cemo menjati
+    mpu.set_filter_range(mpu.FILTER_BW_42)  # Set the low pass filter to 4 - mozda cemo menjati
     mpu.disable_temp_sensor()  # Disable temp since not in use
-    mpu.disable_accelerometer()  # Disable acc since not in use
+    mpu.disable_accelerometer()# Disable acc since not in use
+
 
     # Measure gyro bias
     print("Calibrating the gyroscope")
@@ -150,14 +109,11 @@ def run() -> None:
     gyro_range = mpu.read_gyro_range(True)
 
     # RAD - to be podesavanje moje nove plocice
-    # Set up pwm thread
-    # Register the cleanup function to be called on program exit
-    atexit.register(cleanup)
-    # Register signal handlers for graceful exit on signals
-    signal.signal(signal.SIGINT, handle_exit)
-    signal.signal(signal.SIGTERM, handle_exit)
-    thread = threading.Thread(target=pwm_thread_all_motors_sleep, args=())
-    thread.start()
+    pca9685 = PCA9685(i2c_address=PCA9685_I2C_ADDRESS)
+
+    pca9685.reset()
+
+    pca9685.init()
 
     # Constants calculations
     max_throttle = throttle_governor if throttle_governor is not None else 1.0
@@ -181,124 +137,98 @@ def run() -> None:
 
     print("-- BEGINNING FLIGHT CONTROL LOOP NOW --")
     try:
+        while True:  # povremeno 1 za testiranje
 
-        while 1:  # povremeno 1 za testiranje
-
-            start = time.time()  # in s
-            # Read gyro
-            # RAD - potencijalno promene znaka u zavisnosti od toga kako montiramo
-            gyro_data = mpu.get_gyro_data(gyro_range)
-            # Remove the inherent deviation of the gyro
-            gyro_data['x'] -= gyro_bias['x']
-            gyro_data['y'] -= gyro_bias['y']
-            gyro_data['z'] -= gyro_bias['z']
-
-            input = read_variables()
-
-            # normalize all input values
-            # UP = 0
-            # LEFT = 1
-            # FORWARD = 2
-            # ROTATE = 3
-            # STATE = 4
-            input_throttle: float = normalize(input[0], 1000.0, 2000.0, 0.0, 1.0)  # between 0.0 and 1.0
-            input_pitch: float = (normalize(input[2], 1000.0, 2000.0, -1.0, 1.0)) * -1
-            # -1 for user comfort sake
-            # between -1.0 and 1.0. We multiply by -1 because... If the pitch is "full forward" (i.e. 75), that means we want a NEGATIVE pitch (when a plane pitches it's nose down, that is negative, not positive. And when a place pitches it's nose up, pulling back on the stick, it's positive, not negative.) Thus, we need to flip it.
-            input_roll: float = normalize(input[1], 1000.0, 2000.0, -1.0, 1.0)  # between -1.0 and 1.0
-            input_yaw: float = normalize(input[3], 1000.0, 2000.0, -1.0, 1.0)  # between -1.0 and 1.0
-
-            if input[4] == 1:  # standby mode - switch in "up" or OFF position
-
-                # turn motors off completely
-                for i in range(NUM_MOTORS):
-                    set_pulse_length(0, i)
-
-                # reset PID's
+            if sharedDict['type']==InstructionType.TURN_ON.value:
+                pca9685.reset()
+                pca9685.init()
+                for i in MOTOR_PINS:
+                    pca9685.arm_esc(MOTOR_PINS)
+                sharedDict['type']= InstructionType.JOYSTICK.value
                 roll_last_integral = 0.0
                 roll_last_error = 0.0
                 pitch_last_integral = 0.0
                 pitch_last_error = 0.0
                 yaw_last_integral = 0.0
                 yaw_last_error = 0.0
+            elif sharedDict['type']==InstructionType.TURN_OFF.value:
+                pca9685.reset()
+                sharedDict['type'] = InstructionType.JOYSTICK.value
 
-                # set last mode
-                last_mode = False  # False means standby mode
-            elif input[4] == 2:  # flight mode (idle props at least)
+            start = time.time()  # in s
+            # Read gyro
+            # RAD - potencijalno promene znaka u zavisnosti od toga kako montiramo
+            gyro_data = mpu.get_gyro_data(gyro_range)
+            # Remove the inherent deviation of the gyro
+            #x roll
+            #y pitch aka nos drona
+            gyro_data['x'] -= -gyro_bias['x']
+            gyro_data['y'] -= gyro_bias['y']
+            gyro_data['z'] -= gyro_bias['z']
 
-                # if last mode was standby (we JUST were turned onto flight mode), perform a check that the throttle isn't high. This is a safety mechanism
-                # this prevents an accident where the flight mode switch is turned on but the throttle position is high, which would immediately apply heavy throttle to each motor, shooting it into the air.
-                # if last_mode == False:  # last mode we were in was standby mode. So, this is the first frame we are going into flight mode
-                #     if input_throttle > 0.05:  # if throttle is > 5%
-                #         print("Throttle was set to " + str(
-                #             input_throttle) + " as soon as flight mode was entered. Throttle must be at 0% when flight mode begins (safety check).")
-                #     break
-                # calculate the adjusted desired throttle (above idle throttle, below governor throttle, scaled linearly)
-                adj_throttle: float = throttle_idle + (throttle_range * input_throttle)
 
-                # calculate errors - diff between the actual rates and the desired rates
-                # "error" is calculated as setpoint (the goal) - actual
-                error_rate_roll: float = (input_roll * max_rate_roll) - gyro_data['x']
-                error_rate_pitch: float = (input_pitch * max_rate_pitch) - gyro_data['y']
-                error_rate_yaw: float = (input_yaw * max_rate_yaw) - gyro_data['z']
+            # normalized input values
+            input_throttle: float = sharedDict['z']
+            input_pitch: float = 0#sharedDict['y'] * -1
+            input_roll: float = 0#sharedDict['x']
+            input_yaw: float = 0# sharedDict['rotation']  # between -1.0 and 1.0
 
-                # roll PID calc
-                roll_p: float = error_rate_roll * pid_roll_kp
-                roll_i: float = roll_last_integral + (error_rate_roll * pid_roll_ki * cycle_time_seconds)
-                roll_i = max(min(roll_i, windup_guard), -windup_guard)  # constrain within I-term limits
-                roll_d: float = pid_roll_kd * (error_rate_roll - roll_last_error) / cycle_time_seconds
-                pid_roll: float = roll_p + roll_i + roll_d
+            # calculate the adjusted desired throttle (above idle throttle, below governor throttle, scaled linearly)
+            adj_throttle: float = throttle_idle + (throttle_range * input_throttle)
 
-                # pitch PID calc
-                pitch_p: float = error_rate_pitch * pid_pitch_kp
-                pitch_i: float = pitch_last_integral + (error_rate_pitch * pid_pitch_ki * cycle_time_seconds)
-                pitch_i = max(min(pitch_i, windup_guard), -windup_guard)  # constrain within I-term limits
-                pitch_d: float = pid_pitch_kd * (error_rate_pitch - pitch_last_error) / cycle_time_seconds
-                pid_pitch = pitch_p + pitch_i + pitch_d
+            # calculate errors - diff between the actual rates and the desired rates
+            # "error" is calculated as setpoint (the goal) - actual
+            error_rate_roll: float = (input_roll * max_rate_roll) - gyro_data['x']
+            error_rate_pitch: float = (input_pitch * max_rate_pitch) - gyro_data['y']
+            error_rate_yaw: float = (input_yaw * max_rate_yaw) - gyro_data['z']
 
-                # yaw PID calc
-                yaw_p: float = error_rate_yaw * pid_yaw_kp
-                yaw_i: float = yaw_last_integral + (error_rate_yaw * pid_yaw_ki * cycle_time_seconds)
-                yaw_i = max(min(yaw_i, windup_guard), -windup_guard)  # constrain within I-term limits
-                yaw_d: float = pid_yaw_kd * (error_rate_yaw - yaw_last_error) / cycle_time_seconds
-                pid_yaw = yaw_p + yaw_i + yaw_d
+            # roll PID calc
+            roll_p: float = error_rate_roll * pid_roll_kp
+            roll_i: float = roll_last_integral + (error_rate_roll * pid_roll_ki * cycle_time_seconds)
+            roll_i = max(min(roll_i, windup_guard), -windup_guard)  # constrain within I-term limits
+            roll_d: float = pid_roll_kd * (error_rate_roll - roll_last_error) / cycle_time_seconds
+            pid_roll: float = roll_p + roll_i + roll_d
 
-                # calculate throttle values
-                # RAD- mozda ce trebati popravke znakova
-                throttles = [0.0]*NUM_MOTORS
-                throttles[0]: float = adj_throttle + pid_pitch + pid_roll - pid_yaw
-                throttles[1]: float = adj_throttle + pid_pitch - pid_roll + pid_yaw
-                throttles[2]: float = adj_throttle - pid_pitch + pid_roll + pid_yaw
-                throttles[3]: float = adj_throttle - pid_pitch - pid_roll - pid_yaw
+            # pitch PID calc
+            pitch_p: float = error_rate_pitch * pid_pitch_kp
+            pitch_i: float = pitch_last_integral + (error_rate_pitch * pid_pitch_ki * cycle_time_seconds)
+            pitch_i = max(min(pitch_i, windup_guard), -windup_guard)  # constrain within I-term limits
+            pitch_d: float = pid_pitch_kd * (error_rate_pitch - pitch_last_error) / cycle_time_seconds
+            pid_pitch = pitch_p + pitch_i + pitch_d
 
-                # Adjust throttle according to input
-                # RAD -  nevidjeno lupanje boga pitaj kako zapravo radi za throttle
-                i=0
-                for t in throttles:
-                    set_pulse_length(MIN_PULSE_LENGTH + t * (MAX_PULSE_LENGTH - MIN_PULSE_LENGTH),i)
-                    print(" " +str(i)+"  Throttle: "+ str(t) + "   PWM: "+str(MIN_PULSE_LENGTH + t * (MAX_PULSE_LENGTH - MIN_PULSE_LENGTH)))
-                    i+=1
-                print("")
+            # yaw PID calc
+            yaw_p: float = error_rate_yaw * pid_yaw_kp
+            yaw_i: float = yaw_last_integral + (error_rate_yaw * pid_yaw_ki * cycle_time_seconds)
+            yaw_i = max(min(yaw_i, windup_guard), -windup_guard)  # constrain within I-term limits
+            yaw_d: float = pid_yaw_kd * (error_rate_yaw - yaw_last_error) / cycle_time_seconds
+            pid_yaw = yaw_p + yaw_i + yaw_d
 
-                # Save state values for next loop
-                roll_last_error = error_rate_roll
-                pitch_last_error = error_rate_pitch
-                yaw_last_error = error_rate_yaw
-                roll_last_integral = roll_i
-                pitch_last_integral = pitch_i
-                yaw_last_integral = yaw_i
+            # calculate throttle values
+            # RAD- mozda ce trebati popravke znakova
+            throttles = [0.0]*NUM_MOTORS
+            throttles[0]: float = adj_throttle + pid_pitch + pid_roll - pid_yaw
+            throttles[1]: float = adj_throttle + pid_pitch - pid_roll + pid_yaw
+            throttles[2]: float = adj_throttle - pid_pitch + pid_roll + pid_yaw
+            throttles[3]: float = adj_throttle - pid_pitch - pid_roll - pid_yaw
 
-                # set last mode
-                last_mode = True  # True = flight mode (props spinning, pid active, motors receiving power commands, etc)
-            elif input[4]==9:
-                print("Controller je iskljucen")
-                cleanup()
-                exit(0)
-            else:  # the input from channel 5 is unexpected
-                print(
-                    "Channel 5 input '" + str(input[4]) + "' not valid. Is the transmitter turned on and connected?")
+            print(throttles)
+            # Adjust throttle according to input
+            # RAD -  nevidjeno lupanje boga pitaj kako zapravo radi za throttle
+            for t in range(4):
+                thr=calculate_duty_cycle(throttles[t])
+                pca9685.set_ESC_PWM(MOTOR_PINS[t],thr)
 
-                # mark end time
+            print("")
+
+            # Save state values for next loop
+            roll_last_error = error_rate_roll
+            pitch_last_error = error_rate_pitch
+            yaw_last_error = error_rate_yaw
+            roll_last_integral = roll_i
+            pitch_last_integral = pitch_i
+            yaw_last_integral = yaw_i
+
+
             end = time.time()
 
             # wait to make the hz correct
@@ -307,7 +237,6 @@ def run() -> None:
                 time.sleep(cycle_time_seconds - elapsed)
 
         print("Flight controller stopped")
-        cleanup()
         exit(0)
 
     except Exception as e:  # something went wrong
@@ -318,6 +247,24 @@ def run() -> None:
         exit(1)
 
 
+def calculate_duty_cycle(throttle: float, dead_zone: float = 0.07) -> int:
+    """Determines the appropriate PWM duty cycle, in nanoseconds, to use for an ESC controlling a BLDC motor"""
+
+    ### SETTINGS (that aren't parameters) ###
+    duty_ceiling: int = 2000000  # the maximum duty cycle (max throttle, 100%) is 2 ms, or 10% duty (0.10)
+    duty_floor: int = 1000000  # the minimum duty cycle (min throttle, 0%) is 1 ms, or 5% duty (0.05). HOWEVER, I've observed some "twitching" at exactly 5% duty cycle. It is off, but occasionally clips above, triggering the motor temporarily. To prevent this, i'm bringing the minimum down to slightly below 5%
+    ################
+
+    # calcualte the filtered percentage (consider dead zone)
+    range: float = 1.0 - dead_zone - dead_zone
+    percentage: float = min(max((throttle - dead_zone) / range, 0.0), 1.0)
+
+    dutyns: int = int(duty_floor + ((duty_ceiling - duty_floor) * percentage))
+
+    # clamp within the range
+    dutyns = max(duty_floor, min(dutyns, duty_ceiling))
+
+    return int(dutyns/1000)
 
 if __name__ == "__main__":
     run()

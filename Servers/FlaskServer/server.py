@@ -242,7 +242,6 @@ def send_controls():
         try:
             data_to_send = json.dumps(command_dict).encode('utf-8')
             drone_socket = connections["drone"]
-            print(connections)
             drone_socket.sendall(data_to_send)
             if isRecordingMacro:
                 # Calculate delta time
@@ -469,13 +468,13 @@ def handle_client_connection_general(client_socket):
             client_socket.settimeout(TIMEOUT)
             match message:
                 case "drone":
-                    connections["drone"] = client_socket
                     sendDroneStatusToDrone(client_socket)
+                    connections["drone"] = client_socket
                     handleDroneMessages(client_socket)
                 case "phone":
-                    connections["phone"] = client_socket
                     client_socket.sendall("0\n".encode())  # everything ok
                     sendDroneStatus(client_socket)
+                    connections["phone"] = client_socket
                     handleControls(client_socket)
                 case "macro":
                     connections["macro"] = client_socket
