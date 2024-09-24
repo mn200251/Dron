@@ -72,9 +72,9 @@ def start_dummy(video_path, server_ip, server_port):
     client_socket.connect((server_ip, server_port))
     client_socket.sendall("drone".encode('utf-8'))
     print(f"Connected to server at {server_ip}:{server_port}")
-    length_bytes = client_socket.recv(4)
-    if not length_bytes:
-        return None
+    #length_bytes = client_socket.recv(4)
+    # if not length_bytes:
+    #     return None
 
     # Convert the 4-byte length into an integer
     #json_length = struct.unpack('>I', length_bytes)[0]
