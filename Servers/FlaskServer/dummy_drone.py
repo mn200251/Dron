@@ -72,13 +72,13 @@ def start_dummy(video_path, server_ip, server_port):
     client_socket.connect((server_ip, server_port))
     client_socket.sendall("drone".encode('utf-8'))
     print(f"Connected to server at {server_ip}:{server_port}")
-    length_bytes = client_socket.recv(4)
-    if not length_bytes:
-        return None
+    #length_bytes = client_socket.recv(4)
+    # if not length_bytes:
+    #     return None
 
     # Convert the 4-byte length into an integer
-    json_length = struct.unpack('>I', length_bytes)[0]
-    json_data = client_socket.recv(json_length).decode('utf-8')
+    #json_length = struct.unpack('>I', length_bytes)[0]
+    json_data = client_socket.recv(1024).decode('utf-8')
     status = json.loads(json_data)
     print(f"Received drone status: {status}")
     if status['isPoweredOn']==False:
@@ -96,7 +96,7 @@ def start_dummy(video_path, server_ip, server_port):
 
 if __name__ == "__main__":
     # Example usage
-    VIDEO_PATH = 'FlaskServer/stock-footage_1280x720.mp4'
+    VIDEO_PATH = 'stock-footage_1280x720.mp4'
 
     if internal:
         SERVER_IP = '192.168.1.17'
