@@ -79,7 +79,6 @@ def send_frames():
     The function ensures that the process is stopped gracefully when the stop_event is triggered.
     """
     global stop_event, current_frame, connections
-    cnt = 0
 
     while not stop_event.is_set():
         try:
@@ -94,10 +93,18 @@ def send_frames():
 
             jpeg_bytes = current_frame
 
+            # cv2.imshow("Frame", jpeg_bytes)
+            # if cv2.waitKey(1) == ord("q"):
+            #     cv2.imwrite("test_frame.png", jpeg_bytes)
+            #     break
+
             # Send the frame size followed by the actual frame data
             if jpeg_bytes is not None:
-                phone_socket.sendall(struct.pack('>I', len(jpeg_bytes)))
-                phone_socket.sendall(jpeg_bytes)
+                try:
+                    phone_socket.sendall(struct.pack('>I', len(jpeg_bytes)))
+                    phone_socket.sendall(jpeg_bytes)
+                except Exception as e:
+                    pass
 
                 if record_video == RecordState.RECORDING:
                     video_frame_queue.put(jpeg_bytes)
