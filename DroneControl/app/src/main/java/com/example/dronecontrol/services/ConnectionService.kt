@@ -244,6 +244,7 @@ class ConnectionService : Service() {
         receiveVideoStreamJob?.cancel()
 
         socket?.close()
+        socket = null
         connectionActive = false
     }
 
@@ -379,12 +380,14 @@ class ConnectionService : Service() {
 
         Log.d("IP", addressPair.first + ":" + addressPair.second)
 
-        val newSocket = Socket()
+
         // val socketAddress = InetSocketAddress(uiState.value.host, uiState.value.port.toInt())
         val socketAddress = InetSocketAddress(addressPair.first, addressPair.second.toInt())
 
         while (connectionActive && socket == null)
         {
+            val newSocket = Socket()
+
             try{
                 newSocket.connect(socketAddress, 2000)
 
@@ -503,6 +506,7 @@ class ConnectionService : Service() {
             }
             catch (e: Exception)
             {
+                socket?.close()
                 socket = null
                 Log.e("ConnectionService VideoStream receiveVideoStream Exception", e.message.toString())
                 inputStream.close()
@@ -766,6 +770,7 @@ class ConnectionService : Service() {
             }
             catch (e: Exception)
             {
+                socket?.close()
                 socket = null
                 Log.e("ConnectionService sendControls Exception", "Connection to server has been lost!")
 

@@ -14,8 +14,8 @@ from Shared import *
 video_queue = queue.Queue(maxsize=MAX_QUEUE_SIZE)
 current_frame = None
 FRAME_RATE = 30
-FRAME_WIDTH, FRAME_HEIGHT = 1280, 720
-# FRAME_WIDTH, FRAME_HEIGHT = 1920, 1080
+# FRAME_WIDTH, FRAME_HEIGHT = 1280, 720
+FRAME_WIDTH, FRAME_HEIGHT = 1920, 1080
 
 # video download
 video_writer_proc = None
@@ -168,7 +168,7 @@ def handleDroneMessages(droneSocket):
     video_writer = None
     # stream alive
     flag = True
-    cnt=0
+
     while flag and not stop_event.is_set():
         i = 0
         # receiving the stream
@@ -185,6 +185,7 @@ def handleDroneMessages(droneSocket):
                     if not packet:
                         break
                     frame_data += packet
+
                 jpeg_bytes = frame_data
                 current_frame = jpeg_bytes
 
@@ -193,8 +194,18 @@ def handleDroneMessages(droneSocket):
                 # if npimg is None:
                 #     print('npimg is none')
                 #
-                # source = cv2.imdecode(npimg, 1)
-                # cv2.imshow("Stream", source)
+
+                npimg = np.frombuffer(frame_data, np.uint8)
+                source = cv2.imdecode(npimg, 1)
+
+                if source is None:
+                    print('Failed to decode frame')
+                else:
+                    # Show the frame in a window
+                    cv2.imshow("Stream", source)
+
+                    # Wait for a key event for 1 millisecond
+                    cv2.waitKey(1)
 
                 # if cnt % 30 == 0:
                 #     print(str(cnt)+" receive_frames got batch" + str(time.time()))
@@ -505,7 +516,7 @@ def handle_client_connection_general(client_socket):
         except Exception as e:
             print(f"Connection failed to establish: {e}")
             break
-    # client_socket.close()
+    client_socket.close()
 
 def sendDroneStatusToDrone(socket):
     status = {
