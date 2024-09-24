@@ -50,7 +50,7 @@ import androidx.compose.ui.unit.times
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.dronecontrol.R
 import com.example.dronecontrol.collectAsState
-import com.example.dronecontrol.models.ModifiedJoyStick
+import com.example.dronecontrol.models.DynamicJoystick
 import com.example.dronecontrol.sharedRepositories.SharedRepository
 import com.example.dronecontrol.utils.InputDialog
 import com.example.dronecontrol.utils.MacroSelectionDialog
@@ -313,7 +313,7 @@ fun DroneScreen(
                 }
 
                 if (leftJoystickVisible) {
-                    ModifiedJoyStick(
+                    DynamicJoystick(
                         modifier = Modifier
                             .offset {
                                 IntOffset(
@@ -371,7 +371,7 @@ fun DroneScreen(
                 }
 
                 if (rightJoystickVisible) {
-                    ModifiedJoyStick(
+                    DynamicJoystick(
                         modifier = Modifier
                             .offset {
                                 IntOffset(

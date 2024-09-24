@@ -14,8 +14,8 @@ from Shared import *
 video_queue = queue.Queue(maxsize=MAX_QUEUE_SIZE)
 current_frame = None
 FRAME_RATE = 30
-# FRAME_WIDTH, FRAME_HEIGHT = 1280, 720
-FRAME_WIDTH, FRAME_HEIGHT = 1920, 1080
+FRAME_WIDTH, FRAME_HEIGHT = 1280, 720
+# FRAME_WIDTH, FRAME_HEIGHT = 1920, 1080
 
 # video download
 video_writer_proc = None
