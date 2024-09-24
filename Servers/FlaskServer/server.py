@@ -95,11 +95,12 @@ def send_frames():
             jpeg_bytes = current_frame
 
             # Send the frame size followed by the actual frame data
-            phone_socket.sendall(struct.pack('>I', len(jpeg_bytes)))
-            phone_socket.sendall(jpeg_bytes)
+            if jpeg_bytes is not None:
+                phone_socket.sendall(struct.pack('>I', len(jpeg_bytes)))
+                phone_socket.sendall(jpeg_bytes)
 
-            if record_video == RecordState.RECORDING:
-                video_frame_queue.put(jpeg_bytes)
+                if record_video == RecordState.RECORDING:
+                    video_frame_queue.put(jpeg_bytes)
 
             # Print status every 30 frames
             # if cnt % 30 == 0:
@@ -508,8 +509,8 @@ def sendDroneStatusToDrone(socket):
     status_json = json.dumps(status)
 
     # Send the length of the JSON (as a 4-byte integer)
-    json_length = len(status_json)
-    socket.sendall(json_length.to_bytes(4, byteorder='big'))
+    # json_length = len(status_json)
+    # socket.sendall(json_length.to_bytes(4, byteorder='big'))
 
     # Send the actual JSON data
     socket.sendall(status_json.encode('utf-8'))
