@@ -61,7 +61,7 @@ class ConnectionService : Service() {
     private val channelId = "ConnectionService"
     private val notificationId = 1
 
-    private val sendMovementDelay: Long = 50
+    private val sendMovementDelay: Long = 100
 
     // private var isRecordingVideo = false
     // private var isRecordingInstructions = false
@@ -464,6 +464,8 @@ class ConnectionService : Service() {
         while (connectionActive)
         {
             try {
+
+                // could possibly close socket if isnt in foreground for too long
                 while (!isInForeground)
                 {
                     delay(100)
