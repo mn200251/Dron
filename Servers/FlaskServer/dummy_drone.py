@@ -8,12 +8,17 @@ import base64
 import struct
 
 from FlaskServer.Shared import *
+from FlaskServer.server import FRAME_RATE
 
 
 def stream_video_to_server(video_path, client_socket):
     # Open the video file
     cap = cv2.VideoCapture(video_path)
     i = 0
+
+    encodeParams = [cv2.IMWRITE_JPEG_QUALITY, 80]
+
+    lastTime = time.time()
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
@@ -22,7 +27,8 @@ def stream_video_to_server(video_path, client_socket):
             continue
 
         # Encode the frame as a JPEG image
-        _, encoded_image = cv2.imencode('.jpg', frame)
+        # _, encoded_image = cv2.imencode('.jpg', frame)
+        encoded, encoded_image = cv2.imencode('.jpg', frame, encodeParams)
 
         # Convert the encoded image to bytes and then to base64
         encoded_bytes = encoded_image.tobytes()
@@ -31,8 +37,10 @@ def stream_video_to_server(video_path, client_socket):
         frame_size = len(encoded_bytes)
         client_socket.sendall(struct.pack('>I', frame_size))
 
-        if i % 30 == 0:
-            print("Frame size: " + str(frame_size) +" batch "+str(i) +" current.time:"+ str(time.time()))
+        if i % FRAME_RATE == 0:
+            print("Frames " + str(FRAME_RATE) + " Time: " + str(time.time() - lastTime))
+            lastTime = time.time()
+            i = 0
 
         # Send the actual frame data
         client_socket.sendall(encoded_bytes)
@@ -97,7 +105,6 @@ def start_dummy(video_path, server_ip, server_port):
 if __name__ == "__main__":
     # Example usage
     VIDEO_PATH = 'stock_footage.mp4'
-
     if internal:
         SERVER_IP = '192.168.1.17'
     else:

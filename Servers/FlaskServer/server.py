@@ -79,8 +79,7 @@ def send_frames():
     The function ensures that the process is stopped gracefully when the stop_event is triggered.
     """
     global stop_event, current_frame, connections
-    cnt = 0
-
+    cnt=0
     while not stop_event.is_set():
         try:
             # Wait for the next frame interval (1/30 seconds for 30 FPS)
@@ -93,6 +92,11 @@ def send_frames():
             phone_socket = connections["phone"]
 
             jpeg_bytes = current_frame
+
+            # cv2.imshow("Frame", jpeg_bytes)
+            # if cv2.waitKey(1) == ord("q"):
+            #     cv2.imwrite("test_frame.png", jpeg_bytes)
+            #     break
 
             # Send the frame size followed by the actual frame data
             if jpeg_bytes is not None:
@@ -168,7 +172,7 @@ def handleDroneMessages(droneSocket):
     video_writer = None
     # stream alive
     flag = True
-    cnt=0
+
     while flag and not stop_event.is_set():
         i = 0
         # receiving the stream
@@ -185,6 +189,7 @@ def handleDroneMessages(droneSocket):
                     if not packet:
                         break
                     frame_data += packet
+
                 jpeg_bytes = frame_data
                 current_frame = jpeg_bytes
 
@@ -193,8 +198,18 @@ def handleDroneMessages(droneSocket):
                 # if npimg is None:
                 #     print('npimg is none')
                 #
-                # source = cv2.imdecode(npimg, 1)
-                # cv2.imshow("Stream", source)
+
+                npimg = np.frombuffer(frame_data, np.uint8)
+                source = cv2.imdecode(npimg, 1)
+
+                if source is None:
+                    print('Failed to decode frame')
+                else:
+                    # Show the frame in a window
+                    cv2.imshow("Stream", source)
+
+                    # Wait for a key event for 1 millisecond
+                    cv2.waitKey(1)
 
                 # if cnt % 30 == 0:
                 #     print(str(cnt)+" receive_frames got batch" + str(time.time()))
@@ -505,7 +520,7 @@ def handle_client_connection_general(client_socket):
         except Exception as e:
             print(f"Connection failed to establish: {e}")
             break
-    # client_socket.close()
+    client_socket.close()
 
 def sendDroneStatusToDrone(socket):
     status = {
