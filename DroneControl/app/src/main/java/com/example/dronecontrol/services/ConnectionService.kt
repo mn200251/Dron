@@ -161,7 +161,7 @@ class ConnectionService : Service() {
                 if (connectionActive && !isInForeground)
                     changeServiceState(true)
 
-                val myData: Controls? = intent.getParcelableExtra("ControlData", Controls::class.java)
+                val myData: Controls? = intent.getParcelableExtra("ControlData") as? Controls
                 if (myData != null)
                     controls = myData
             }

@@ -96,11 +96,13 @@ def send_frames():
 
             # Send the frame size followed by the actual frame data
             if jpeg_bytes is not None:
+                if record_video == RecordState.RECORDING:
+                    video_frame_queue.put(jpeg_bytes)
+
                 phone_socket.sendall(struct.pack('>I', len(jpeg_bytes)))
                 phone_socket.sendall(jpeg_bytes)
 
-                if record_video == RecordState.RECORDING:
-                    video_frame_queue.put(jpeg_bytes)
+
 
             # Print status every 30 frames
             # if cnt % 30 == 0:
@@ -109,6 +111,11 @@ def send_frames():
             # cnt += 1
 
         except socket.error:
+            # Print status every 30 frames
+            if cnt % 100 == 0:
+                print(str(cnt) + " send_frames sent batch" + str(time.time()))
+
+            cnt += 1
             # Handle errors related to sending data over the socket
             print("Socket error occurred in send_frames, retrying...")
             continue
