@@ -4,6 +4,8 @@ import os
 import queue
 import struct
 import threading
+import traceback
+
 import cv2
 import numpy as np
 import multiprocessing as mp
@@ -30,7 +32,7 @@ command_dict = {
     "rotation": 0.0
 }
 control_queue = queue.Queue(maxsize=MAX_QUEUE_SIZE)
-connections = {'drone': None, 'phone': None}
+connections = {'drone': None, 'phone': None,'macro':None}
 
 # To remember the states
 isPIDOn = True
@@ -79,7 +81,8 @@ def send_frames():
     The function ensures that the process is stopped gracefully when the stop_event is triggered.
     """
     global stop_event, current_frame, connections
-
+    cnt=0
+    phone_socket=None
     while not stop_event.is_set():
         try:
             # Wait for the next frame interval (1/30 seconds for 30 FPS)
@@ -100,24 +103,19 @@ def send_frames():
 
             # Send the frame size followed by the actual frame data
             if jpeg_bytes is not None:
-                try:
-                    phone_socket.sendall(struct.pack('>I', len(jpeg_bytes)))
-                    phone_socket.sendall(jpeg_bytes)
-                except Exception as e:
-                    pass
-
                 if record_video == RecordState.RECORDING:
                     video_frame_queue.put(jpeg_bytes)
 
-            # Print status every 30 frames
-            # if cnt % 30 == 0:
-            #     print(str(cnt) + " send_frames sent batch" + str(time.time()))
-            #
-            # cnt += 1
-
+                phone_socket.sendall(struct.pack('>I', len(jpeg_bytes)))
+                phone_socket.sendall(jpeg_bytes)
         except socket.error:
+            # Print status every 30 frames
+            if cnt % 100 == 0:
+                print("Socket error occurred in send_frames, retrying...")
+            cnt += 1
             # Handle errors related to sending data over the socket
-            print("Socket error occurred in send_frames, retrying...")
+            if phone_socket == connections["phone"]:
+                connections["phone"] = None
             continue
         except AttributeError:
             # Handle case where phone connection is not established
@@ -155,7 +153,7 @@ def video_writer_process(video_frame_queue, frame_size, fps, output_file):
         print("Video saving died: " + str(e))
 
 
-def handleDroneMessages(droneSocket):
+def handleDroneMessages():
     """
     Funkcija je zaduzena da prima poruke od drona.
     Trenutno to podrazumeva u petlji na cekanje na pocetak streama i primanje frejmova i njihovo stavljanje u video_queue.
@@ -164,94 +162,74 @@ def handleDroneMessages(droneSocket):
     :param droneSocket:
     :return:
     """
-    global record_video, phone_state, video_writer_proc, video_frame_queue, video_name,current_frame
+    global connections, record_video, phone_state, video_writer_proc, video_frame_queue, video_name,current_frame
     video_writer = None
     # stream alive
     flag = True
+    i=0
+    while phone_state == PhoneState.AUTOPILOT or phone_state == PhoneState.PILOTING:
+        try:
+            if connections['drone'] is None:
+                time.sleep(0.05)
+                continue
 
-    while flag and not stop_event.is_set():
-        i = 0
-        # receiving the stream
-        while phone_state == PhoneState.AUTOPILOT or phone_state == PhoneState.PILOTING:
-            try:
-                size = droneSocket.recv(4)
+            size = connections['drone'].recv(4)
 
-                # Convert bytes back to integer
-                size = int.from_bytes(size, byteorder='big', signed=False)
-                # Receive the actual frame
-                frame_data = b''
-                while len(frame_data) < size:
-                    packet = droneSocket.recv(size - len(frame_data))
-                    if not packet:
-                        break
-                    frame_data += packet
+            # Convert bytes back to integer
+            size = int.from_bytes(size, byteorder='big', signed=False)
+            # Receive the actual frame
+            frame_data = b''
+            while len(frame_data) < size:
+                packet = connections['drone'].recv(size - len(frame_data))
+                if not packet:
+                    break
+                frame_data += packet
 
-                jpeg_bytes = frame_data
-                current_frame = jpeg_bytes
+            current_frame = frame_data
+            # Check if recording needs to be started or restarted in new thread because of a disconnected
+            if record_video == RecordState.START_RECORDING:
+                print("Start recording")
+                if video_writer_proc is None or not video_writer_proc.is_alive():
+                    video_frame_queue = mp.Queue(maxsize=10)
 
-                # npimg = np.frombuffer(frame_data, np.uint8)
-                #
-                # if npimg is None:
-                #     print('npimg is none')
-                #
+                    output_file = f'videos/{video_name}'
+                    video_writer_proc = mp.Process(target=video_writer_process, args=(
+                        video_frame_queue, (FRAME_WIDTH, FRAME_HEIGHT), FRAME_RATE, output_file))
+                    video_writer_proc.start()
+                    record_video = RecordState.RECORDING
 
-                npimg = np.frombuffer(frame_data, np.uint8)
-                source = cv2.imdecode(npimg, 1)
+            if record_video == RecordState.STOP_RECORDING:
+                print("End recording")
+                if video_writer_proc is not None and video_frame_queue is not None:
+                    video_frame_queue.put(None)  # Stop the writer process
+                    # we will not block and just hope that it finishes
+                    # video_writer_proc.join()
+                    video_writer_proc = None
+                record_video = RecordState.NOT_RECORDING
 
-                if source is None:
-                    print('Failed to decode frame')
-                else:
-                    # Show the frame in a window
-                    cv2.imshow("Stream", source)
+            i = i + 1
 
-                    # Wait for a key event for 1 millisecond
-                    cv2.waitKey(1)
+        except ConnectionResetError:
+            print("ConnectionResetError in handleCameraStream")
+            connections["drone"]=None
 
-                # if cnt % 30 == 0:
-                #     print(str(cnt)+" receive_frames got batch" + str(time.time()))
-                # cnt += 1
-                # Check if recording needs to be started or restarted in new thread because of a disconnected
-                if record_video == RecordState.START_RECORDING:
-                    print("Start recording")
-                    if video_writer_proc is None or not video_writer_proc.is_alive():
-                        video_frame_queue = mp.Queue(maxsize=10)
+        except KeyboardInterrupt:
+            print("KeyboardInterrupt in handleCameraStream")
 
-                        output_file = f'videos/{video_name}'
-                        video_writer_proc = mp.Process(target=video_writer_process, args=(
-                            video_frame_queue, (FRAME_WIDTH, FRAME_HEIGHT), FRAME_RATE, output_file))
-                        video_writer_proc.start()
-                        record_video = RecordState.RECORDING
+        except Exception as e:
+            print('Exception in handleCameraStream ' + str(e))
 
-                if record_video == RecordState.STOP_RECORDING:
-                    print("End recording")
-                    if video_writer_proc is not None and video_frame_queue is not None:
-                        video_frame_queue.put(None)  # Stop the writer process
-                        # we will not block and just hope that it finishes
-                        # video_writer_proc.join()
-                        video_writer_proc = None
-                    record_video = RecordState.NOT_RECORDING
+        finally:
+            # stream died because of a disconnect
+            flag = False
 
-                i = i + 1
+    print(f"broj frejmova: {i}")
 
-            except ConnectionResetError:
-                print("ConnectionResetError in handleCameraStream")
-                break
-            except KeyboardInterrupt:
-                print("KeyboardInterrupt in handleCameraStream")
-                break
-            except Exception as e:
-                print('Exception in handleCameraStream ' + str(e))
-                break
-            finally:
-                # stream died because of a disconnect
-                flag = False
+    if video_writer is not None:
+        video_writer.release()
 
-        print(f"broj frejmova: {i}")
+    cv2.destroyAllWindows()
 
-        if video_writer is not None:
-            video_writer.release()
-
-        cv2.destroyAllWindows()
 
 
 # Function to handle sending control messages to the drone
@@ -295,23 +273,27 @@ def send_controls():
             print(f"Drone not connected: {e}")
         except Exception as e:
             print(f"Failed to send data from send_controls: {e}")
-
+            connections['drone']=None
             continue
 
     print("ZATVORIO")
 
 # drone
-def handleControls(phoneSocket):
+def handleControls():
     """
        Handles control messages from the phone and forwards them to the queue.
     """
     global send_event, isAutopilotAcive, allowed_instructions
     buffer = ""
     flag = True
+    testing=""
     while flag:
         try:
-            data = phoneSocket.recv(1024).decode('utf-8')
+            if connections["phone"] is None:
+                time.sleep(0.1)
+                continue
 
+            data = connections["phone"].recv(1024).decode('utf-8')
             if not data:
                 continue
 
@@ -324,10 +306,8 @@ def handleControls(phoneSocket):
 
                 if start == -1 or end == -1:
                     break
-
                 json_str = buffer[start:end + 1]
                 buffer = buffer[end + 1:]
-
                 try:
                     instruction_data = json.loads(json_str)
                     instruction_type = instruction_data.get("type")
@@ -339,15 +319,14 @@ def handleControls(phoneSocket):
 
                     if not isAutopilotAcive or instruction_type in allowed_instructions:
                         flag_pass_commands = process_instruction(instruction_data)
-
                 except json.JSONDecodeError:
                     print("Received invalid JSON data")
             if flag_pass_commands:
                 send_event.set()
         except Exception as e:
-            flag = False
-            print(f"Phone connection lost in handleControls: {e}")
-            break
+            connections["phone"] = None
+            print(f"Phone connection lost in {threading.get_ident()} handleControls: {str(e)} ")
+            #traceback.print_exc()
 
 
 def process_instruction(instruction_data):
@@ -404,13 +383,16 @@ def process_instruction(instruction_data):
         print("Unkown instruction in handle controls")
     return flag_pass_commands
 
-def handleAutopilotSetup(client_socket):
+def handleAutopilotSetup():
     global isAutopilotAcive
     buffer = ""
     flag = True
     while flag:
         try:
-            data = client_socket.recv(1024).decode('utf-8')
+            if connections["macro"] is None:
+                time.sleep(0.1)
+                continue
+            data = connections["macro"] .recv(1024).decode('utf-8')
 
             if not data:
                 continue
@@ -442,10 +424,10 @@ def handleAutopilotSetup(client_socket):
 
                         json_data = json.dumps(file_list).encode('utf-8')
                         data_length = len(json_data)
-                        client_socket.sendall(struct.pack('>I', data_length))
+                        connections["macro"] .sendall(struct.pack('>I', data_length))
 
                         # Send the actual JSON data
-                        client_socket.sendall(json_data)
+                        connections["macro"] .sendall(json_data)
                         print(f"Sent {data_length} bytes of JSON data AutopilotSetup.")
                     else:
                         print("Unknown instruction in AutopilotSetup")
@@ -499,15 +481,15 @@ def handle_client_connection_general(client_socket):
                 case "drone":
                     sendDroneStatusToDrone(client_socket)
                     connections["drone"] = client_socket
-                    handleDroneMessages(client_socket)
+                    #handleDroneMessages(client_socket)
                 case "phone":
                     client_socket.sendall("0\n".encode())  # everything ok
                     sendDroneStatus(client_socket)
                     connections["phone"] = client_socket
-                    handleControls(client_socket)
+                    #handleControls(client_socket)
                 case "macro":
                     connections["macro"] = client_socket
-                    handleAutopilotSetup(client_socket)
+                    #handleAutopilotSetup(client_socket)
                 case _:
                     print(f"Received message: {message}")
                     client_socket.sendall("-1\n".encode())
@@ -516,7 +498,6 @@ def handle_client_connection_general(client_socket):
         except Exception as e:
             print(f"Connection failed to establish: {e}")
             break
-    client_socket.close()
 
 def sendDroneStatusToDrone(socket):
     status = {

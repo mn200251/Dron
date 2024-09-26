@@ -3,7 +3,8 @@ import threading
 
 from FlaskServer.Shared import *
 from FlaskServer.download_server import handle_client_connection_video
-from FlaskServer.server import handle_client_connection_general, send_frames, send_controls
+from FlaskServer.server import handle_client_connection_general, send_frames, send_controls, handleDroneMessages, \
+    handleAutopilotSetup, handleControls
 
 
 # Function to start the TCP server
@@ -46,6 +47,15 @@ if __name__ == "__main__":
 
     control_send_thread = threading.Thread(target=send_controls)
     control_send_thread.start()
+
+    phone_receive_for_macro_thread = threading.Thread(target=handleAutopilotSetup, args=())
+    phone_receive_for_macro_thread.start()
+
+    phone_receive_thread = threading.Thread(target=handleControls, args=())
+    phone_receive_thread.start()
+
+    drone_receive_thread = threading.Thread(target=handleDroneMessages)
+    drone_receive_thread.start()
 
     if not internal:
         monitor_ip_thread = threading.Thread(target=monitorIP)
