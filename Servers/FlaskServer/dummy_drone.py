@@ -16,7 +16,7 @@ def stream_video_to_server(video_path, client_socket):
     cap = cv2.VideoCapture(video_path)
     i = 0
 
-    encodeParams = [cv2.IMWRITE_JPEG_QUALITY, 80]
+    encodeParams = [cv2.IMWRITE_JPEG_QUALITY, 60]
 
     lastTime = time.time()
     while cap.isOpened():
@@ -46,7 +46,7 @@ def stream_video_to_server(video_path, client_socket):
         client_socket.sendall(encoded_bytes)
 
         # Add some delay to simulate real-time streaming
-        # time.sleep(1 / 60)
+        time.sleep(1 / 30)
         i += 1
 
     # Release resources
@@ -104,7 +104,7 @@ def start_dummy(video_path, server_ip, server_port):
 
 if __name__ == "__main__":
     # Example usage
-    VIDEO_PATH = 'stock_footage.mp4'
+    VIDEO_PATH = 'stock-footage_1280x720.mp4'
     if internal:
         SERVER_IP = '192.168.1.17'
     else:

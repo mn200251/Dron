@@ -45,7 +45,6 @@ import java.net.Socket
 
 class ConnectionService : Service() {
 
-    private val TIMEOUT_THIRD: Long = 1000
     private var socket: Socket? = null
     private var isInForeground = false
     private val serviceScope = CoroutineScope(Dispatchers.IO + Job())
@@ -62,9 +61,6 @@ class ConnectionService : Service() {
     private val notificationId = 1
 
     private val sendMovementDelay: Long = 100
-
-    // private var isRecordingVideo = false
-    // private var isRecordingInstructions = false
 
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate() {

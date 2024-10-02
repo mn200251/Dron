@@ -1,10 +1,7 @@
-import base64
 import json
 import os
 import queue
 import struct
-import threading
-import traceback
 
 import cv2
 import numpy as np
@@ -16,8 +13,8 @@ from Shared import *
 video_queue = queue.Queue(maxsize=MAX_QUEUE_SIZE)
 current_frame = None
 FRAME_RATE = 30
-# FRAME_WIDTH, FRAME_HEIGHT = 1280, 720
-FRAME_WIDTH, FRAME_HEIGHT = 1920, 1080
+FRAME_WIDTH, FRAME_HEIGHT = 1280, 720
+# FRAME_WIDTH, FRAME_HEIGHT = 1920, 1080
 
 # video download
 video_writer_proc = None
@@ -117,12 +114,12 @@ def send_frames():
             if phone_socket == connections["phone"]:
                 connections["phone"] = None
             continue
-        except AttributeError:
+        # except AttributeError:
             # Handle case where phone connection is not established
-            print(f"Phone not connected")
+            # print(f"Phone not connected")
         except Exception as e:
             # Catch any unexpected errors and log them
-            print(f"Unexpected error in send_frames_timer: {e}")
+            # print(f"Unexpected error in send_frames_timer: {e}")
             continue
 
 def video_writer_process(video_frame_queue, frame_size, fps, output_file):

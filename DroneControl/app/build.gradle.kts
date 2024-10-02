@@ -76,7 +76,7 @@ dependencies {
     implementation ("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.0")
     implementation ("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.0")
 
-    implementation (libs.jetstick)
+    // implementation (libs.jetstick)
 
     implementation(libs.kotlinx.serialization.json)
 
@@ -84,7 +84,7 @@ dependencies {
 
     implementation("com.google.accompanist:accompanist-permissions:0.31.1-alpha")
 
-    implementation(libs.androidx.ui.text.google.fonts)
+    // implementation(libs.androidx.ui.text.google.fonts)
 
     implementation("com.squareup.okhttp3:okhttp:4.10.0")
 }
