@@ -6,7 +6,7 @@ from enum import Enum
 import requests
 from github import Github
 
-from FlaskServer.serverPrivateData import *
+from DroneServer.serverPrivateData import *
 
 
 class RecordState(Enum):

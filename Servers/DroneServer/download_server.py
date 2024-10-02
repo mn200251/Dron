@@ -6,7 +6,7 @@ import struct
 import cv2
 import requests
 
-from FlaskServer.Shared import *
+from DroneServer.Shared import *
 
 # For video download
 lock = threading.Lock()

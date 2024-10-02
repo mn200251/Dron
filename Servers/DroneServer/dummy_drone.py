@@ -7,8 +7,8 @@ import socket
 import base64
 import struct
 
-from FlaskServer.Shared import *
-from FlaskServer.server import FRAME_RATE
+from DroneServer.Shared import *
+from DroneServer.server import FRAME_RATE
 
 
 def stream_video_to_server(video_path, client_socket):

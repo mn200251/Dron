@@ -1,9 +1,9 @@
 import multiprocessing
 import threading
 
-from FlaskServer.Shared import *
-from FlaskServer.download_server import handle_client_connection_video
-from FlaskServer.server import handle_client_connection_general, send_frames, send_controls, handleDroneMessages, \
+from DroneServer.Shared import *
+from DroneServer.download_server import handle_client_connection_video
+from DroneServer.server import handle_client_connection_general, send_frames, send_controls, handleDroneMessages, \
     handleAutopilotSetup, handleControls
 
 
