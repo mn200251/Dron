@@ -10,13 +10,13 @@ The focus of the project is on seamless interaction between the user and the dro
 
 The project brings a host of advanced features that are designed to provide users with intuitive control over their drone, alongside real-time data streaming and processing capabilities. Key features include:
 
-**Real-Time Control**: The Android app allows users to control the drone's movement using virtual joysticks. The control is smooth, precise, and intuitive, providing an experience similar to professional drone controllers.
+- **Real-Time Control**: The Android app allows users to control the drone's movement using virtual joysticks. The control is smooth, precise, and intuitive, providing an experience similar to professional drone controllers.
 
-**Live Video Streaming**: Users can view real-time video feeds from the drone’s onboard camera directly on the app. The video is compressed and transmitted using OpenCV and displayed in the app for seamless first-person viewing (FPV).
+- **Live Video Streaming**: Users can view real-time video feeds from the drone’s onboard camera directly on the app. The video is compressed and transmitted using OpenCV and displayed in the app for seamless first-person viewing (FPV).
 
-**Macro Command System**: The app allows for recording a series of control commands (macros) that can be replayed to automate specific tasks. This feature makes repetitive flight maneuvers simple to execute without constant manual input.
+- **Macro Command System**: The app allows for recording a series of control commands (macros) that can be replayed to automate specific tasks. This feature makes repetitive flight maneuvers simple to execute without constant manual input.
 
-**Video Recording and Management**: The app can record videos captured by the drone during flight. Users can then manage, download, rename, and delete these recordings through an integrated video management interface.
+- **Video Recording and Management**: The app can record videos captured by the drone during flight. Users can then manage, download, rename, and delete these recordings through an integrated video management interface.
 
 
 ## **Installation**
