@@ -19,15 +19,66 @@ The project brings a host of advanced features that are designed to provide user
 - **Video Recording and Management**: The app can record videos captured by the drone during flight. Users can then manage, download, rename, and delete these recordings through an integrated video management interface.
 
 
-## **Installation**
+## **Run Locally**
 
-Install my-project with npm
+# To run this project locally, follow these steps:
 
-```bash
-  npm install my-project
-  cd my-project
-```
-    
+1. Clone the repository
+First, you need to clone this repository to your local machine using the following command:
+
+        git clone https://github.com/mn200251/Dron.git
+        cd Dron
+
+2. Set Up Python Environment (for the server and dummy drone)
+Ensure you have Python 3.8 or higher installed. Then, set up your virtual environment.
+Next, install the required dependencies (no requirements.txt file at the momment sry)
+
+3. Create a private GitHub repository. In the GitHub repository add 2 .txt files:
+- `server_ip.txt`
+- `download_ip.txt`
+These files will store the IP addresses and ports of the server.
+You also need to create a GitHub API key in order to allow the libraries access to the private repository.
+
+4. Add Private Constants File for Python (located `Servers/DroneServer`)
+To enable communication with the private GitHub repository and server ports, you need to create a Python file named `privateServerData.py` in the root of the repository with the following content:
+
+        # private_config.py
+        GITHUB_TOKEN = 'your token'  # Replace with your GitHub token
+        REPO_NAME = 'username/repoName'  # Replace with your repository name
+        FILE_PATH = 'server_ip.txt'
+        DOWNLOAD_FILE_PATH = 'download_ip.txt'
+        BRANCH_NAME = 'main'
+
+        server_port = 6969  # Set the server port
+        download_server_port = 42069  # Set the download server port`
+
+5. Don't forget to allow traffic for `server_port` and `download_server_port` in your router and firewall. If you don't, then server can't commit his IP address, phone and drone can't connect to it.
+
+6. Add Private Constants File for Android App
+For the Android app to function correctly, you'll need to add a Kotlin file to handle the private configuration details. Create a file named `privatePhoneData.kt` in your Android project under the package `com.example.dronecontrol.private` and add the following content:
+
+        package com.example.dronecontrol.private
+
+        // Constants
+        val GITHUB_TOKEN = "your token"
+        REPO_NAME = 'username/repoName'  # Replace with your repository name
+        const val SERVER_FILE_PATH = "server_ip.txt"
+        const val DOWNLOAD_FILE_PATH = "download_ip.txt"
+        val BRANCH_NAME = "main"
+        const val INTERNAL = false // is it connecting to local IP or global IP
+
+7. Run the Server
+Once the Python environment is set up, you can start the server by running `main.py` located `Servers/DroneServer/main.py`
+
+8. Run the Dummy Drone
+To simulate the drone, run the `dummy_drone.py` script located in `Servers/DroneServer/`.
+
+9. Launch the Android App
+Open the DroneControl project in Android Studio.
+Make sure you have an Android device (or emulator) connected.
+Build and run the project by selecting Run > Run 'app'.
+
+
 ## **Tech Stack**
 
 ### **Drone**
