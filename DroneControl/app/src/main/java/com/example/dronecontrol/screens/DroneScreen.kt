@@ -70,9 +70,6 @@ fun DroneScreen(
 {
     val macroUiState by macroViewModel.uiState.collectAsState()
 
-    val width = LocalConfiguration.current.screenWidthDp.dp
-    val height = LocalConfiguration.current.screenHeightDp.dp
-
     var rightJoystickVisible by remember { mutableStateOf(false) }
     var leftJoystickVisible by remember { mutableStateOf(false) }
 
@@ -130,15 +127,11 @@ fun DroneScreen(
         ) {
             IconButton(
                 onClick = {
-//                val intent: Intent = Intent(context, ConnectionService::class.java)
-//                context.stopService(intent)
                     connectionViewModel.stopService(context)
 
                     SharedRepository.setScreen(SCREEN.MainScreen)
                 },
                 modifier = Modifier
-                    //.align(Alignment.TopStart)
-                    //.padding(start = 14.dp, top = 14.dp)
                     .size(buttonSize)
             ) {
                 Icon(
@@ -248,8 +241,6 @@ fun DroneScreen(
                         !isRecordingVideo,
                         null
                     )
-
-                // connectionViewModel.updateIsRecordingVideo(context,!isRecordingVideo)
             },
             modifier = Modifier
                 .align(Alignment.TopEnd)
@@ -259,195 +250,190 @@ fun DroneScreen(
         ) {
             Icon(
                 painter = painterResource(id = R.drawable.recording_button),
-//                    if (uiState.isRecordingVideo) R.drawable.recording_button_running
-//                    else R.drawable.recording_button),
                 contentDescription = "Recording Button Icon",
                 tint =
                     if (!isRecordingVideo) Color(0, 0, 0, 75)
                     else Color(255, 0, 0, 75),
-                // modifier = iconModifier
             )
         }
 
+        val screenWidthDp = LocalConfiguration.current.screenWidthDp.dp
+        val screenHeightDp = LocalConfiguration.current.screenHeightDp.dp
 
-        with(LocalDensity.current) {
-            val screenWidthDp = LocalConfiguration.current.screenWidthDp.dp
-            val screenHeightDp = LocalConfiguration.current.screenHeightDp.dp
-
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .size(
-                        width = joystickAreaWidth * screenWidthDp,
-                        height = joystickAreaHeight * screenHeightDp
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .size(
+                    width = joystickAreaWidth * screenWidthDp,
+                    height = joystickAreaHeight * screenHeightDp
+                )
+                .pointerInput(Unit) {
+                    detectMultitouchGestures(
+                        joystickSize = joystickSize,
+                        setVisible = { leftJoystickVisible = it },
+                        setPosition = { leftJoystickPosition = it },
+                        setDotPosition = { leftDotPosition = it },
+                        updateMovement = { x, y ->
+                            connectionViewModel.updateLeftJoystickMovement(
+                                x,
+                                y
+                            )
+                        },
+                        stopMovement = {
+                            connectionViewModel.updateLeftJoystickMovement(
+                                0f,
+                                0f
+                            )
+                        },
+                        joystickVisible = { leftJoystickVisible },
+                        joystickPosition = { leftJoystickPosition }
                     )
-                    .pointerInput(Unit) {
-                        detectMultitouchGestures(
-                            joystickSize = joystickSize,
-                            setVisible = { leftJoystickVisible = it },
-                            setPosition = { leftJoystickPosition = it },
-                            setDotPosition = { leftDotPosition = it },
-                            updateMovement = { x, y ->
-                                connectionViewModel.updateLeftJoystickMovement(
-                                    x,
-                                    y
-                                )
-                            },
-                            stopMovement = {
-                                connectionViewModel.updateLeftJoystickMovement(
-                                    0f,
-                                    0f
-                                )
-                            },
-                            joystickVisible = { leftJoystickVisible },
-                            joystickPosition = { leftJoystickPosition }
-                        )
-                    }
+                }
+        ) {
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    // Your column content here
-                }
-
-                if (leftJoystickVisible) {
-                    DynamicJoystick(
-                        modifier = Modifier
-                            .offset {
-                                IntOffset(
-                                    leftJoystickPosition.x.roundToInt() - 250,
-                                    leftJoystickPosition.y.roundToInt() - 250
-                                )
-                            } // Adjust the offset to center the joystick
-                            .size(joystickSize.dp)
-                            .padding(30.dp),
-                        size = joystickSize.dp,
-                        dotSize = (joystickSize / 6).dp,
-                        dotOffset = leftDotPosition
-                    ) { x: Float, y: Float ->
-                        Log.d("Left Joystick", "$x, $y")
-                    }
-                }
+                // Your column content here
             }
 
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .size(
-                        width = joystickAreaWidth * screenWidthDp,
-                        height = joystickAreaHeight * screenHeightDp
-                    )
-                    .pointerInput(Unit) {
-                        detectMultitouchGestures(
-                            joystickSize = joystickSize,
-                            setVisible = { rightJoystickVisible = it },
-                            setPosition = { rightJoystickPosition = it },
-                            setDotPosition = { rightDotPosition = it },
-                            updateMovement = { x, y ->
-                                connectionViewModel.updateRightJoystickMovement(
-                                    x,
-                                    y
-                                )
-                            },
-                            stopMovement = {
-                                connectionViewModel.updateRightJoystickMovement(
-                                    0f,
-                                    0f
-                                )
-                            },
-                            joystickVisible = { rightJoystickVisible },
-                            joystickPosition = { rightJoystickPosition }
-                        )
-                    }
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    // Your column content here
-                }
-
-                if (rightJoystickVisible) {
-                    DynamicJoystick(
-                        modifier = Modifier
-                            .offset {
-                                IntOffset(
-                                    rightJoystickPosition.x.roundToInt() - 250,
-                                    rightJoystickPosition.y.roundToInt() - 250
-                                )
-                            } // Adjust the offset to center the joystick
-                            .size(joystickSize.dp)
-                            .padding(30.dp),
-                        size = joystickSize.dp,
-                        dotSize = (joystickSize / 6).dp,
-                        dotOffset = rightDotPosition
-                    ) { x: Float, y: Float ->
-                        Log.d("Right Joystick", "$x, $y")
-                    }
+            if (leftJoystickVisible) {
+                DynamicJoystick(
+                    modifier = Modifier
+                        .offset {
+                            IntOffset(
+                                leftJoystickPosition.x.roundToInt() - 250,
+                                leftJoystickPosition.y.roundToInt() - 250
+                            )
+                        }
+                        .size(joystickSize.dp)
+                        .padding(30.dp),
+                    size = joystickSize.dp,
+                    dotSize = (joystickSize / 6).dp,
+                    dotOffset = leftDotPosition
+                ) { x: Float, y: Float ->
+                    Log.d("Left Joystick", "$x, $y")
                 }
             }
         }
 
-        if (showMacroDialog)
-        {
-            InputDialog(
-                onConfirm = { name ->
-
-                        connectionViewModel.updateIsRecordingMacro(
-                            context,
-                            !isRecordingMacro,
-                            name
-                        )
-
-                        showMacroDialog = false
-            },
-                onDismiss = {
-                    showMacroDialog = false
-                },
-                title = "Enter macro name")
-        }
-
-        if (showVideoDialog)
-        {
-            InputDialog(
-                onConfirm = { name ->
-
-                    connectionViewModel.updateIsRecordingVideo(
-                        context,
-                        !isRecordingVideo,
-                        name
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .size(
+                    width = joystickAreaWidth * screenWidthDp,
+                    height = joystickAreaHeight * screenHeightDp
+                )
+                .pointerInput(Unit) {
+                    detectMultitouchGestures(
+                        joystickSize = joystickSize,
+                        setVisible = { rightJoystickVisible = it },
+                        setPosition = { rightJoystickPosition = it },
+                        setDotPosition = { rightDotPosition = it },
+                        updateMovement = { x, y ->
+                            connectionViewModel.updateRightJoystickMovement(
+                                x,
+                                y
+                            )
+                        },
+                        stopMovement = {
+                            connectionViewModel.updateRightJoystickMovement(
+                                0f,
+                                0f
+                            )
+                        },
+                        joystickVisible = { rightJoystickVisible },
+                        joystickPosition = { rightJoystickPosition }
                     )
+                }
+        ) {
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+            }
 
-                    showVideoDialog = false
-                },
-                onDismiss = {
-                    showVideoDialog = false
-                },
-                title = "Enter video name")
-        }
-
-        if (showMacroSelectionDialog) {
-            MacroSelectionDialog(
-                // strings = listOf("Item 1", "Item 2", "Item 3", "item 4", "item5", "item6", "item7"),
-                macros = macroUiState.macroList,
-                isLoading = macroUiState.isLoading,
-                onConfirm = { selectedMacroName ->
-                    connectionViewModel.startMacro(context, selectedMacroName)
-
-                    val toast = Toast(context)
-                    toast.setText("Macro started!")
-                    toast.show()
-
-                    showMacroSelectionDialog = false
-                },
-                onDismiss = { showMacroSelectionDialog = false } // Close the popup
-            )
+            if (rightJoystickVisible) {
+                DynamicJoystick(
+                    modifier = Modifier
+                        .offset {
+                            IntOffset(
+                                rightJoystickPosition.x.roundToInt() - 250,
+                                rightJoystickPosition.y.roundToInt() - 250
+                            )
+                        } // Adjust the offset to center the joystick
+                        .size(joystickSize.dp)
+                        .padding(30.dp),
+                    size = joystickSize.dp,
+                    dotSize = (joystickSize / 6).dp,
+                    dotOffset = rightDotPosition
+                ) { x: Float, y: Float ->
+                    Log.d("Right Joystick", "$x, $y")
+                }
+            }
         }
     }
+
+    if (showMacroDialog)
+    {
+        InputDialog(
+            onConfirm = { name ->
+
+                connectionViewModel.updateIsRecordingMacro(
+                    context,
+                    !isRecordingMacro,
+                    name
+                )
+
+                showMacroDialog = false
+            },
+            onDismiss = {
+                showMacroDialog = false
+            },
+            title = "Enter macro name")
+    }
+
+    if (showVideoDialog)
+    {
+        InputDialog(
+            onConfirm = { name ->
+
+                connectionViewModel.updateIsRecordingVideo(
+                    context,
+                    !isRecordingVideo,
+                    name
+                )
+
+                showVideoDialog = false
+            },
+            onDismiss = {
+                showVideoDialog = false
+            },
+            title = "Enter video name")
+    }
+
+    if (showMacroSelectionDialog) {
+        MacroSelectionDialog(
+            macros = macroUiState.macroList,
+            isLoading = macroUiState.isLoading,
+            onConfirm = { selectedMacroName ->
+                connectionViewModel.startMacro(context, selectedMacroName)
+
+                val toast = Toast(context)
+                toast.setText("Macro started!")
+                toast.show()
+
+                showMacroSelectionDialog = false
+            },
+            onDismiss = { showMacroSelectionDialog = false } // Close the popup
+        )
+    }
 }
+
+
+
 
 suspend fun PointerInputScope.detectMultitouchGestures(
     joystickSize: Int,

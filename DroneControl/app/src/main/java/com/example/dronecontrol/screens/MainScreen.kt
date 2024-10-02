@@ -60,13 +60,11 @@ import kotlin.system.exitProcess
 
 @Composable
 fun AnimatedBackground() {
-    val zoomLevel = 1.1f // 15% zoom
+    val zoomLevel = 1.1f
 
-    // State for panning
     var offsetX by remember { mutableStateOf(0f) }
     var offsetY by remember { mutableStateOf(0f) }
 
-    // Animation parameters
     val maxOffsetX = 100f
     val maxOffsetY = 30f
 
@@ -110,14 +108,12 @@ fun AnimatedBackground() {
 }
 
 @RequiresApi(Build.VERSION_CODES.O)
-@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun MainScreen(connectionViewModel: ConnectionViewModel = viewModel(), context: Context, activity: MainActivity) {
     val titleFontSize: TextUnit = 46.sp
-    // val titleFont: Font =
+
     val textFontSize: TextUnit = 20.sp
 
-    val uiState by connectionViewModel.uiState.collectAsState()
     val keyboardController = LocalSoftwareKeyboardController.current
 
     val buttonModifier = Modifier
@@ -150,13 +146,6 @@ fun MainScreen(connectionViewModel: ConnectionViewModel = viewModel(), context: 
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
-//        Image(
-//            painter = painterResource(id = R.drawable.background_image3),
-//            contentDescription = "Main Screen Background Image",
-//            contentScale = ContentScale.Crop, // or ContentScale.FillBounds
-//            modifier = Modifier.fillMaxSize()
-//        )
-
         AnimatedBackground()
 
         Column(
@@ -171,13 +160,13 @@ fun MainScreen(connectionViewModel: ConnectionViewModel = viewModel(), context: 
         ) {
             Text(
                 text = "DroneControl App",
-                fontFamily = FontFamily.Default, // Use FontFamily.Default if you have no custom font
+                fontFamily = FontFamily.Default,
                 fontWeight = FontWeight.Bold,
-                fontSize = titleFontSize, // Adjust the size as needed
-                color = Color.Gray, // Primary color of the text
+                fontSize = titleFontSize,
+                color = Color.Gray,
                 style = TextStyle(
                     shadow = Shadow(
-                        color = Color.Black, // Outline color
+                        color = Color.Black,
                         offset = Offset(12f, 12f),
                         blurRadius = 16f
                     )
@@ -264,20 +253,17 @@ fun MainScreen(connectionViewModel: ConnectionViewModel = viewModel(), context: 
 
             Spacer(modifier = spaceModifier)
 
-//            if (mainScreenErrorText != "")
-//            {
-                Text(text = mainScreenErrorText,
-                    fontSize = 26.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Red,
-                    style = TextStyle(
-                        shadow = Shadow(
-                            color = Color.Black, // Outline color
-                            offset = Offset(10f, 10f),
-                            blurRadius = 14f
-                        )
-                    ))
-//            }
+            Text(text = mainScreenErrorText,
+                fontSize = 26.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.Red,
+                style = TextStyle(
+                    shadow = Shadow(
+                        color = Color.Black,
+                        offset = Offset(10f, 10f),
+                        blurRadius = 14f
+                    )
+                ))
         }
     }
 }

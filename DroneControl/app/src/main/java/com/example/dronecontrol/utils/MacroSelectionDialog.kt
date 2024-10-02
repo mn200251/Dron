@@ -64,7 +64,6 @@ fun MacroSelectionDialog(
 
 
                 if (isLoading) {
-                    // Show Loading Spinner
                     Box(
                         modifier = Modifier
                             .fillMaxSize(),
@@ -85,10 +84,8 @@ fun MacroSelectionDialog(
                 }
                 else
                 {
-                    // LazyColumn for scrolling through the list of items
                     LazyColumn(
                         modifier = Modifier.fillMaxHeight()
-                        // .fillMaxHeight(0.7f) // Set the height of the list to be scrollable
                     ) {
                         items(macros) { item ->
                             Row(

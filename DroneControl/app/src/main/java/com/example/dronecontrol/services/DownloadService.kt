@@ -70,12 +70,6 @@ class DownloadService : Service()
 
     private var serviceDownloading = false
 
-    private val WIDTH=1920  //prebaci na sta god da su dimenzije pi snimka
-    private val HEIGHT = 1080
-    private val FRAME_RATE= 30
-
-    private val byteToSend:Byte=1
-
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate() {
         super.onCreate()
@@ -87,18 +81,6 @@ class DownloadService : Service()
     @RequiresApi(Build.VERSION_CODES.O)
     fun downloadVideo(service: Service, videoName: String) {
         serviceDownloading = true
-        // Check and request storage permission if not granted
-//        if (ContextCompat.checkSelfPermission(service, Manifest.permission.WRITE_EXTERNAL_STORAGE)
-//            != PackageManager.PERMISSION_GRANTED) {
-//
-//            // Request WRITE_EXTERNAL_STORAGE permission
-//            ActivityCompat.requestPermissions(
-//                service as Activity,
-//                arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE),
-//                1
-//            )
-//            return
-//        }
 
         downloadJob = serviceScope.launch(Dispatchers.IO)
         {
@@ -109,40 +91,26 @@ class DownloadService : Service()
             )
             var addressPair: Pair<String, String>?
             if (INTERNAL) {
-                addressPair = Pair<String, String>("192.168.1.17", "42069")
+                addressPair = Pair("192.168.1.17", "42069")
             } else {
                 addressPair = getCurrentIP(GITHUB_TOKEN, REPO_NAME, DOWNLOAD_FILE_PATH, BRANCH_NAME)
             }
 
             if (addressPair == null) {
-                // SharedRepository.setMainScreenErrorText("Unable to obtain download server IP!")
                 return@launch
             }
 
-            Log.d("IP", addressPair.first + ":" + addressPair.second)
-
-            // Define the output video file
-            val outputDir = getExternalFilesDir(null)
-            val outputFile = File(outputDir, videoName)
-
-
             var auth: String = "phone"
-            // val socketAddress = InetSocketAddress(uiState.value.host, uiState.value.port.toInt())
-            val socketAddress = InetSocketAddress(addressPair.first, addressPair.second.toInt())
             var socket: Socket? = null
             var status = false
 
             delay(1000)
-            var progress = 0
-            var jsonResponse: JSONObject? = null
             var first=true
             auth = "video_download"
             while (true) {
                 delay(3000)
                 try {
                     socket = Socket()
-                    //socket.soTimeout=3000
-                    // val socketAddress = InetSocketAddress(uiState.value.host, uiState.value.port.toInt())
                     val socketAddress =
                         InetSocketAddress(addressPair.first, addressPair.second.toInt())
 
@@ -209,14 +177,11 @@ class DownloadService : Service()
                             Log.d("DownloadService", e.toString())
                         }
                     }
-                    //use the link
-                    // If status is success, get the download URL
+
                     val fileUrl = jsonResponse!!.getString("link")
 
-                    // Pass the URL to the browser to handle the download
                     openUrlInBrowser(service, fileUrl)
 
-                    // Notify user that the download has been passed to the browser
                     updateNotification(
                         notificationId,
                         channelId,
@@ -261,7 +226,6 @@ class DownloadService : Service()
 
         // Notify the NotificationManager to update the notification
         val notificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-        // notificationManager.notify(notificationId, notification)
 
         // if the notification can be swiped or not
         if (oneTime)

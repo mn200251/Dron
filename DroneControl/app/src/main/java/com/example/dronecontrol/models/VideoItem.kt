@@ -59,7 +59,6 @@ fun VideoItem(video: Video,
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.weight(1f)
             ) {
-                // Video Thumbnail
                 video.thumbnail?.let {
                     Image(
                         bitmap = it.asImageBitmap(),

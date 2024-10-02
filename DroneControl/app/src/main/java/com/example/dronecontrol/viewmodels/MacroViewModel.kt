@@ -52,7 +52,7 @@ class MacroViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel
             setIsLoading(true)
 
             var socket: Socket? = null
-            var auth: String = "macro"
+            var auth = "macro"
             var addressPair: Pair<String, String>?
             if (INTERNAL) {
                 addressPair = Pair("192.168.1.17", "6969")

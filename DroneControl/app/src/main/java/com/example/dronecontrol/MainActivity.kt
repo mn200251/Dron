@@ -120,15 +120,11 @@ class MainActivity : ComponentActivity() {
         // distinguish between activity finishing and pausing
         if (isFinishing)
         {
-            // stop connection service
-            // val intent = Intent(this, ConnectionService::class.java)
-            // stopService(intent)
             val intent = Intent(this, ConnectionService::class.java).apply {
                 this.action = "ACTION_CONNECTION_NOT_ACTIVE"
             }
 
             this.stopService(intent)
-            // this.startService(intent)
 
             // cancel all notifications when exiting app
             // connectionService notifications already cancelled when stopping service

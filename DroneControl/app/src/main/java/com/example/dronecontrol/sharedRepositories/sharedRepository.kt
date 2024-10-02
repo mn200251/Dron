@@ -36,12 +36,10 @@ object SharedRepository {
         // oldFrame?.recycle()
     }
 
-    // Thread-safe setter for mainScreenErrorText
     fun setMainScreenErrorText(errorText: String) {
         _mainScreenErrorText.postValue(errorText)
     }
 
-    // Thread-safe setter for screenNumber
     fun setScreen(newScreenNumber: SCREEN) {
         _screenNumber.postValue(newScreenNumber)
     }
@@ -66,7 +64,6 @@ object SharedRepository {
         _isRecordingVideo.postValue(newValue)
     }
 
-    // Thread-safe getters (in case you need them outside LiveData observation)
     fun getFrame(): Bitmap? = _frame.value
 
     fun getMainScreenErrorText(): String = _mainScreenErrorText.value ?: ""

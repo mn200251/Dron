@@ -51,18 +51,14 @@ fun VideoListScreen(viewModel: VideoViewModel ) {
     val videoState by viewModel.videoState.collectAsState()
     val context = LocalContext.current
 
-    val buttonSize = 60.dp
-
     LaunchedEffect(Unit) {
         viewModel.fetchVideos()
-
-        // viewModel.setRefresh(false)
     }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black) // Set black background
+            .background(Color.Black)
             .padding(16.dp)
     ) {
         // Exit Button
@@ -76,7 +72,6 @@ fun VideoListScreen(viewModel: VideoViewModel ) {
         }
 
         if (videoState.isLoading) {
-            // Show Loading Spinner
             Box(
                 modifier = Modifier
                     .fillMaxSize(),
@@ -97,23 +92,22 @@ fun VideoListScreen(viewModel: VideoViewModel ) {
         }
         else
         {
-            // List of Videos in LazyColumn
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 items(videoState.videos) { video ->
-                    VideoItem(video = video, onDownloadConfirm = { selectedVideo ->
-                        // Trigger download action
-                        val intent = Intent(context, DownloadService::class.java).apply {
-                            action = "ACTION_APP_FOREGROUND"
-                            putExtra("videoName", selectedVideo.filename)
-                        }
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            context.startForegroundService(intent)
-                        } else {
-                            context.startService(intent)
-                        }
+                    VideoItem(video = video,
+                        onDownloadConfirm = { selectedVideo ->
+                            val intent = Intent(context, DownloadService::class.java).apply {
+                                action = "ACTION_APP_FOREGROUND"
+                                putExtra("videoName", selectedVideo.filename)
+                            }
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                context.startForegroundService(intent)
+                            } else {
+                                context.startService(intent)
+                            }
                     },
                         onDeleteConfirm = { deletedVideo ->
                             viewModel.deleteVideo(deletedVideo.filename)

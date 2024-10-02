@@ -22,11 +22,6 @@ import kotlinx.serialization.Serializable
 
 @Parcelize
 data class ConnectionState(
-    // var host: String = "",
-    // var port: String = "",
-    // var mainScreenErrorText: String = "",
-    // var screenNumber: SCREEN = SCREEN.MainScreen,
-
     var joystickX: Float = 0f,
     var joystickY: Float = 0f,
     var joystickZ: Float = 0f,
@@ -34,14 +29,7 @@ data class ConnectionState(
 
     var isSendingMovement: Boolean = false,
 
-    // var isRecordingVideo: Boolean = false,
-    // var connectionActive: Boolean = false,
-
-    // var frame: Bitmap? = null,
-
     var monitorMovementBoolean: Boolean = false,
-
-    // @RawValue var socket: Socket? = null
 ) : Parcelable
 
 const val UI_STATE_KEY = "uiState"
@@ -51,10 +39,6 @@ enum class SCREEN{
     DroneScreen,
     VideoListScreen
 }
-
-@Serializable
-data class Coordinates(val x: Float, val y: Float, val z: Float, val rotation: Float)
-
 
 @Parcelize
 @Serializable
@@ -84,8 +68,6 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
             monitorControls(context)
         }
 
-        // this.updateScreenNumber(SCREEN.DroneScreen)
-
         Log.d("ViewModel", "Zavrsio u startService")
     }
 
@@ -108,10 +90,8 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
 
     fun updateIsRecordingVideo(context:Context, newValue: Boolean, videoName: String?)
     {
-        // Send the appropriate action to the service
         val action = if (newValue) InstructionType.START_RECORDING_VIDEO.value.toString()
             else InstructionType.STOP_RECORDING_VIDEO.value.toString()
-        // startService(context, action)
 
         val intent = Intent(context, ConnectionService::class.java).apply {
             this.action = action
@@ -133,10 +113,6 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
         }
 
         context.startService(intent)
-
-        // stop recording flight if kill switch activated
-//        if (!newValue)
-//            updateIsRecordingMacro(context, false)
     }
 
     fun updateIsPidOn(context: Context, newValue: Boolean)
@@ -153,8 +129,6 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
 
     fun updateIsRecordingMacro(context: Context, newValue: Boolean, macroName: String? = null)
     {
-        // SharedRepository.setRecordingFlight(newValue)
-
         val action = if (newValue) InstructionType.START_RECORDING_MACRO.value.toString()
             else InstructionType.STOP_RECORDING_MACRO.value.toString()
 
@@ -193,21 +167,11 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
         }
     }
 
-    // Updating the shared data through the repository
-    fun updateFrame(newFrame: Bitmap?) {
-        SharedRepository.setFrame(newFrame)
-    }
-
-    fun updateMainScreenErrorText(errorText: String) {
-        SharedRepository.setMainScreenErrorText(errorText)
-    }
-
     fun updateScreenNumber(newScreenNumber: SCREEN) {
         SharedRepository.setScreen(newScreenNumber)
     }
 
-
-    // x and y are normalized to 0-1
+    // x and y are normalized to between -1 and 1
     fun updateRightJoystickMovement(x: Float, y: Float)
     {
         savedStateHandle[UI_STATE_KEY] = _uiState2.value.copy(
@@ -259,25 +223,6 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
         }
     }
 
-    private fun resetControls()
-    {
-        savedStateHandle[UI_STATE_KEY] = _uiState2.value.copy(
-            joystickX = 0f,
-            joystickY = 0f,
-            joystickZ = 0f,
-            joystickRotation = 0f,
-        )
-        _uiState1.update { currentConnectionUiState ->
-            currentConnectionUiState.copy(
-                joystickX = 0f,
-                joystickY = 0f,
-                joystickZ = 0f,
-                joystickRotation = 0f,
-            )
-        }
-    }
-
-
     private fun sendControls2Service(context: Context, action: String)
     {
         val controls = Controls(uiState.value.joystickX, uiState.value.joystickY,
@@ -290,9 +235,6 @@ class ConnectionViewModel(private val savedStateHandle: SavedStateHandle) : View
         context.startService(intent)
     }
 
-    // ako se ugasi konekcija i startuje nova STVORICE MEMORY LEAK!\
-    // ne moze Job da se cuva u data class
-    // ah
     suspend fun monitorControls(context: Context)
     {
         while (uiState.value.monitorMovementBoolean)

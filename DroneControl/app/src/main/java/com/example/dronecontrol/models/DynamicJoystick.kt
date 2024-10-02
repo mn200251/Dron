@@ -21,6 +21,12 @@ import com.example.dronecontrol.R
 import kotlin.math.*
 
 
+/**
+ * @param[backgroundImage] outer joystick image
+ * @param[dotImage] inner joystick image
+ *
+ *@author mn200251
+ */
 @Composable
 fun DynamicJoystick(
     modifier: Modifier = Modifier,
@@ -31,7 +37,7 @@ fun DynamicJoystick(
     backgroundAlpha: Float = 0.4f, // Alpha value between 0.0 and 1.0
     dotAlpha: Float = 0.25f, // Alpha value between 0.0 and 1.0
     dotOffset: Offset = Offset(0f, 0f),
-    moved: (x: Float, y: Float) -> Unit = { _, _ -> }
+    moved: (x: Float, y: Float) -> Unit = { _, _ -> } // not used anywmore
 ) {
     val backgroundPainter: Painter = painterResource(id = backgroundImage)
     val dotPainter: Painter = painterResource(id = dotImage)

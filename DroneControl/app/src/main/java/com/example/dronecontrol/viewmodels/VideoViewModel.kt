@@ -66,10 +66,9 @@ class VideoViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel
                 delay(wait)
 
             var socket: Socket? = null
-            var auth: String = "phone"
             var addressPair: Pair<String, String>?
             if (INTERNAL) {
-                addressPair = Pair<String, String>("192.168.1.17", "42069")
+                addressPair = Pair("192.168.1.17", "42069")
             } else {
                 addressPair = getCurrentIP(GITHUB_TOKEN, REPO_NAME, DOWNLOAD_FILE_PATH, BRANCH_NAME)
             }
@@ -83,7 +82,7 @@ class VideoViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel
 
             val videos = mutableListOf<Video>()
             var cnt = -1
-            auth = "video_listing"
+            var auth = "video_listing"
             while (cnt < numberOfVideos) {
                 try {
                     socket = Socket()
@@ -94,11 +93,10 @@ class VideoViewModel(private val savedStateHandle: SavedStateHandle) : ViewModel
                     // Re-authenticate for the new connection
                     videoOutputStream.write(auth.toByteArray(Charsets.UTF_8))
                     videoOutputStream.flush()
-                    val videoResponse =BufferedReader(InputStreamReader(videoInputStream)).readLine()
+                    val videoResponse = BufferedReader(InputStreamReader(videoInputStream)).readLine()
 
-                    //if first contact get the length of the list
-                    if(cnt==-1){
-                        //Send a request to get videos
+                    if(cnt == -1){
+
                         val request = JSONObject().apply {
                             put("type", InstructionType.GET_VIDEOS.value)
                         }

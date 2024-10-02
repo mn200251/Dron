@@ -376,8 +376,6 @@ class ConnectionService : Service() {
 
         Log.d("IP", addressPair.first + ":" + addressPair.second)
 
-
-        // val socketAddress = InetSocketAddress(uiState.value.host, uiState.value.port.toInt())
         val socketAddress = InetSocketAddress(addressPair.first, addressPair.second.toInt())
 
         while (connectionActive && socket == null)
@@ -457,6 +455,7 @@ class ConnectionService : Service() {
             inPreferredConfig = Bitmap.Config.RGB_565 // Lower memory usage than ARGB_8888
         }
 
+        // possibly creating new Bitmap for every frame and causing lag (and video crash?)
         while (connectionActive)
         {
             try {
@@ -537,52 +536,16 @@ class ConnectionService : Service() {
         sendJsonInstruction(InstructionType.HEARTBEAT.value)
     }
 
-    /*
-    // Start recording method
-    private fun startInstructionRecording() {
-        if (connectionActive && !SharedRepository.getRecordingMacro()) {
-            SharedRepository.setRecordingMacro(true)
-
-            sendJsonInstruction(InstructionType.RECORD_INST_START.value)
-            Log.d("ConnectionService", "startInstructionRecording success")
-        }
-        else
-        {
-            Log.d("ConnectionService", "startInstructionRecording else branch conn = " + connectionActive.toString() +
-                    ", recording flight = " + SharedRepository.getRecordingMacro().toString())
-        }
-    }
-
-    // Stop recording method
-    private fun stopInstructionRecording() {
-        if (connectionActive && SharedRepository.getRecordingMacro()) {
-            SharedRepository.setRecordingMacro(false)
-
-            sendJsonInstruction(InstructionType.RECORD_INST_STOP.value)
-            Log.d("ConnectionService", "stopInstructionRecording success")
-        }
-        else
-        {
-            Log.d("ConnectionService", "stopInstructionRecording else branch conn = " + connectionActive.toString() +
-                    ", recording flight = " + SharedRepository.getRecordingMacro().toString())
-        }
-    }
-    */
-
-
     private fun startRecordingVideo(videoName: String) {
         if (connectionActive) {
             serviceScope.launch {
                 try {
                     val outputStream: OutputStream = socket!!.getOutputStream()
 
-                    // Create an instance of Instruction with the given type and extras
                     val instruction = StartFlight(InstructionType.START_RECORDING_VIDEO.value, videoName)
 
-                    // Serialize the instruction to JSON string
                     val jsonString = Json.encodeToString(instruction)
 
-                    // Send the JSON string over the socket
                     outputStream.write(jsonString.toByteArray(Charsets.UTF_8))
                     outputStream.flush()
 
@@ -602,13 +565,10 @@ class ConnectionService : Service() {
                 try {
                     val outputStream: OutputStream = socket!!.getOutputStream()
 
-                    // Create an instance of Instruction with the given type and extras
                     val instruction = StartFlight(InstructionType.START_MACRO.value, macroName)
 
-                    // Serialize the instruction to JSON string
                     val jsonString = Json.encodeToString(instruction)
 
-                    // Send the JSON string over the socket
                     outputStream.write(jsonString.toByteArray(Charsets.UTF_8))
                     outputStream.flush()
 
@@ -620,7 +580,6 @@ class ConnectionService : Service() {
         }
     }
 
-    // Stop recording method
     private fun stopRecordingVideo() {
         if (connectionActive) {
             SharedRepository.setRecordingVideo(false)
@@ -675,13 +634,10 @@ class ConnectionService : Service() {
                 try {
                     val outputStream: OutputStream = socket!!.getOutputStream()
 
-                    // Create an instance of Instruction with the given type and extras
                     val instruction = StartFlight(InstructionType.START_RECORDING_MACRO.value, macroName)
 
-                    // Serialize the instruction to JSON string
                     val jsonString = Json.encodeToString(instruction)
 
-                    // Send the JSON string over the socket
                     outputStream.write(jsonString.toByteArray(Charsets.UTF_8))
                     outputStream.flush()
 
@@ -694,8 +650,6 @@ class ConnectionService : Service() {
                     Log.e("ConnectionService", "Error sending JSON instruction: ${e.message}")
                 }
             }
-
-            // sendJsonInstruction(InstructionType.START_FLIGHT.value)
         }
     }
 
@@ -715,7 +669,6 @@ class ConnectionService : Service() {
                 val jsonString = Json.encodeToString(mapOf("type" to type))
                 outputStream.write(jsonString.toByteArray(Charsets.UTF_8))
                 outputStream.flush()
-                //Log.e("ConnectionService", "Recording switch")
             } catch (e: Exception) {
                 Log.e("ConnectionService", "Error sending JSON instruction: ${e}")
             }
@@ -723,7 +676,6 @@ class ConnectionService : Service() {
     }
 
     private fun sendControls(outputStream: OutputStream) {
-        // Step 2: Serialize the data class instance to a JSON string
         val jsonString = Json.encodeToString(controls)
 
         outputStream.write(jsonString.toByteArray(Charsets.UTF_8))
@@ -781,7 +733,6 @@ class ConnectionService : Service() {
                 outputStream = socket!!.getOutputStream()
             }
             finally {
-                // outputStream.close()
             }
         }
 
