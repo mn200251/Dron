@@ -34,8 +34,8 @@ Ensure you have Python 3.8 or higher installed. Then, set up your virtual enviro
 Next, install the required dependencies (no requirements.txt file at the momment sry)
 
 3. Create a private GitHub repository. In the GitHub repository add 2 .txt files:
-- `server_ip.txt`
-- `download_ip.txt`
+        - `server_ip.txt`
+        - `download_ip.txt`
 These files will store the IP addresses and ports of the server.
 You also need to create a GitHub API key in order to allow the libraries access to the private repository.
 
