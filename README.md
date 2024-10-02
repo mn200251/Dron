@@ -35,7 +35,7 @@ Next, install the required dependencies (no requirements.txt file at the momment
 
 3. Create a private GitHub repository. In the GitHub repository add 2 .txt files:
   - `server_ip.txt`
-  - `download_ip.txt`
+  - `download_ip.txt`\
 These files will store the IP addresses and ports of the server.
 You also need to create a GitHub API key in order to allow the libraries access to the private repository.
 
