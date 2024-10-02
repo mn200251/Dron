@@ -21,7 +21,7 @@ The project brings a host of advanced features that are designed to provide user
 
 ## **Run Locally**
 
-# To run this project locally, follow these steps:
+### To run this project locally, follow these steps:
 
 1. Clone the repository
 First, you need to clone this repository to your local machine using the following command:
